@@ -8,8 +8,22 @@ import GalleryItem from './GalleryItem';
 import { recognizeAnimal } from '@/services/imageRecognition';
 import { toast } from '@/components/ui/use-toast';
 
+// Tipo para os animais identificados
+type Animal = {
+  name: string;
+  confidence: number;
+  description?: string;
+};
+
+// Tipo para os items da galeria
+type GalleryItemType = {
+  url: string;
+  analyzed: boolean;
+  animals: Animal[];
+};
+
 // Imagens de exemplo para demonstração
-const sampleImages = [
+const sampleImages: GalleryItemType[] = [
   {
     url: 'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=500',
     analyzed: true,
@@ -36,9 +50,9 @@ const sampleImages = [
 export default function Gallery() {
   const [activeTab, setActiveTab] = useState('upload');
   const [currentImage, setCurrentImage] = useState<{url: string, file?: File} | null>(null);
-  const [uploadedAnimals, setUploadedAnimals] = useState<{name: string, confidence: number, description?: string}[]>([]);
+  const [uploadedAnimals, setUploadedAnimals] = useState<Animal[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [galleryItems, setGalleryItems] = useState(sampleImages);
+  const [galleryItems, setGalleryItems] = useState<GalleryItemType[]>(sampleImages);
   
   const handleImageUpload = (imageUrl: string, file: File) => {
     setCurrentImage({ url: imageUrl, file });
@@ -62,7 +76,7 @@ export default function Gallery() {
       setUploadedAnimals(results);
       
       // Adicionar à galeria após análise bem-sucedida
-      const newItem = {
+      const newItem: GalleryItemType = {
         url: currentImage.url,
         analyzed: true,
         animals: results,

@@ -49,7 +49,13 @@ const detectWildPig = (imageUrl: string): boolean => {
   // Em um ambiente real, isso seria feito por um modelo de ML
   // Aqui estamos simulando com base em palavras na URL
   const pigKeywords = ['javali', 'pig', 'wild', 'boar', 'suino', 'porco'];
-  return pigKeywords.some(keyword => imageUrl.toLowerCase().includes(keyword));
+  
+  // Verificar se é uma das imagens de treinamento
+  const isTrainingImage = Object.values(trainingImages).some(
+    trainingUrl => imageUrl.includes(trainingUrl)
+  );
+  
+  return isTrainingImage || pigKeywords.some(keyword => imageUrl.toLowerCase().includes(keyword));
 };
 
 // Função para analisar a imagem e retornar resultados simulados
@@ -59,15 +65,24 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
   // Simulação de processamento
   await delay(Math.random() * 2000 + 1000); // Espera entre 1-3 segundos
   
-  // Lógica para determinar categoria baseada em URL/nome da imagem
-  let category = 'farm';
+  // Para blob URLs (imagens carregadas pelo usuário), precisamos aleatorizar os resultados
+  // em vez de depender apenas do nome do arquivo
+  if (imageUrl.startsWith('blob:')) {
+    // Identificar se é uma imagem de javali baseado nas imagens de treinamento
+    if (detectWildPig(imageUrl)) {
+      return animalDatabase['wild_pigs'];
+    }
+    
+    // Para outras imagens carregadas pelo usuário, vamos escolher uma categoria aleatória 
+    // para simular a variação de resultados
+    const categories = ['farm', 'forest', 'pets'];
+    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+    return animalDatabase[randomCategory];
+  } 
   
-  // Verificar se é uma das imagens de treinamento de javali
-  const isTrainingImage = Object.values(trainingImages).some(
-    trainingUrl => imageUrl.includes(trainingUrl)
-  );
-  
-  if (isTrainingImage || detectWildPig(imageUrl)) {
+  // Para URLs não-blob, usamos a lógica existente baseada no nome do arquivo
+  let category = 'farm';  
+  if (detectWildPig(imageUrl)) {
     category = 'wild_pigs';
     console.log('Javali detectado na imagem!');
   } else if (imageUrl.includes('forest') || imageUrl.includes('wild')) {
@@ -76,7 +91,6 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
     category = 'pets';
   }
   
-  // Retorna resultados simulados baseados na categoria
   return animalDatabase[category];
 }
 
