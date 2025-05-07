@@ -24,11 +24,33 @@ const animalDatabase: Record<string, Animal[]> = {
     { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.' },
     { name: 'Gato', confidence: 0.98, description: 'Felino doméstico popular como animal de estimação.' },
     { name: 'Coelho', confidence: 0.91, description: 'Pequeno mamífero da família dos leporídeos.' }
+  ],
+  'wild_pigs': [
+    { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' },
+    { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' },
+    { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' },
+    { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.' }
   ]
+};
+
+// Imagens de treinamento (referências às imagens enviadas)
+const trainingImages = {
+  javali_adulto: '/lovable-uploads/ce96c99c-0586-4460-a3af-af02d84fbf45.png',
+  javali_filhote: '/lovable-uploads/fff1fa46-90d0-4f73-a04f-065ad14447f5.png',
+  javali_cerca: '/lovable-uploads/20897a2e-76e4-4906-92b0-a798999f5c45.png',
+  javali_grupo: '/lovable-uploads/c26c1704-463e-4f86-a15c-56901b7ed7ea.png'
 };
 
 // Função auxiliar para gerar um atraso aleatório simulando processamento
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Função para detectar se a imagem contém javalis com base no conteúdo da URL
+const detectWildPig = (imageUrl: string): boolean => {
+  // Em um ambiente real, isso seria feito por um modelo de ML
+  // Aqui estamos simulando com base em palavras na URL
+  const pigKeywords = ['javali', 'pig', 'wild', 'boar', 'suino', 'porco'];
+  return pigKeywords.some(keyword => imageUrl.toLowerCase().includes(keyword));
+};
 
 // Função para analisar a imagem e retornar resultados simulados
 export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
@@ -37,9 +59,18 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
   // Simulação de processamento
   await delay(Math.random() * 2000 + 1000); // Espera entre 1-3 segundos
   
-  // Lógica simplificada para determinar categoria baseada em URL/nome da imagem
+  // Lógica para determinar categoria baseada em URL/nome da imagem
   let category = 'farm';
-  if (imageUrl.includes('forest') || imageUrl.includes('wild')) {
+  
+  // Verificar se é uma das imagens de treinamento de javali
+  const isTrainingImage = Object.values(trainingImages).some(
+    trainingUrl => imageUrl.includes(trainingUrl)
+  );
+  
+  if (isTrainingImage || detectWildPig(imageUrl)) {
+    category = 'wild_pigs';
+    console.log('Javali detectado na imagem!');
+  } else if (imageUrl.includes('forest') || imageUrl.includes('wild')) {
     category = 'forest';
   } else if (imageUrl.includes('pet') || imageUrl.includes('dog') || imageUrl.includes('cat')) {
     category = 'pets';
