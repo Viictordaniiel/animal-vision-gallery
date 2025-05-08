@@ -25,24 +25,24 @@ type GalleryItemType = {
 // Imagens de exemplo para demonstração
 const sampleImages: GalleryItemType[] = [
   {
-    url: 'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=500',
+    url: '/lovable-uploads/ce96c99c-0586-4460-a3af-af02d84fbf45.png',
     analyzed: true,
     animals: [
-      { name: 'Veado', confidence: 0.94, description: 'Mamífero ruminante da família dos cervídeos.' },
+      { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' },
     ],
   },
   {
-    url: 'https://images.unsplash.com/photo-1493962853295-0fd70327578a?auto=format&fit=crop&w=500',
+    url: '/lovable-uploads/fff1fa46-90d0-4f73-a04f-065ad14447f5.png',
     analyzed: true,
     animals: [
-      { name: 'Boi', confidence: 0.98, description: 'Bovino doméstico de grande porte.' },
+      { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' },
     ],
   },
   {
-    url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?auto=format&fit=crop&w=500',
+    url: '/lovable-uploads/c26c1704-463e-4f86-a15c-56901b7ed7ea.png',
     analyzed: true,
     animals: [
-      { name: 'Gato', confidence: 0.95, description: 'Felino doméstico comum como animal de estimação.' },
+      { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' },
     ],
   }
 ];
@@ -72,7 +72,12 @@ export default function Gallery() {
     setIsAnalyzing(true);
     
     try {
-      const results = await recognizeAnimal(currentImage.url);
+      // Adicionar timestamp para evitar cache do navegador
+      const imageUrlWithTimestamp = currentImage.url.includes('?') 
+        ? `${currentImage.url}&t=${Date.now()}` 
+        : `${currentImage.url}?t=${Date.now()}`;
+      
+      const results = await recognizeAnimal(imageUrlWithTimestamp);
       setUploadedAnimals(results);
       
       // Adicionar à galeria após análise bem-sucedida
@@ -82,7 +87,15 @@ export default function Gallery() {
         animals: results,
       };
       
-      setGalleryItems(prev => [newItem, ...prev]);
+      // Verificar se a imagem já existe na galeria e substituí-la
+      const exists = galleryItems.findIndex(item => item.url === currentImage.url);
+      if (exists >= 0) {
+        const updatedItems = [...galleryItems];
+        updatedItems[exists] = newItem;
+        setGalleryItems(updatedItems);
+      } else {
+        setGalleryItems(prev => [newItem, ...prev]);
+      }
       
       toast({
         title: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}!`,
