@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle } from 'lucide-react';
 
 type Animal = {
   name: string;
@@ -31,6 +31,14 @@ export default function GalleryItem({
   const formatConfidence = (confidence: number) => {
     return `${Math.round(confidence * 100)}%`;
   };
+
+  // Verificar se todos os animais são javalis ou porcos selvagens
+  const isWildPig = animals.length > 0 && animals.every(animal => 
+    animal.name.toLowerCase().includes('javali') || 
+    animal.name.toLowerCase().includes('porco') ||
+    animal.name.toLowerCase().includes('cateto') ||
+    animal.name.toLowerCase().includes('queixada')
+  );
   
   return (
     <Card className="overflow-hidden w-full max-w-md">
@@ -42,7 +50,7 @@ export default function GalleryItem({
             className="w-full h-64 object-cover"
             onError={(e) => {
               // Fallback para imagem de erro
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1501286353178-1ec881214838?auto=format&fit=crop&w=500';
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
             }}
           />
           
@@ -53,6 +61,16 @@ export default function GalleryItem({
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white mx-auto mb-2"></div>
                 <p>Analisando imagem...</p>
               </div>
+            </div>
+          )}
+          
+          {/* Alerta para javalis/porcos selvagens */}
+          {isWildPig && animals.length > 0 && !isAnalyzing && (
+            <div className="absolute top-2 right-2">
+              <Badge variant="destructive" className="flex items-center gap-1 px-2 py-1">
+                <AlertTriangle size={14} />
+                <span>Espécie Invasora</span>
+              </Badge>
             </div>
           )}
         </div>
@@ -88,33 +106,49 @@ export default function GalleryItem({
               </div>
               
               <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                {animals.map((animal, index) => (
-                  <Badge 
-                    key={index} 
-                    variant="outline"
-                    className="bg-agrotech-blue/10 border-agrotech-blue text-agrotech-blue px-2 py-1"
-                  >
-                    {animal.name} - {formatConfidence(animal.confidence)}
-                  </Badge>
-                ))}
+                {animals.map((animal, index) => {
+                  const isWildPigItem = animal.name.toLowerCase().includes('javali') || 
+                                       animal.name.toLowerCase().includes('porco') ||
+                                       animal.name.toLowerCase().includes('cateto') ||
+                                       animal.name.toLowerCase().includes('queixada');
+                  
+                  return (
+                    <Badge 
+                      key={index} 
+                      variant={isWildPigItem ? "destructive" : "outline"}
+                      className={isWildPigItem 
+                        ? "bg-red-100 border-red-600 text-red-800 px-2 py-1" 
+                        : "bg-agrotech-blue/10 border-agrotech-blue text-agrotech-blue px-2 py-1"}
+                    >
+                      {animal.name} - {formatConfidence(animal.confidence)}
+                    </Badge>
+                  );
+                })}
               </div>
               
               {showDetails && (
                 <div className="mt-3 border-t pt-3">
                   <h4 className="font-medium text-sm mb-2">Detalhes</h4>
-                  {animals.map((animal, index) => (
-                    <div key={index} className="mb-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{animal.name}</span>
-                        <Badge variant="outline">
-                          {formatConfidence(animal.confidence)}
-                        </Badge>
+                  {animals.map((animal, index) => {
+                    const isWildPigItem = animal.name.toLowerCase().includes('javali') || 
+                                         animal.name.toLowerCase().includes('porco') ||
+                                         animal.name.toLowerCase().includes('cateto') ||
+                                         animal.name.toLowerCase().includes('queixada');
+                    
+                    return (
+                      <div key={index} className="mb-3">
+                        <div className="flex justify-between items-center">
+                          <span className={`font-medium ${isWildPigItem ? 'text-red-800' : ''}`}>{animal.name}</span>
+                          <Badge variant={isWildPigItem ? "destructive" : "outline"}>
+                            {formatConfidence(animal.confidence)}
+                          </Badge>
+                        </div>
+                        {animal.description && (
+                          <p className="text-sm mt-1 text-gray-600">{animal.description}</p>
+                        )}
                       </div>
-                      {animal.description && (
-                        <p className="text-sm mt-1 text-gray-600">{animal.description}</p>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
