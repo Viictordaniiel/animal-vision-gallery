@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, Upload, Image as ImageIcon } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, RotateCw } from 'lucide-react';
 import ImageUploader from './ImageUploader';
 import GalleryItem from './GalleryItem';
 import { recognizeAnimal } from '@/services/imageRecognition';
@@ -20,6 +20,7 @@ type GalleryItemType = {
   url: string;
   analyzed: boolean;
   animals: Animal[];
+  timestamp?: number;
 };
 
 // Imagens de exemplo para demonstração
@@ -30,6 +31,7 @@ const sampleImages: GalleryItemType[] = [
     animals: [
       { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' },
     ],
+    timestamp: Date.now()
   },
   {
     url: '/lovable-uploads/fff1fa46-90d0-4f73-a04f-065ad14447f5.png',
@@ -37,6 +39,7 @@ const sampleImages: GalleryItemType[] = [
     animals: [
       { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' },
     ],
+    timestamp: Date.now()
   },
   {
     url: '/lovable-uploads/c26c1704-463e-4f86-a15c-56901b7ed7ea.png',
@@ -44,6 +47,7 @@ const sampleImages: GalleryItemType[] = [
     animals: [
       { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' },
     ],
+    timestamp: Date.now()
   }
 ];
 
@@ -52,7 +56,36 @@ export default function Gallery() {
   const [currentImage, setCurrentImage] = useState<{url: string, file?: File} | null>(null);
   const [uploadedAnimals, setUploadedAnimals] = useState<Animal[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [galleryItems, setGalleryItems] = useState<GalleryItemType[]>(sampleImages);
+  const [galleryItems, setGalleryItems] = useState<GalleryItemType[]>([]);
+  
+  // Carregar e persistir imagens da galeria
+  useEffect(() => {
+    // Tentar carregar imagens salvas no localStorage
+    try {
+      const savedItems = localStorage.getItem('galleryItems');
+      if (savedItems) {
+        const parsedItems = JSON.parse(savedItems);
+        setGalleryItems(parsedItems);
+      } else {
+        // Inicializar com as imagens de exemplo se não houver salvas
+        setGalleryItems(sampleImages);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar imagens salvas:', error);
+      setGalleryItems(sampleImages);
+    }
+  }, []);
+
+  // Persistir mudanças na galeria
+  useEffect(() => {
+    if (galleryItems.length > 0) {
+      try {
+        localStorage.setItem('galleryItems', JSON.stringify(galleryItems));
+      } catch (error) {
+        console.error('Erro ao salvar imagens:', error);
+      }
+    }
+  }, [galleryItems]);
   
   const handleImageUpload = (imageUrl: string, file: File) => {
     setCurrentImage({ url: imageUrl, file });
@@ -72,10 +105,11 @@ export default function Gallery() {
     setIsAnalyzing(true);
     
     try {
-      // Adicionar timestamp para evitar cache do navegador
+      // Adicionar timestamp para evitar cache do navegador e garantir unicidade
+      const timestamp = Date.now();
       const imageUrlWithTimestamp = currentImage.url.includes('?') 
-        ? `${currentImage.url}&t=${Date.now()}` 
-        : `${currentImage.url}?t=${Date.now()}`;
+        ? `${currentImage.url}&t=${timestamp}` 
+        : `${currentImage.url}?t=${timestamp}`;
       
       const results = await recognizeAnimal(imageUrlWithTimestamp);
       setUploadedAnimals(results);
@@ -85,6 +119,7 @@ export default function Gallery() {
         url: currentImage.url,
         analyzed: true,
         animals: results,
+        timestamp: timestamp
       };
       
       // Verificar se a imagem já existe na galeria e substituí-la
@@ -111,6 +146,56 @@ export default function Gallery() {
       });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Função para reanalisar uma imagem da galeria
+  const reanalyzeGalleryImage = async (index: number) => {
+    const item = galleryItems[index];
+    if (!item) return;
+    
+    // Criar uma cópia atualizada do item
+    const updatedItems = [...galleryItems];
+    updatedItems[index] = { ...item, analyzed: false };
+    setGalleryItems(updatedItems);
+    
+    try {
+      // Adicionar timestamp para evitar cache do navegador
+      const timestamp = Date.now();
+      const imageUrlWithTimestamp = item.url.includes('?') 
+        ? `${item.url}&t=${timestamp}` 
+        : `${item.url}?t=${timestamp}`;
+      
+      const results = await recognizeAnimal(imageUrlWithTimestamp);
+      
+      // Atualizar o item na galeria com os novos resultados
+      const updatedItem: GalleryItemType = {
+        ...item,
+        analyzed: true,
+        animals: results,
+        timestamp: timestamp
+      };
+      
+      updatedItems[index] = updatedItem;
+      setGalleryItems(updatedItems);
+      
+      toast({
+        title: "Reanálise concluída",
+        description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}`
+      });
+      
+    } catch (error) {
+      console.error('Erro ao reanalisar imagem:', error);
+      
+      // Restaurar o estado anterior em caso de falha
+      updatedItems[index] = { ...item, analyzed: true };
+      setGalleryItems(updatedItems);
+      
+      toast({
+        variant: "destructive",
+        title: "Erro na reanálise",
+        description: "Não foi possível processar o reconhecimento."
+      });
     }
   };
 
@@ -177,11 +262,12 @@ export default function Gallery() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {galleryItems.map((item, index) => (
               <GalleryItem
-                key={index}
+                key={`${item.url}-${item.timestamp || index}`}
                 imageUrl={item.url}
                 animals={item.animals}
-                onAnalyze={() => {}}
-                isAnalyzing={false}
+                onAnalyze={() => reanalyzeGalleryImage(index)}
+                isAnalyzing={!item.analyzed}
+                showReanalyze={item.analyzed}
               />
             ))}
             

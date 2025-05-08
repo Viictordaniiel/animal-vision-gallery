@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw } from 'lucide-react';
 
 type Animal = {
   name: string;
@@ -16,9 +16,16 @@ type GalleryItemProps = {
   animals: Animal[];
   onAnalyze: () => void;
   isAnalyzing: boolean;
+  showReanalyze?: boolean;
 };
 
-export default function GalleryItem({ imageUrl, animals, onAnalyze, isAnalyzing }: GalleryItemProps) {
+export default function GalleryItem({ 
+  imageUrl, 
+  animals, 
+  onAnalyze, 
+  isAnalyzing,
+  showReanalyze = false
+}: GalleryItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   
   const formatConfidence = (confidence: number) => {
@@ -60,12 +67,24 @@ export default function GalleryItem({ imageUrl, animals, onAnalyze, isAnalyzing 
                     {animals.length} {animals.length === 1 ? 'animal' : 'animais'} identificado{animals.length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <button 
-                  className="text-gray-500 hover:text-gray-700"
-                  onClick={() => setShowDetails(!showDetails)}
-                >
-                  {showDetails ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
+                <div className="flex items-center space-x-2">
+                  {showReanalyze && (
+                    <button
+                      className="text-gray-500 hover:text-gray-700 p-1"
+                      onClick={onAnalyze}
+                      title="Reanalisar imagem"
+                    >
+                      <RotateCw size={18} />
+                    </button>
+                  )}
+                  <button 
+                    className="text-gray-500 hover:text-gray-700 p-1"
+                    onClick={() => setShowDetails(!showDetails)}
+                    title={showDetails ? "Esconder detalhes" : "Mostrar detalhes"}
+                  >
+                    {showDetails ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+                </div>
               </div>
               
               <div className="flex flex-wrap gap-2 mt-2 mb-3">
