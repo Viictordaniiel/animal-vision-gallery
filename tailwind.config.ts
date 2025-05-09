@@ -104,7 +104,8 @@ export default {
 				'pulse-slow': 'pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
 			},
 			backgroundImage: {
-				'farm-pattern': "url('/lovable-uploads/ab9e1f1e-55fd-47f3-b7b2-7d0e99c4669a.png')"
+				'farm-pattern': "url('/lovable-uploads/ab9e1f1e-55fd-47f3-b7b2-7d0e99c4669a.png')",
+				'drone-farm': "url('/lovable-uploads/055cd44a-57f9-4a05-8a92-dd3c646aeed3.png')"
 			}
 		}
 	},

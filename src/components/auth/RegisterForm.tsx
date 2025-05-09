@@ -53,19 +53,19 @@ export default function RegisterForm({ onToggleLogin }: RegisterFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto p-6 backdrop-blur-sm bg-white/90 shadow-lg border-0">
-      <div className="flex justify-center mb-6">
-        <h1 className="text-4xl font-bold text-agrotech-blue">AgroTech</h1>
+    <Card className="w-full max-w-sm mx-auto p-4 backdrop-blur-sm bg-white/85 shadow-lg border-0">
+      <div className="flex justify-center mb-4">
+        <h1 className="text-3xl font-bold text-agrotech-blue">AgroInsight</h1>
       </div>
       
       {error && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive" className="mb-3">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="name">Nome</Label>
           <Input
@@ -127,8 +127,8 @@ export default function RegisterForm({ onToggleLogin }: RegisterFormProps) {
         </Button>
       </form>
       
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-600">
+      <div className="mt-4 text-center">
+        <p className="text-xs text-gray-600">
           Já tem uma conta?{' '}
           <button 
             type="button" 
