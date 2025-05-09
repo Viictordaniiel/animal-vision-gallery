@@ -20,7 +20,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-center bg-cover bg-no-repeat"
          style={{backgroundImage: `url('/lovable-uploads/ab9e1f1e-55fd-47f3-b7b2-7d0e99c4669a.png')`}}>
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm"> {/* Reduzido de max-w-md para max-w-sm */}
         {isRegistering ? (
           <RegisterForm onToggleLogin={() => setIsRegistering(false)} />
         ) : (

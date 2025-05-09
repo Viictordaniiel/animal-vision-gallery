@@ -44,19 +44,19 @@ export default function LoginForm({ onToggleRegister }: LoginFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto p-6 backdrop-blur-sm bg-white/90 shadow-lg border-0">
-      <div className="flex justify-center mb-6">
-        <h1 className="text-4xl font-bold text-agrotech-blue">AgroTech</h1>
+    <Card className="w-full max-w-sm mx-auto p-4 backdrop-blur-sm bg-white/85 shadow-lg border-0"> {/* Reduzido o padding de p-6 para p-4 */}
+      <div className="flex justify-center mb-4"> {/* Reduzido o mb de 6 para 4 */}
+        <h1 className="text-3xl font-bold text-agrotech-blue">AgroInsight</h1> {/* Alterado o nome e reduzido o texto de 4xl para 3xl */}
       </div>
       
       {error && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive" className="mb-3"> {/* Reduzido o mb de 4 para 3 */}
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3"> {/* Reduzido o espaçamento de 4 para 3 */}
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -75,10 +75,10 @@ export default function LoginForm({ onToggleRegister }: LoginFormProps) {
             <Label htmlFor="password">Senha</Label>
             <button 
               type="button" 
-              className="text-sm text-agrotech-blue hover:underline"
+              className="text-xs text-agrotech-blue hover:underline" {/* Reduzido o texto de sm para xs */}
               onClick={() => alert('Funcionalidade em desenvolvimento')}
             >
-              Esqueceu a senha?
+              Esqueceu?
             </button>
           </div>
           <Input
@@ -101,8 +101,8 @@ export default function LoginForm({ onToggleRegister }: LoginFormProps) {
         </Button>
       </form>
       
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-600">
+      <div className="mt-4 text-center text-sm"> {/* Reduzido o mt de 6 para 4 */}
+        <p className="text-xs text-gray-600"> {/* Reduzido o texto de sm para xs */}
           Não tem uma conta?{' '}
           <button 
             type="button" 
@@ -115,7 +115,7 @@ export default function LoginForm({ onToggleRegister }: LoginFormProps) {
       </div>
       
       {/* Demo info */}
-      <div className="mt-4 p-2 bg-agrotech-gray/50 rounded text-center">
+      <div className="mt-3 p-1 bg-agrotech-gray/50 rounded text-center"> {/* Reduzido o padding e margem */}
         <p className="text-xs text-gray-500">
           Demo: email@agrotech.com / senha123
         </p>
