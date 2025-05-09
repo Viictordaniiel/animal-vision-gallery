@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { UserCircle, LogOut, Settings, Mail, Phone, Eye, Lock, Edit } from 'lucide-react';
+import { LogOut, Settings, Mail, Phone, Lock, Edit } from 'lucide-react';
 import Gallery from '@/components/gallery/Gallery';
 import { 
   Dialog, 
@@ -16,12 +16,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function GalleryPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showChangePhoneDialog, setShowChangePhoneDialog] = useState(false);
   const [showChangeEmailDialog, setShowChangeEmailDialog] = useState(false);
@@ -36,11 +36,6 @@ export default function GalleryPage() {
   const handleLogout = () => {
     logout();
     navigate('/');
-  };
-
-  const handleShowPassword = () => {
-    setShowPasswordDialog(true);
-    setIsMenuOpen(false);
   };
 
   const handleChangePassword = (e) => {
@@ -107,14 +102,17 @@ export default function GalleryPage() {
               className="flex items-center gap-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              <UserCircle className="h-5 w-5" />
-              <span>{user?.name || user?.email}</span>
+              <Avatar className="h-7 w-7 border border-gray-200">
+                <AvatarImage src="/lovable-uploads/ce96c99c-0586-4460-a3af-af02d84fbf45.png" alt="Javali" />
+                <AvatarFallback>JP</AvatarFallback>
+              </Avatar>
+              <span className="text-sm">{user?.name || user?.email}</span>
             </Button>
             
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-10 border">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                  <p className="font-semibold">{user?.name}</p>
+                  <p className="font-semibold text-sm">{user?.name}</p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
                 
@@ -127,14 +125,6 @@ export default function GalleryPage() {
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   <span>Editar Perfil</span>
-                </button>
-                
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={handleShowPassword}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  <span>Ver Senha</span>
                 </button>
 
                 <button
@@ -169,16 +159,6 @@ export default function GalleryPage() {
                   <Mail className="h-4 w-4 mr-2" />
                   <span>Alterar Email</span>
                 </button>
-
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  <span>Configurações</span>
-                </button>
                 
                 <div className="border-t my-1"></div>
                 
@@ -204,24 +184,6 @@ export default function GalleryPage() {
           <p>&copy; {new Date().getFullYear()} AgroInsight. Todos os direitos reservados.</p>
         </div>
       </footer>
-
-      {/* Diálogo para visualizar senha (simulado) */}
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sua senha</DialogTitle>
-            <DialogDescription>
-              Por motivos de segurança, exibimos apenas parte da sua senha.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-center text-lg font-mono">••••••••</p>
-            <p className="text-center text-sm text-gray-500 mt-2">
-              Por segurança, senhas são armazenadas criptografadas e não podem ser exibidas completamente.
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Diálogo para alterar senha */}
       <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
