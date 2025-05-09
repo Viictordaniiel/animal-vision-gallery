@@ -53,7 +53,7 @@ export default function RegisterForm({ onToggleLogin }: RegisterFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-sm mx-auto p-4 backdrop-blur-sm bg-white/85 shadow-lg border-0">
+    <Card className="w-full max-w-sm mx-auto p-4 backdrop-blur-md bg-white/50 shadow-lg border-0">
       <div className="flex justify-center mb-4">
         <h1 className="text-3xl font-bold text-agrotech-blue">AgroInsight</h1>
       </div>
