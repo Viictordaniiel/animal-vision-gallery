@@ -6,6 +6,7 @@ type User = {
   id: string;
   email: string;
   name?: string;
+  phone?: string; // Added phone property as optional
 };
 
 type AuthContextType = {
@@ -31,14 +32,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser({
             id: '1',
             email: email,
-            name: 'Usuário Demo'
+            name: 'Usuário Demo',
+            phone: '' // Initialize with empty string
           });
           
           // Armazenar no localStorage para manter sessão
           localStorage.setItem('agrotech_user', JSON.stringify({
             id: '1',
             email: email,
-            name: 'Usuário Demo'
+            name: 'Usuário Demo',
+            phone: '' // Include phone in localStorage
           }));
           
           toast({
@@ -74,7 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser({
           id: Date.now().toString(),
           email: email,
-          name: name
+          name: name,
+          phone: '' // Initialize phone for new users
         });
         
         toast({
