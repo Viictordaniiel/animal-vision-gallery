@@ -16,7 +16,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function GalleryPage() {
   const { user, logout } = useAuth();
@@ -102,17 +101,13 @@ export default function GalleryPage() {
               className="flex items-center gap-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              <Avatar className="h-7 w-7 border border-gray-200">
-                <AvatarImage src="/lovable-uploads/ce96c99c-0586-4460-a3af-af02d84fbf45.png" alt="Javali" />
-                <AvatarFallback>JP</AvatarFallback>
-              </Avatar>
-              <span className="text-sm">{user?.name || user?.email}</span>
+              <span className="text-xs">{user?.name || user?.email}</span>
             </Button>
             
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-10 border">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                  <p className="font-semibold text-sm">{user?.name}</p>
+                  <p className="font-semibold text-xs">{user?.name}</p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
                 
