@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,6 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [isVideo, setIsVideo] = useState(false);
-  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -29,11 +27,11 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
   };
   
   const processUploadedFile = (file: File) => {
-    // Verificar se é um vídeo
+    // Check if it's a video
     const fileIsVideo = file.type.startsWith('video/');
     setIsVideo(fileIsVideo);
     
-    // Validar o arquivo
+    // Validate file
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       toast({
         variant: "destructive",
@@ -43,7 +41,7 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
       return;
     }
     
-    // Verificar tamanho (limitar a 10MB)
+    // Check size (limit to 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         variant: "destructive",
@@ -53,17 +51,11 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
       return;
     }
     
-    // Criar URL para preview
+    // Create URL for preview
     const fileUrl = URL.createObjectURL(file);
     setPreview(fileUrl);
     
-    // Se for um vídeo, configurar o elemento de vídeo
-    if (fileIsVideo && videoRef.current) {
-      videoRef.current.src = fileUrl;
-      setVideoElement(videoRef.current);
-    }
-    
-    // Callback para componente pai
+    // Callback to parent component
     onImageUpload(fileUrl, file);
     
     toast({
@@ -137,6 +129,7 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
             ref={videoRef}
             controls
             className="w-full h-auto max-h-96 object-contain"
+            src={preview}
           />
           <button
             onClick={removeFile}

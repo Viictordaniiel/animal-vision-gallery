@@ -1,9 +1,9 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame } from 'lucide-react';
 
 type Animal = {
   name: string;
@@ -17,6 +17,7 @@ type GalleryItemProps = {
   onAnalyze: () => void;
   isAnalyzing: boolean;
   showReanalyze?: boolean;
+  isVideo?: boolean;
 };
 
 export default function GalleryItem({ 
@@ -24,15 +25,17 @@ export default function GalleryItem({
   animals, 
   onAnalyze, 
   isAnalyzing,
-  showReanalyze = false
+  showReanalyze = false,
+  isVideo = false
 }: GalleryItemProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   const formatConfidence = (confidence: number) => {
     return `${Math.round(confidence * 100)}%`;
   };
 
-  // Verificar se todos os animais são javalis ou porcos selvagens
+  // Check if all animals are wild pigs or related invasive species
   const isWildPig = animals.length > 0 && animals.every(animal => 
     animal.name.toLowerCase().includes('javali') || 
     animal.name.toLowerCase().includes('porco') ||
@@ -40,31 +43,64 @@ export default function GalleryItem({
     animal.name.toLowerCase().includes('queixada')
   );
   
+  useEffect(() => {
+    // Set up video playback if this is a video element
+    if (isVideo && videoRef.current) {
+      videoRef.current.src = imageUrl;
+      
+      // Add event listeners for video playback if needed
+      const handleVideoPlay = () => {
+        console.log("Video playback started");
+      };
+      
+      videoRef.current.addEventListener('play', handleVideoPlay);
+      
+      return () => {
+        if (videoRef.current) {
+          videoRef.current.removeEventListener('play', handleVideoPlay);
+        }
+      };
+    }
+  }, [imageUrl, isVideo]);
+  
   return (
     <Card className="overflow-hidden w-full max-w-md">
       <CardContent className="p-0">
         <div className="relative">
-          <img 
-            src={imageUrl} 
-            alt="Animal" 
-            className="w-full h-64 object-cover"
-            onError={(e) => {
-              // Fallback para imagem de erro
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
-            }}
-          />
+          {isVideo ? (
+            <video 
+              ref={videoRef}
+              controls
+              className="w-full h-64 object-cover"
+              onError={(e) => {
+                console.error("Error loading video:", e);
+                // Fallback for video error
+                e.currentTarget.poster = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
+              }}
+            />
+          ) : (
+            <img 
+              src={imageUrl} 
+              alt="Animal" 
+              className="w-full h-64 object-cover"
+              onError={(e) => {
+                // Fallback for image error
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
+              }}
+            />
+          )}
           
-          {/* Overlay de status (quando estiver analisando) */}
+          {/* Status overlay (when analyzing) */}
           {isAnalyzing && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <div className="text-white text-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white mx-auto mb-2"></div>
-                <p>Analisando imagem...</p>
+                <p>Analisando {isVideo ? 'vídeo' : 'imagem'}...</p>
               </div>
             </div>
           )}
           
-          {/* Alerta para javalis/porcos selvagens com retângulo de captura */}
+          {/* Alert for invasive species with capture rectangle */}
           {isWildPig && animals.length > 0 && !isAnalyzing && (
             <>
               <div className="absolute top-2 right-2">
@@ -74,20 +110,34 @@ export default function GalleryItem({
                 </Badge>
               </div>
               
-              {/* Retângulo de identificação para espécies invasoras */}
+              {/* Detection rectangle for invasive species */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div 
-                  className="border-2 border-red-500 rounded-md animate-pulse w-4/5 h-4/5"
+                  className="border-4 border-red-500 rounded-md animate-pulse"
                   style={{
-                    boxShadow: '0 0 0 1px rgba(220, 38, 38, 0.3)',
+                    width: isVideo ? '60%' : '80%',
+                    height: isVideo ? '60%' : '80%',
+                    boxShadow: '0 0 8px rgba(220, 38, 38, 0.8)',
+                    position: 'absolute',
+                    zIndex: 50
                   }}
                 >
-                  <div className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
-                  <div className="absolute -top-2 -right-2 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
-                  <div className="absolute -bottom-2 -left-2 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
-                  <div className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-red-500"></div>
+                  <div className="absolute -top-2 -left-2 w-5 h-5 border-t-4 border-l-4 border-red-500"></div>
+                  <div className="absolute -top-2 -right-2 w-5 h-5 border-t-4 border-r-4 border-red-500"></div>
+                  <div className="absolute -bottom-2 -left-2 w-5 h-5 border-b-4 border-l-4 border-red-500"></div>
+                  <div className="absolute -bottom-2 -right-2 w-5 h-5 border-b-4 border-r-4 border-red-500"></div>
                 </div>
               </div>
+              
+              {/* Frame indicator icon for videos */}
+              {isVideo && (
+                <div className="absolute top-2 left-2">
+                  <Badge variant="outline" className="bg-black/70 text-white border-none flex items-center gap-1 px-2 py-1">
+                    <Frame size={14} />
+                    <span>Detecção em vídeo</span>
+                  </Badge>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -107,7 +157,7 @@ export default function GalleryItem({
                     <button
                       className="text-gray-500 hover:text-gray-700 p-1"
                       onClick={onAnalyze}
-                      title="Reanalisar imagem"
+                      title="Reanalisar"
                     >
                       <RotateCw size={18} />
                     </button>
@@ -177,7 +227,7 @@ export default function GalleryItem({
                 disabled={isAnalyzing}
               >
                 <Search size={16} />
-                <span>Analisar imagem</span>
+                <span>Analisar {isVideo ? 'vídeo' : 'imagem'}</span>
               </Button>
             </div>
           )}

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,23 +8,23 @@ import GalleryItem from './GalleryItem';
 import { recognizeAnimal } from '@/services/imageRecognition';
 import { toast } from '@/components/ui/use-toast';
 
-// Tipo para os animais identificados
+// Type for identified animals
 type Animal = {
   name: string;
   confidence: number;
   description?: string;
 };
 
-// Tipo para os items da galeria
+// Type for gallery items
 type GalleryItemType = {
   url: string;
   analyzed: boolean;
   animals: Animal[];
   timestamp?: number;
-  type?: 'image' | 'video';
+  type: 'image' | 'video';
 };
 
-// Imagens de exemplo para demonstração
+// Sample images for demonstration
 const sampleImages: GalleryItemType[] = [
   {
     url: '/lovable-uploads/ce96c99c-0586-4460-a3af-af02d84fbf45.png',
@@ -56,21 +57,21 @@ const sampleImages: GalleryItemType[] = [
 
 export default function Gallery() {
   const [activeTab, setActiveTab] = useState('upload');
-  const [currentImage, setCurrentImage] = useState<{url: string, file?: File} | null>(null);
+  const [currentImage, setCurrentImage] = useState<{url: string, file?: File, type: 'image' | 'video'} | null>(null);
   const [uploadedAnimals, setUploadedAnimals] = useState<Animal[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [galleryItems, setGalleryItems] = useState<GalleryItemType[]>([]);
   
-  // Carregar e persistir imagens da galeria
+  // Load and persist gallery images
   useEffect(() => {
-    // Tentar carregar imagens salvas no localStorage
+    // Try to load saved images from localStorage
     try {
       const savedItems = localStorage.getItem('galleryItems');
       if (savedItems) {
         const parsedItems = JSON.parse(savedItems);
         setGalleryItems(parsedItems);
       } else {
-        // Inicializar com as imagens de exemplo se não houver salvas
+        // Initialize with sample images if none are saved
         setGalleryItems(sampleImages);
       }
     } catch (error) {
@@ -79,7 +80,7 @@ export default function Gallery() {
     }
   }, []);
 
-  // Persistir mudanças na galeria
+  // Persist gallery changes
   useEffect(() => {
     if (galleryItems.length > 0) {
       try {
@@ -91,11 +92,15 @@ export default function Gallery() {
   }, [galleryItems]);
   
   const handleImageUpload = (imageUrl: string, file: File) => {
-    setCurrentImage({ url: imageUrl, file });
+    // Determine if it's an image or video
+    const isVideo = file.type.startsWith('video/');
+    const mediaType = isVideo ? 'video' : 'image';
+    
+    // Update state with new media
+    setCurrentImage({ url: imageUrl, file, type: mediaType });
     setUploadedAnimals([]);
 
-    // Determinar automaticamente se é uma imagem ou vídeo
-    const isVideo = file.type.startsWith('video/');
+    // Show appropriate toast message
     if (isVideo) {
       toast({
         title: "Vídeo detectado",
@@ -117,28 +122,35 @@ export default function Gallery() {
     setIsAnalyzing(true);
     
     try {
-      // Adicionar timestamp para evitar cache do navegador e garantir unicidade
+      // Add timestamp to avoid browser cache and ensure uniqueness
       const timestamp = Date.now();
       const imageUrlWithTimestamp = currentImage.url.includes('?') 
         ? `${currentImage.url}&t=${timestamp}` 
         : `${currentImage.url}?t=${timestamp}`;
       
+      // For videos, notify that we're processing frames
+      if (currentImage.type === 'video') {
+        toast({
+          title: "Processando vídeo",
+          description: "Analisando quadros para identificar espécies invasoras."
+        });
+      }
+      
+      console.log(`Analisando ${currentImage.type} com sistema aprimorado: ${imageUrlWithTimestamp}`);
+      
       const results = await recognizeAnimal(imageUrlWithTimestamp);
       setUploadedAnimals(results);
       
-      // Determinar tipo de mídia
-      const isVideo = currentImage.file?.type.startsWith('video/');
-      
-      // Adicionar à galeria após análise bem-sucedida
+      // Add to gallery after successful analysis
       const newItem: GalleryItemType = {
         url: currentImage.url,
         analyzed: true,
         animals: results,
         timestamp: timestamp,
-        type: isVideo ? 'video' : 'image'
+        type: currentImage.type
       };
       
-      // Verificar se a imagem já existe na galeria e substituí-la
+      // Check if the media already exists in the gallery and replace it
       const exists = galleryItems.findIndex(item => item.url === currentImage.url);
       if (exists >= 0) {
         const updatedItems = [...galleryItems];
@@ -154,10 +166,10 @@ export default function Gallery() {
       });
       
     } catch (error) {
-      console.error('Erro ao analisar imagem:', error);
+      console.error('Erro ao analisar mídia:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao analisar imagem",
+        title: `Erro ao analisar ${currentImage.type === 'video' ? 'vídeo' : 'imagem'}`,
         description: "Não foi possível processar o reconhecimento."
       });
     } finally {
@@ -165,26 +177,34 @@ export default function Gallery() {
     }
   };
 
-  // Função para reanalisar uma imagem da galeria
+  // Function to reanalyze a gallery item
   const reanalyzeGalleryImage = async (index: number) => {
     const item = galleryItems[index];
     if (!item) return;
     
-    // Criar uma cópia atualizada do item
+    // Create an updated copy of the item
     const updatedItems = [...galleryItems];
     updatedItems[index] = { ...item, analyzed: false };
     setGalleryItems(updatedItems);
     
     try {
-      // Adicionar timestamp para evitar cache do navegador
+      // Add timestamp to avoid browser cache
       const timestamp = Date.now();
-      const imageUrlWithTimestamp = item.url.includes('?') 
+      const mediaUrlWithTimestamp = item.url.includes('?') 
         ? `${item.url}&t=${timestamp}` 
         : `${item.url}?t=${timestamp}`;
       
-      const results = await recognizeAnimal(imageUrlWithTimestamp);
+      // Show appropriate message for video processing
+      if (item.type === 'video') {
+        toast({
+          title: "Processando vídeo",
+          description: "Reanalisando quadros do vídeo..."
+        });
+      }
       
-      // Atualizar o item na galeria com os novos resultados
+      const results = await recognizeAnimal(mediaUrlWithTimestamp);
+      
+      // Update the item in the gallery with the new results
       const updatedItem: GalleryItemType = {
         ...item,
         analyzed: true,
@@ -201,9 +221,9 @@ export default function Gallery() {
       });
       
     } catch (error) {
-      console.error('Erro ao reanalisar imagem:', error);
+      console.error('Erro ao reanalisar mídia:', error);
       
-      // Restaurar o estado anterior em caso de falha
+      // Restore previous state in case of failure
       updatedItems[index] = { ...item, analyzed: true };
       setGalleryItems(updatedItems);
       
@@ -247,7 +267,7 @@ export default function Gallery() {
                   className="flex-1 bg-agrotech-blue hover:bg-agrotech-darkblue"
                   disabled={!currentImage || isAnalyzing}
                 >
-                  {isAnalyzing ? 'Analisando...' : 'Reconhecer Animal'}
+                  {isAnalyzing ? 'Analisando...' : `Reconhecer ${currentImage?.type === 'video' ? 'Vídeo' : 'Imagem'}`}
                 </Button>
                 
                 <Button
@@ -268,6 +288,7 @@ export default function Gallery() {
                   animals={uploadedAnimals}
                   onAnalyze={analyzeImage}
                   isAnalyzing={isAnalyzing}
+                  isVideo={currentImage.type === 'video'}
                 />
               </div>
             )}
@@ -284,6 +305,7 @@ export default function Gallery() {
                 onAnalyze={() => reanalyzeGalleryImage(index)}
                 isAnalyzing={!item.analyzed}
                 showReanalyze={item.analyzed}
+                isVideo={item.type === 'video'}
               />
             ))}
             
