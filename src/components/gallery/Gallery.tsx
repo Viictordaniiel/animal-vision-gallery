@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, Upload, Image as ImageIcon, RotateCw } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, Video, RotateCw } from 'lucide-react';
 import ImageUploader from './ImageUploader';
 import GalleryItem from './GalleryItem';
 import { recognizeAnimal } from '@/services/imageRecognition';
@@ -21,6 +20,7 @@ type GalleryItemType = {
   analyzed: boolean;
   animals: Animal[];
   timestamp?: number;
+  type?: 'image' | 'video';
 };
 
 // Imagens de exemplo para demonstração
@@ -31,7 +31,8 @@ const sampleImages: GalleryItemType[] = [
     animals: [
       { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' },
     ],
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    type: 'image'
   },
   {
     url: '/lovable-uploads/fff1fa46-90d0-4f73-a04f-065ad14447f5.png',
@@ -39,7 +40,8 @@ const sampleImages: GalleryItemType[] = [
     animals: [
       { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' },
     ],
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    type: 'image'
   },
   {
     url: '/lovable-uploads/c26c1704-463e-4f86-a15c-56901b7ed7ea.png',
@@ -47,7 +49,8 @@ const sampleImages: GalleryItemType[] = [
     animals: [
       { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' },
     ],
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    type: 'image'
   }
 ];
 
@@ -90,6 +93,15 @@ export default function Gallery() {
   const handleImageUpload = (imageUrl: string, file: File) => {
     setCurrentImage({ url: imageUrl, file });
     setUploadedAnimals([]);
+
+    // Determinar automaticamente se é uma imagem ou vídeo
+    const isVideo = file.type.startsWith('video/');
+    if (isVideo) {
+      toast({
+        title: "Vídeo detectado",
+        description: "Pronto para análise de invasores em modo vídeo."
+      });
+    }
   };
   
   const handleCameraCapture = () => {
@@ -114,12 +126,16 @@ export default function Gallery() {
       const results = await recognizeAnimal(imageUrlWithTimestamp);
       setUploadedAnimals(results);
       
+      // Determinar tipo de mídia
+      const isVideo = currentImage.file?.type.startsWith('video/');
+      
       // Adicionar à galeria após análise bem-sucedida
       const newItem: GalleryItemType = {
         url: currentImage.url,
         analyzed: true,
         animals: results,
-        timestamp: timestamp
+        timestamp: timestamp,
+        type: isVideo ? 'video' : 'image'
       };
       
       // Verificar se a imagem já existe na galeria e substituí-la

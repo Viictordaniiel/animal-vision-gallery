@@ -64,14 +64,31 @@ export default function GalleryItem({
             </div>
           )}
           
-          {/* Alerta para javalis/porcos selvagens */}
+          {/* Alerta para javalis/porcos selvagens com retângulo de captura */}
           {isWildPig && animals.length > 0 && !isAnalyzing && (
-            <div className="absolute top-2 right-2">
-              <Badge variant="destructive" className="flex items-center gap-1 px-2 py-1">
-                <AlertTriangle size={14} />
-                <span>Espécie Invasora</span>
-              </Badge>
-            </div>
+            <>
+              <div className="absolute top-2 right-2">
+                <Badge variant="destructive" className="flex items-center gap-1 px-2 py-1">
+                  <AlertTriangle size={14} />
+                  <span>Espécie Invasora</span>
+                </Badge>
+              </div>
+              
+              {/* Retângulo de identificação para espécies invasoras */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div 
+                  className="border-2 border-red-500 rounded-md animate-pulse w-4/5 h-4/5"
+                  style={{
+                    boxShadow: '0 0 0 1px rgba(220, 38, 38, 0.3)',
+                  }}
+                >
+                  <div className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-red-500"></div>
+                  <div className="absolute -top-2 -right-2 w-4 h-4 border-t-2 border-r-2 border-red-500"></div>
+                  <div className="absolute -bottom-2 -left-2 w-4 h-4 border-b-2 border-l-2 border-red-500"></div>
+                  <div className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-red-500"></div>
+                </div>
+              </div>
+            </>
           )}
         </div>
         

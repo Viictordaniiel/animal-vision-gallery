@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UploadCloud, Image, X } from 'lucide-react';
+import { UploadCloud, Image, Video, X } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 type ImageUploaderProps = {
@@ -12,7 +12,10 @@ type ImageUploaderProps = {
 export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [isVideo, setIsVideo] = useState(false);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -25,36 +28,46 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
     }
   };
   
-  const processUploadedImage = (file: File) => {
+  const processUploadedFile = (file: File) => {
+    // Verificar se é um vídeo
+    const fileIsVideo = file.type.startsWith('video/');
+    setIsVideo(fileIsVideo);
+    
     // Validar o arquivo
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       toast({
         variant: "destructive",
         title: "Formato não suportado",
-        description: "Por favor, envie apenas arquivos de imagem.",
+        description: "Por favor, envie apenas arquivos de imagem ou vídeo.",
       });
       return;
     }
     
-    // Verificar tamanho (limitar a 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Verificar tamanho (limitar a 10MB)
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         variant: "destructive",
         title: "Arquivo muito grande",
-        description: "O tamanho máximo permitido é de 5MB.",
+        description: "O tamanho máximo permitido é de 10MB.",
       });
       return;
     }
     
     // Criar URL para preview
-    const imageUrl = URL.createObjectURL(file);
-    setPreview(imageUrl);
+    const fileUrl = URL.createObjectURL(file);
+    setPreview(fileUrl);
+    
+    // Se for um vídeo, configurar o elemento de vídeo
+    if (fileIsVideo && videoRef.current) {
+      videoRef.current.src = fileUrl;
+      setVideoElement(videoRef.current);
+    }
     
     // Callback para componente pai
-    onImageUpload(imageUrl, file);
+    onImageUpload(fileUrl, file);
     
     toast({
-      title: "Imagem carregada com sucesso",
+      title: `${fileIsVideo ? 'Vídeo' : 'Imagem'} carregado com sucesso`,
       description: "Pronto para análise.",
     });
   };
@@ -65,13 +78,13 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processUploadedImage(e.dataTransfer.files[0]);
+      processUploadedFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      processUploadedImage(e.target.files[0]);
+      processUploadedFile(e.target.files[0]);
     }
   };
 
@@ -79,8 +92,9 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
     fileInputRef.current?.click();
   };
 
-  const removeImage = () => {
+  const removeFile = () => {
     setPreview(null);
+    setIsVideo(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -91,7 +105,7 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
       <Input
         type="file"
         ref={fileInputRef}
-        accept="image/*"
+        accept="image/*,video/*"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -112,10 +126,25 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
           <div className="flex flex-col items-center justify-center space-y-3">
             <UploadCloud className="h-10 w-10 text-gray-400" />
             <div className="text-gray-600 text-center">
-              <p className="font-medium">Clique para enviar ou arraste uma imagem</p>
-              <p className="text-sm mt-1">Suporta JPG, PNG ou GIF até 5MB</p>
+              <p className="font-medium">Clique para enviar ou arraste uma imagem/vídeo</p>
+              <p className="text-sm mt-1">Suporta JPG, PNG, GIF, MP4 até 10MB</p>
             </div>
           </div>
+        </div>
+      ) : isVideo ? (
+        <div className="relative rounded-lg overflow-hidden border border-gray-200">
+          <video 
+            ref={videoRef}
+            controls
+            className="w-full h-auto max-h-96 object-contain"
+          />
+          <button
+            onClick={removeFile}
+            className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full hover:bg-black/80 transition-colors"
+            aria-label="Remover vídeo"
+          >
+            <X size={18} />
+          </button>
         </div>
       ) : (
         <div className="relative rounded-lg overflow-hidden border border-gray-200">
@@ -125,7 +154,7 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
             className="w-full h-auto max-h-96 object-contain"
           />
           <button
-            onClick={removeImage}
+            onClick={removeFile}
             className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full hover:bg-black/80 transition-colors"
             aria-label="Remover imagem"
           >
@@ -140,10 +169,13 @@ export default function ImageUploader({ onImageUpload }: ImageUploaderProps) {
           variant="outline"
           className="mt-3 flex items-center gap-2"
         >
-          <Image size={16} />
-          <span>Trocar imagem</span>
+          {isVideo ? <Video size={16} /> : <Image size={16} />}
+          <span>Trocar {isVideo ? 'vídeo' : 'imagem'}</span>
         </Button>
       )}
+      
+      {/* Vídeo oculto para referência */}
+      <video ref={videoRef} className="hidden" />
     </div>
   );
 }
