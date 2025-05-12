@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, Target } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, Target, Move } from 'lucide-react';
 
 type Animal = {
   name: string;
@@ -31,6 +31,8 @@ export default function GalleryItem({
   const [showDetails, setShowDetails] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const detectionBoxRef = useRef<HTMLDivElement>(null);
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackingQuality, setTrackingQuality] = useState<'high' | 'medium' | 'low'>('high');
   
   const formatConfidence = (confidence: number) => {
     return `${Math.round(confidence * 100)}%`;
@@ -52,31 +54,75 @@ export default function GalleryItem({
       // Add event listeners for video playback to update detection box
       const handleVideoPlay = () => {
         console.log("Video playback started");
+        setIsTracking(true);
       };
       
-      // Add tracking events for the detection rectangle
+      const handleVideoPause = () => {
+        console.log("Video playback paused");
+        setIsTracking(false);
+      };
+      
+      const handleVideoEnded = () => {
+        console.log("Video playback ended");
+        setIsTracking(false);
+      };
+      
+      // Enhanced tracking events for the detection rectangle with advanced motion tracking simulation
       const handleTimeUpdate = () => {
-        if (isWildPig && detectionBoxRef.current) {
-          // Simulate tracking - move detection box slightly based on playback position
-          // In a real app, this would use AI to track the animal position frame by frame
-          const videoProgress = videoRef.current?.currentTime || 0;
-          const videoDuration = videoRef.current?.duration || 1;
+        if (isWildPig && detectionBoxRef.current && videoRef.current) {
+          // Get current playback position
+          const videoProgress = videoRef.current.currentTime;
+          const videoDuration = videoRef.current.duration || 1;
           const progressPercent = videoProgress / videoDuration;
           
-          // Create slight movement effect to simulate tracking
-          const offsetX = Math.sin(progressPercent * Math.PI * 2) * 5;
-          const offsetY = Math.cos(progressPercent * Math.PI * 2) * 5;
+          // Generate more natural-looking motion patterns based on time
+          // This simulates the animal moving in a somewhat unpredictable pattern
           
-          detectionBoxRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+          // Base movement path - using sin and cos with offsets to create natural path
+          const baseX = Math.sin(progressPercent * Math.PI * 4) * 10;
+          const baseY = Math.cos(progressPercent * Math.PI * 3) * 8;
+          
+          // Add some randomized micro-movements based on frame position
+          // Use deterministic pattern based on the current time to make it look consistent
+          const microX = Math.sin(videoProgress * 2.5) * 3;
+          const microY = Math.cos(videoProgress * 3.5) * 3;
+          
+          // Add "detection jitter" to simulate tracking algorithm adjustments
+          const jitterX = isTracking ? (Math.sin(videoProgress * 15) * 1.5) : 0;
+          const jitterY = isTracking ? (Math.cos(videoProgress * 20) * 1.5) : 0;
+          
+          // Combine all movement components
+          const offsetX = baseX + microX + jitterX;
+          const offsetY = baseY + microY + jitterY;
+          
+          // Apply transform with easing to make movements smoother
+          detectionBoxRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${1 + Math.sin(videoProgress) * 0.03})`;
+          
+          // Simulate tracking quality changes
+          if (progressPercent > 0.7) {
+            // Simulate reduced tracking quality near the end
+            const qualityRandom = Math.random();
+            if (qualityRandom > 0.7) {
+              setTrackingQuality('medium');
+            } else if (qualityRandom > 0.9) {
+              setTrackingQuality('low');
+            }
+          } else {
+            setTrackingQuality('high');
+          }
         }
       };
       
       videoRef.current.addEventListener('play', handleVideoPlay);
+      videoRef.current.addEventListener('pause', handleVideoPause);
+      videoRef.current.addEventListener('ended', handleVideoEnded);
       videoRef.current.addEventListener('timeupdate', handleTimeUpdate);
       
       return () => {
         if (videoRef.current) {
           videoRef.current.removeEventListener('play', handleVideoPlay);
+          videoRef.current.removeEventListener('pause', handleVideoPause);
+          videoRef.current.removeEventListener('ended', handleVideoEnded);
           videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         }
       };
@@ -134,25 +180,63 @@ export default function GalleryItem({
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div 
                   ref={detectionBoxRef}
-                  className={`border-4 border-red-500 rounded-md ${isVideo ? 'animate-pulse' : ''}`}
+                  className={`border-4 ${
+                    trackingQuality === 'high' ? 'border-red-500' : 
+                    trackingQuality === 'medium' ? 'border-orange-500' : 'border-yellow-500'
+                  } rounded-md ${isTracking ? 'animate-pulse' : ''}`}
                   style={{
                     width: isVideo ? '60%' : '80%',
                     height: isVideo ? '60%' : '80%',
-                    boxShadow: '0 0 8px rgba(220, 38, 38, 0.8)',
+                    boxShadow: `0 0 8px ${
+                      trackingQuality === 'high' ? 'rgba(220, 38, 38, 0.8)' : 
+                      trackingQuality === 'medium' ? 'rgba(249, 115, 22, 0.8)' : 'rgba(234, 179, 8, 0.8)'
+                    }`,
                     position: 'absolute',
                     zIndex: 50,
-                    transition: isVideo ? 'transform 0.5s ease-out' : 'none'
+                    transition: 'transform 0.15s ease-out, border-color 0.3s ease, box-shadow 0.3s ease'
                   }}
                 >
-                  <div className="absolute -top-2 -left-2 w-5 h-5 border-t-4 border-l-4 border-red-500"></div>
-                  <div className="absolute -top-2 -right-2 w-5 h-5 border-t-4 border-r-4 border-red-500"></div>
-                  <div className="absolute -bottom-2 -left-2 w-5 h-5 border-b-4 border-l-4 border-red-500"></div>
-                  <div className="absolute -bottom-2 -right-2 w-5 h-5 border-b-4 border-r-4 border-red-500"></div>
+                  <div className={`absolute -top-2 -left-2 w-5 h-5 border-t-4 border-l-4 ${
+                    trackingQuality === 'high' ? 'border-red-500' : 
+                    trackingQuality === 'medium' ? 'border-orange-500' : 'border-yellow-500'
+                  }`}></div>
+                  <div className={`absolute -top-2 -right-2 w-5 h-5 border-t-4 border-r-4 ${
+                    trackingQuality === 'high' ? 'border-red-500' : 
+                    trackingQuality === 'medium' ? 'border-orange-500' : 'border-yellow-500'
+                  }`}></div>
+                  <div className={`absolute -bottom-2 -left-2 w-5 h-5 border-b-4 border-l-4 ${
+                    trackingQuality === 'high' ? 'border-red-500' : 
+                    trackingQuality === 'medium' ? 'border-orange-500' : 'border-yellow-500'
+                  }`}></div>
+                  <div className={`absolute -bottom-2 -right-2 w-5 h-5 border-b-4 border-r-4 ${
+                    trackingQuality === 'high' ? 'border-red-500' : 
+                    trackingQuality === 'medium' ? 'border-orange-500' : 'border-yellow-500'
+                  }`}></div>
                   
                   {/* Target icon in the center for videos */}
                   {isVideo && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Target className="text-red-500 opacity-70" size={24} />
+                      <div className="relative">
+                        <Target 
+                          className={`${
+                            trackingQuality === 'high' ? 'text-red-500' : 
+                            trackingQuality === 'medium' ? 'text-orange-500' : 'text-yellow-500'
+                          } opacity-70`} 
+                          size={24} 
+                        />
+                        {isTracking && (
+                          <Move 
+                            className={`absolute -top-0.5 -left-0.5 ${
+                              trackingQuality === 'high' ? 'text-red-500' : 
+                              trackingQuality === 'medium' ? 'text-orange-500' : 'text-yellow-500'
+                            } opacity-50`} 
+                            size={25}
+                            style={{
+                              animation: 'pulse 2s infinite'
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -164,6 +248,24 @@ export default function GalleryItem({
                   <Badge variant="outline" className="bg-black/70 text-white border-none flex items-center gap-1 px-2 py-1">
                     <Frame size={14} />
                     <span>Detecção em vídeo</span>
+                  </Badge>
+                </div>
+              )}
+              
+              {/* Tracking quality indicator */}
+              {isVideo && isTracking && (
+                <div className="absolute bottom-2 left-2">
+                  <Badge 
+                    variant="outline" 
+                    className={`border-none flex items-center gap-1 px-2 py-1 ${
+                      trackingQuality === 'high' ? 'bg-green-500/70 text-white' : 
+                      trackingQuality === 'medium' ? 'bg-orange-500/70 text-white' : 'bg-yellow-500/70 text-black'
+                    }`}
+                  >
+                    <span>Sensor: {
+                      trackingQuality === 'high' ? 'Ótimo' : 
+                      trackingQuality === 'medium' ? 'Médio' : 'Baixo'
+                    }</span>
                   </Badge>
                 </div>
               )}
