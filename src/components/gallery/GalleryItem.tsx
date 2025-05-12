@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, Target } from 'lucide-react';
 
 type Animal = {
   name: string;
@@ -30,6 +30,7 @@ export default function GalleryItem({
 }: GalleryItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const detectionBoxRef = useRef<HTMLDivElement>(null);
   
   const formatConfidence = (confidence: number) => {
     return `${Math.round(confidence * 100)}%`;
@@ -48,20 +49,39 @@ export default function GalleryItem({
     if (isVideo && videoRef.current) {
       videoRef.current.src = imageUrl;
       
-      // Add event listeners for video playback if needed
+      // Add event listeners for video playback to update detection box
       const handleVideoPlay = () => {
         console.log("Video playback started");
       };
       
+      // Add tracking events for the detection rectangle
+      const handleTimeUpdate = () => {
+        if (isWildPig && detectionBoxRef.current) {
+          // Simulate tracking - move detection box slightly based on playback position
+          // In a real app, this would use AI to track the animal position frame by frame
+          const videoProgress = videoRef.current?.currentTime || 0;
+          const videoDuration = videoRef.current?.duration || 1;
+          const progressPercent = videoProgress / videoDuration;
+          
+          // Create slight movement effect to simulate tracking
+          const offsetX = Math.sin(progressPercent * Math.PI * 2) * 5;
+          const offsetY = Math.cos(progressPercent * Math.PI * 2) * 5;
+          
+          detectionBoxRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+        }
+      };
+      
       videoRef.current.addEventListener('play', handleVideoPlay);
+      videoRef.current.addEventListener('timeupdate', handleTimeUpdate);
       
       return () => {
         if (videoRef.current) {
           videoRef.current.removeEventListener('play', handleVideoPlay);
+          videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         }
       };
     }
-  }, [imageUrl, isVideo]);
+  }, [imageUrl, isVideo, isWildPig]);
   
   return (
     <Card className="overflow-hidden w-full max-w-md">
@@ -110,22 +130,31 @@ export default function GalleryItem({
                 </Badge>
               </div>
               
-              {/* Detection rectangle for invasive species */}
+              {/* Enhanced detection rectangle for invasive species with tracking */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div 
-                  className="border-4 border-red-500 rounded-md animate-pulse"
+                  ref={detectionBoxRef}
+                  className={`border-4 border-red-500 rounded-md ${isVideo ? 'animate-pulse' : ''}`}
                   style={{
                     width: isVideo ? '60%' : '80%',
                     height: isVideo ? '60%' : '80%',
                     boxShadow: '0 0 8px rgba(220, 38, 38, 0.8)',
                     position: 'absolute',
-                    zIndex: 50
+                    zIndex: 50,
+                    transition: isVideo ? 'transform 0.5s ease-out' : 'none'
                   }}
                 >
                   <div className="absolute -top-2 -left-2 w-5 h-5 border-t-4 border-l-4 border-red-500"></div>
                   <div className="absolute -top-2 -right-2 w-5 h-5 border-t-4 border-r-4 border-red-500"></div>
                   <div className="absolute -bottom-2 -left-2 w-5 h-5 border-b-4 border-l-4 border-red-500"></div>
                   <div className="absolute -bottom-2 -right-2 w-5 h-5 border-b-4 border-r-4 border-red-500"></div>
+                  
+                  {/* Target icon in the center for videos */}
+                  {isVideo && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Target className="text-red-500 opacity-70" size={24} />
+                    </div>
+                  )}
                 </div>
               </div>
               
