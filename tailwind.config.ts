@@ -105,7 +105,7 @@ export default {
 			},
 			backgroundImage: {
 				'farm-pattern': "url('/lovable-uploads/ab9e1f1e-55fd-47f3-b7b2-7d0e99c4669a.png')",
-				'drone-farm': "url('/lovable-uploads/055cd44a-57f9-4a05-8a92-dd3c646aeed3.png')"
+				'drone-farm': "url('/lovable-uploads/4340a3e3-840a-4d22-8e65-363697f91265.png')"
 			}
 		}
 	},
