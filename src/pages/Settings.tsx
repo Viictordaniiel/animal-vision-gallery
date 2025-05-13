@@ -30,13 +30,14 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState(user?.email || '');
   const { toast } = useToast();
   
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    e.preventDefault(); // Previne o comportamento padrão
     logout();
     navigate('/');
   };
 
   const handleChangePassword = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     if (newPassword !== confirmPassword) {
       toast({
         title: "Erro",
@@ -57,7 +58,7 @@ export default function SettingsPage() {
   };
 
   const handleChangePhone = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     toast({
       title: "Sucesso",
       description: "Número de telefone atualizado com sucesso!",
@@ -66,7 +67,7 @@ export default function SettingsPage() {
   };
 
   const handleChangeEmail = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     toast({
       title: "Sucesso",
       description: "Email atualizado com sucesso!",
@@ -75,7 +76,7 @@ export default function SettingsPage() {
   };
 
   const handleEditProfile = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     toast({
       title: "Sucesso",
       description: "Perfil atualizado com sucesso!",
@@ -83,7 +84,8 @@ export default function SettingsPage() {
     setShowEditProfileDialog(false);
   };
 
-  const goBack = () => {
+  const goBack = (e) => {
+    e.preventDefault(); // Previne o comportamento padrão
     navigate(-1);
   };
   

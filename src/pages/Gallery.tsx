@@ -32,13 +32,14 @@ export default function GalleryPage() {
   const [newEmail, setNewEmail] = useState(user?.email || '');
   const { toast } = useToast();
   
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    e.preventDefault(); // Previne o comportamento padrão
     logout();
     navigate('/');
   };
 
   const handleChangePassword = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     // Esta é uma implementação simulada para demonstração
     if (newPassword !== confirmPassword) {
       toast({
@@ -60,7 +61,7 @@ export default function GalleryPage() {
   };
 
   const handleChangePhone = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     // Implementação simulada
     toast({
       title: "Sucesso",
@@ -70,7 +71,7 @@ export default function GalleryPage() {
   };
 
   const handleChangeEmail = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     // Implementação simulada
     toast({
       title: "Sucesso",
@@ -80,7 +81,7 @@ export default function GalleryPage() {
   };
 
   const handleEditProfile = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Já estava implementado
     // Implementação simulada
     toast({
       title: "Sucesso",
@@ -89,7 +90,8 @@ export default function GalleryPage() {
     setShowEditProfileDialog(false);
   };
 
-  const navigateToSettings = () => {
+  const navigateToSettings = (e) => {
+    e.preventDefault(); // Previne o comportamento padrão
     setIsMenuOpen(false);
     navigate('/settings');
   };
