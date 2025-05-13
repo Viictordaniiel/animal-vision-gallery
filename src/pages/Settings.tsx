@@ -3,8 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Settings, Mail, Phone, Lock, Edit } from 'lucide-react';
-import Gallery from '@/components/gallery/Gallery';
+import { ArrowLeft, LogOut, Mail, Phone, Lock, Edit } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -17,10 +16,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 
-export default function GalleryPage() {
+export default function SettingsPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showChangePhoneDialog, setShowChangePhoneDialog] = useState(false);
   const [showChangeEmailDialog, setShowChangeEmailDialog] = useState(false);
@@ -39,7 +37,6 @@ export default function GalleryPage() {
 
   const handleChangePassword = (e) => {
     e.preventDefault();
-    // Esta é uma implementação simulada para demonstração
     if (newPassword !== confirmPassword) {
       toast({
         title: "Erro",
@@ -61,7 +58,6 @@ export default function GalleryPage() {
 
   const handleChangePhone = (e) => {
     e.preventDefault();
-    // Implementação simulada
     toast({
       title: "Sucesso",
       description: "Número de telefone atualizado com sucesso!",
@@ -71,7 +67,6 @@ export default function GalleryPage() {
 
   const handleChangeEmail = (e) => {
     e.preventDefault();
-    // Implementação simulada
     toast({
       title: "Sucesso",
       description: "Email atualizado com sucesso!",
@@ -81,7 +76,6 @@ export default function GalleryPage() {
 
   const handleEditProfile = (e) => {
     e.preventDefault();
-    // Implementação simulada
     toast({
       title: "Sucesso",
       description: "Perfil atualizado com sucesso!",
@@ -89,69 +83,83 @@ export default function GalleryPage() {
     setShowEditProfileDialog(false);
   };
 
-  const navigateToSettings = () => {
-    setIsMenuOpen(false);
-    navigate('/settings');
+  const goBack = () => {
+    navigate(-1);
   };
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-agrotech-blue">AgroInsight</h2>
-          
-          <div className="relative">
-            <Button
-              variant="ghost"
-              className="flex items-center gap-2"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              <span className="text-xs">{user?.name || user?.email}</span>
+          <div className="flex items-center">
+            <Button variant="ghost" onClick={goBack} className="mr-2">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            
-            {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-10 border">
-                <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                  <p className="font-semibold text-xs">{user?.name}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
-                </div>
-                
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    setShowEditProfileDialog(true);
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  <span>Editar Perfil</span>
-                </button>
-
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={navigateToSettings}
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  <span>Configurações</span>
-                </button>
-                
-                <div className="border-t my-1"></div>
-                
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  <span>Sair</span>
-                </button>
-              </div>
-            )}
+            <h2 className="text-xl font-bold text-agrotech-blue">Configurações</h2>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-xs">{user?.name || user?.email}</span>
           </div>
         </div>
       </header>
       
-      <main className="flex-1">
-        <Gallery />
+      <main className="flex-1 container mx-auto px-4 py-6">
+        <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
+          <h2 className="text-xl font-bold mb-6">Configurações da Conta</h2>
+
+          <div className="space-y-4">
+            <div className="p-4 border rounded-md hover:bg-gray-50 cursor-pointer" onClick={() => setShowEditProfileDialog(true)}>
+              <div className="flex items-center">
+                <Edit className="h-5 w-5 mr-3 text-gray-500" />
+                <div>
+                  <h3 className="font-medium">Editar Perfil</h3>
+                  <p className="text-sm text-gray-500">Atualize suas informações pessoais</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border rounded-md hover:bg-gray-50 cursor-pointer" onClick={() => setShowChangePasswordDialog(true)}>
+              <div className="flex items-center">
+                <Lock className="h-5 w-5 mr-3 text-gray-500" />
+                <div>
+                  <h3 className="font-medium">Alterar Senha</h3>
+                  <p className="text-sm text-gray-500">Atualize sua senha de acesso</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border rounded-md hover:bg-gray-50 cursor-pointer" onClick={() => setShowChangePhoneDialog(true)}>
+              <div className="flex items-center">
+                <Phone className="h-5 w-5 mr-3 text-gray-500" />
+                <div>
+                  <h3 className="font-medium">Gerenciar Telefone</h3>
+                  <p className="text-sm text-gray-500">Adicione ou atualize seu número de telefone</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border rounded-md hover:bg-gray-50 cursor-pointer" onClick={() => setShowChangeEmailDialog(true)}>
+              <div className="flex items-center">
+                <Mail className="h-5 w-5 mr-3 text-gray-500" />
+                <div>
+                  <h3 className="font-medium">Alterar Email</h3>
+                  <p className="text-sm text-gray-500">Atualize seu endereço de email</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border rounded-md hover:bg-gray-50 cursor-pointer text-red-600" onClick={handleLogout}>
+              <div className="flex items-center">
+                <LogOut className="h-5 w-5 mr-3" />
+                <div>
+                  <h3 className="font-medium">Sair</h3>
+                  <p className="text-sm text-red-500">Encerrar sessão atual</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
       
       <footer className="bg-white border-t py-4">

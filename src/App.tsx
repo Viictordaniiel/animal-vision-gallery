@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Auth from "./pages/Auth";
 import GalleryPage from "./pages/Gallery";
+import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
 
@@ -24,6 +25,11 @@ const App = () => (
             <Route path="/gallery" element={
               <RequireAuth>
                 <GalleryPage />
+              </RequireAuth>
+            } />
+            <Route path="/settings" element={
+              <RequireAuth>
+                <SettingsPage />
               </RequireAuth>
             } />
             <Route path="*" element={<NotFound />} />
