@@ -385,17 +385,17 @@ export default function GalleryItem({
           
           // Position animals in different regions to avoid overlap
           const angle = (index / animalBoxes.length) * Math.PI * 2;
-          const radius = 30 + (index % 3) * 15; // Varying distances
+          const radius = 25 + (index % 3) * 10; // Reduced radius for smaller tracking boxes
           
           const regionX = Math.cos(angle) * radius;
           const regionY = Math.sin(angle) * radius;
           
           // Add jitter for more realistic movement
-          const jitterX = (Math.random() - 0.5) * 2;
-          const jitterY = (Math.random() - 0.5) * 2;
+          const jitterX = (Math.random() - 0.5) * 1.5; // Reduced jitter
+          const jitterY = (Math.random() - 0.5) * 1.5;
           
           // Apply transform with slight scale variation for more natural movement
-          animalBox.element.style.transform = `translate(${regionX + x + jitterX}px, ${regionY + y + jitterY}px) scale(${1 + Math.sin(time) * 0.05})`;
+          animalBox.element.style.transform = `translate(${regionX + x + jitterX}px, ${regionY + y + jitterY}px) scale(${1 + Math.sin(time) * 0.03})`;
           
           // Simulate tracking quality changes
           if (Math.random() > 0.97) {
@@ -447,6 +447,49 @@ export default function GalleryItem({
       default:
         return 'bg-purple-100 border-purple-600 text-purple-800';
     }
+  };
+  
+  // Calculate box sizes based on animal class and confidence for tighter fit
+  const getBoxSize = (animal: Animal, index: number): {width: string, height: string} => {
+    const animalClass = getAnimalClassification(animal.name);
+    const confidenceFactor = animal.confidence * 0.2;
+    
+    // Base size factor - smaller than before
+    let widthFactor = 0.3; // Reduced from previous size
+    let heightFactor = 0.2; // Reduced from previous size
+    
+    // Adjust based on animal type for more precise fitting
+    switch(animalClass) {
+      case 'invasive': 
+        // Wild boars are wider than tall
+        widthFactor = 0.25 - (index * 0.02);
+        heightFactor = 0.18 - (index * 0.01);
+        break;
+      case 'domestic':
+        // Dogs have more varied sizes
+        widthFactor = 0.22 - (index * 0.02);
+        heightFactor = 0.2 - (index * 0.01);
+        break;
+      case 'predator':
+        // Predators are longer and leaner
+        widthFactor = 0.28 - (index * 0.02);
+        heightFactor = 0.17 - (index * 0.01);
+        break;
+      case 'herbivore':
+        // Herbivores can be taller
+        widthFactor = 0.25 - (index * 0.02);
+        heightFactor = 0.25 - (index * 0.01);
+        break;
+    }
+    
+    // Add confidence factor - more confident detections can be more precisely fitted
+    widthFactor = Math.max(0.15, widthFactor + (confidenceFactor * 0.05));
+    heightFactor = Math.max(0.12, heightFactor + (confidenceFactor * 0.04));
+    
+    return {
+      width: `${Math.round(widthFactor * 100)}%`, 
+      height: `${Math.round(heightFactor * 100)}%`
+    };
   };
   
   return (
@@ -520,70 +563,67 @@ export default function GalleryItem({
               <div className="absolute inset-0 pointer-events-none">
                 {animalBoxes.map((box, index) => {
                   const animalClass = getAnimalClassification(box.animal.name);
-                  
-                  // Size based on confidence and order
-                  const confidenceFactor = box.animal.confidence * 0.2;
-                  const sizeFactor = Math.max(0.4, 0.8 - (index * 0.08) + confidenceFactor);
+                  const boxSize = getBoxSize(box.animal, index);
                   
                   return (
                     <div 
                       key={index}
                       className={`animal-tracking-box absolute border-2 ${getBoxStyle(box.animal.name)} rounded-md`}
                       style={{
-                        width: `${Math.round(sizeFactor * 100)}%`,
-                        height: `${Math.round(sizeFactor * 60)}%`,
+                        width: boxSize.width,
+                        height: boxSize.height,
                         top: '50%',
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
-                        boxShadow: `0 0 8px ${animalClass === 'invasive' ? 'rgba(220, 38, 38, 0.6)' : 
+                        boxShadow: `0 0 6px ${animalClass === 'invasive' ? 'rgba(220, 38, 38, 0.6)' : 
                                     animalClass === 'domestic' ? 'rgba(37, 99, 235, 0.6)' : 
                                     animalClass === 'predator' ? 'rgba(249, 115, 22, 0.6)' :
                                     animalClass === 'herbivore' ? 'rgba(34, 197, 94, 0.6)' :
                                     'rgba(124, 58, 237, 0.6)'}`,
-                        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                        transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
                       }}
                     >
-                      {/* Corner indicators for tracking effect */}
-                      <div className={`absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 ${getBoxStyle(box.animal.name)}`}></div>
-                      <div className={`absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 ${getBoxStyle(box.animal.name)}`}></div>
-                      <div className={`absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 ${getBoxStyle(box.animal.name)}`}></div>
-                      <div className={`absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 ${getBoxStyle(box.animal.name)}`}></div>
+                      {/* Corner indicators for tracking effect - smaller corners */}
+                      <div className={`absolute -top-0.5 -left-0.5 w-2 h-2 border-t-2 border-l-2 ${getBoxStyle(box.animal.name)}`}></div>
+                      <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 border-t-2 border-r-2 ${getBoxStyle(box.animal.name)}`}></div>
+                      <div className={`absolute -bottom-0.5 -left-0.5 w-2 h-2 border-b-2 border-l-2 ${getBoxStyle(box.animal.name)}`}></div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 border-b-2 border-r-2 ${getBoxStyle(box.animal.name)}`}></div>
                       
-                      {/* Animal label */}
-                      <div className="absolute -top-6 left-0 right-0 flex justify-center">
+                      {/* Animal label - moved closer to box */}
+                      <div className="absolute -top-4 left-0 right-0 flex justify-center">
                         <Badge 
                           variant="outline" 
-                          className={`${getBadgeStyle(box.animal.name)} text-xs px-2 py-0.5`}
+                          className={`${getBadgeStyle(box.animal.name)} text-xs px-1 py-0 text-[10px]`}
                         >
-                          {getDetailedSpecies(box.animal.name)} {formatConfidence(box.animal.confidence)}
+                          {box.animal.name} {formatConfidence(box.animal.confidence)}
                         </Badge>
                       </div>
                       
-                      {/* Target icon for tracking */}
+                      {/* Target icon for tracking - smaller size */}
                       {isVideo && isTracking && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           {animalClass === 'domestic' ? (
                             <Dog 
                               className={`text-blue-500 opacity-70`} 
-                              size={24}
+                              size={16}
                               style={{ animation: 'pulse 1.5s infinite' }}
                             />
                           ) : animalClass === 'predator' ? (
                             <Target 
                               className={`text-orange-500 opacity-70`} 
-                              size={24}
+                              size={16}
                               style={{ animation: 'pulse 1.5s infinite' }}
                             />
                           ) : animalClass === 'invasive' ? (
                             <Target 
                               className={`text-red-500 opacity-70`} 
-                              size={24}
+                              size={16}
                               style={{ animation: 'pulse 1.5s infinite' }}
                             />
                           ) : (
                             <Crosshair 
                               className={`text-green-500 opacity-70`} 
-                              size={24}
+                              size={16}
                               style={{ animation: 'pulse 1.5s infinite' }}
                             />
                           )}
@@ -603,15 +643,15 @@ export default function GalleryItem({
                               'rgba(124, 58, 237, 0.4)'
                             }, transparent)`,
                             backgroundSize: '100% 200%',
-                            animation: 'scanAnimation 2s infinite linear'
+                            animation: 'scanAnimation 1.5s infinite linear'
                           }}
                         ></div>
                       )}
                       
-                      {/* ID number */}
-                      <div className="absolute top-1 left-1">
+                      {/* ID number - smaller size */}
+                      <div className="absolute top-0.5 left-0.5">
                         <div className={`
-                          px-1 py-0.5 rounded-full text-[10px] font-mono 
+                          px-0.5 py-0 rounded-full text-[8px] font-mono 
                           ${animalClass === 'invasive' ? 'bg-red-500 text-white' : 
                             animalClass === 'domestic' ? 'bg-blue-500 text-white' : 
                             animalClass === 'predator' ? 'bg-orange-500 text-white' : 
