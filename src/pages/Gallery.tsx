@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Settings, Mail, Phone, Lock, Edit } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import Gallery from '@/components/gallery/Gallery';
 import { 
   Dialog, 
@@ -118,16 +118,7 @@ export default function GalleryPage() {
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
                 
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    setShowEditProfileDialog(true);
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  <span>Editar Perfil</span>
-                </button>
+                {/* Removed the Edit Profile button from here */}
 
                 <button
                   className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
