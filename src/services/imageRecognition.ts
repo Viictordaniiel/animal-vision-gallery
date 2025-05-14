@@ -1,3 +1,4 @@
+
 // Simulação de um serviço avançado de reconhecimento de imagens de animais
 // Em uma implementação real, isso seria integrado com um serviço de IA como Google Cloud Vision ou Hugging Face
 
@@ -17,11 +18,11 @@ const animalDatabase: Record<string, Animal[]> = {
     { name: 'Ovelha', confidence: 0.86, description: 'Mamífero ruminante criado para produção de lã e carne.' }
   ],
   'forest': [
-    { name: 'Veado', confidence: 0.89, description: 'Mamífero ruminante da família dos cervídeos.' },
-    { name: 'Lobo', confidence: 0.78, description: 'Canídeo selvagem que vive em matilhas.' },
+    { name: 'Veado', confidence: 0.89, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas brasileiras.' },
+    { name: 'Lobo-guará', confidence: 0.82, description: 'Canídeo nativo do Cerrado brasileiro, espécie ameaçada de extinção.' },
     { name: 'Raposa', confidence: 0.82, description: 'Pequeno mamífero carnívoro da família dos canídeos.' },
-    { name: 'Urso', confidence: 0.91, description: 'Grande mamífero carnívoro da família dos ursídeos.' },
-    { name: 'Alce', confidence: 0.85, description: 'Grande mamífero da família dos cervídeos.' }
+    { name: 'Capivara', confidence: 0.91, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.' },
+    { name: 'Anta', confidence: 0.85, description: 'Maior mamífero terrestre brasileiro, importante dispersor de sementes.' }
   ],
   'pets': [
     { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.' },
@@ -40,7 +41,7 @@ const animalDatabase: Record<string, Animal[]> = {
   'birds': [
     { name: 'Gavião', confidence: 0.88, description: 'Ave de rapina com excelente visão e garras afiadas.' },
     { name: 'Coruja', confidence: 0.91, description: 'Ave noturna conhecida por sua capacidade de girar a cabeça.' },
-    { name: 'Tucano', confidence: 0.93, description: 'Ave tropical com bico grande e colorido.' },
+    { name: 'Tucano', confidence: 0.93, description: 'Ave tropical com bico grande e colorido, nativa das florestas brasileiras.' },
     { name: 'Beija-flor', confidence: 0.95, description: 'Pequena ave conhecida por bater as asas rapidamente.' },
     { name: 'Arara', confidence: 0.92, description: 'Ave colorida da família dos psitacídeos, comum nas florestas tropicais.' }
   ],
@@ -61,7 +62,7 @@ const animalDatabase: Record<string, Animal[]> = {
     { name: 'Peixe', confidence: 0.94, description: 'Animal aquático vertebrado com guelras e nadadeiras.' },
     { name: 'Tartaruga Marinha', confidence: 0.89, description: 'Réptil marinho da família Cheloniidae.' },
     { name: 'Golfinho', confidence: 0.93, description: 'Mamífero marinho cetáceo conhecido por sua inteligência.' },
-    { name: 'Baleia', confidence: 0.91, description: 'Grande mamífero marinho da ordem Cetacea.' }
+    { name: 'Pirarucu', confidence: 0.91, description: 'Um dos maiores peixes de água doce do mundo, nativo da Amazônia.' }
   ],
   'insects': [
     { name: 'Borboleta', confidence: 0.93, description: 'Inseto da ordem Lepidoptera com asas coloridas.' },
@@ -69,11 +70,12 @@ const animalDatabase: Record<string, Animal[]> = {
     { name: 'Formiga', confidence: 0.96, description: 'Inseto social da família Formicidae.' },
     { name: 'Joaninha', confidence: 0.91, description: 'Pequeno inseto da família Coccinellidae, predador de pulgões.' }
   ],
-  'carnivores': [
-    { name: 'Leão', confidence: 0.94, description: 'Grande felino conhecido como o rei da selva.' },
-    { name: 'Tigre', confidence: 0.92, description: 'O maior felino selvagem do mundo, predador solitário.' },
-    { name: 'Leopardo', confidence: 0.90, description: 'Felino com pelagem manchada, excelente caçador.' },
-    { name: 'Onça-pintada', confidence: 0.91, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.' }
+  'brazilian_natives': [
+    { name: 'Onça-pintada', confidence: 0.94, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.' },
+    { name: 'Tamanduá-bandeira', confidence: 0.92, description: 'Mamífero com focinho alongado, especializado em se alimentar de formigas e cupins.' },
+    { name: 'Tatu', confidence: 0.93, description: 'Mamífero com carapaça protetora característica, comum no Brasil.' },
+    { name: 'Quati', confidence: 0.91, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.' },
+    { name: 'Bugio', confidence: 0.90, description: 'Macaco típico das florestas brasileiras, conhecido por seu ronco característico.' }
   ]
 };
 
@@ -89,6 +91,22 @@ const wildPigsDatabase: Animal[] = [
   { name: 'Javali em área agrícola', confidence: 0.92, description: 'Javali encontrado próximo a plantações, onde costuma causar danos significativos.' },
   { name: 'Cateto', confidence: 0.91, description: 'Porco selvagem menor (Pecari tajacu), nativo das Américas, às vezes confundido com javalis.' },
   { name: 'Queixada', confidence: 0.90, description: 'Porco selvagem social (Tayassu pecari) que forma grandes grupos nas florestas da América do Sul.' }
+];
+
+// Banco de dados de animais nativos comuns no Brasil
+const nativeAnimalsDatabase: Animal[] = [
+  { name: 'Veado-campeiro', confidence: 0.94, description: 'Cervídeo típico do cerrado e campos abertos.' },
+  { name: 'Lobo-guará', confidence: 0.93, description: 'Canídeo nativo do Cerrado brasileiro, espécie ameaçada de extinção.' },
+  { name: 'Capivara', confidence: 0.97, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.' },
+  { name: 'Anta', confidence: 0.92, description: 'Maior mamífero terrestre brasileiro, importante dispersor de sementes.' },
+  { name: 'Onça-pintada', confidence: 0.91, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.' },
+  { name: 'Tamanduá-bandeira', confidence: 0.95, description: 'Mamífero com focinho alongado, especializado em se alimentar de formigas e cupins.' },
+  { name: 'Tatu', confidence: 0.96, description: 'Mamífero com carapaça protetora característica, comum no Brasil.' },
+  { name: 'Puma', confidence: 0.90, description: 'Felino de grande porte também conhecido como onça-parda ou suçuarana.' },
+  { name: 'Jaguatirica', confidence: 0.89, description: 'Felino de médio porte com pelagem manchada, típico de florestas.' },
+  { name: 'Macaco-prego', confidence: 0.94, description: 'Primata inteligente comum em várias regiões florestais do Brasil.' },
+  { name: 'Cervo-do-pantanal', confidence: 0.91, description: 'Maior cervídeo da América do Sul, habita áreas alagadas.' },
+  { name: 'Quati', confidence: 0.93, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.' }
 ];
 
 // Mapeamento de imagens de treinamento com IDs específicos para javalis
@@ -116,7 +134,7 @@ const specificImages = {
   },
   'f677b28b-4909-4fb7-9c21-509d1ba8522b': { 
     category: 'forest',
-    result: [{ name: 'Veado', confidence: 0.97, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas.' }]
+    result: [{ name: 'Veado-campeiro', confidence: 0.97, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas e campos do Brasil.' }]
   }
 };
 
@@ -128,10 +146,11 @@ const visualSignatures = {
   'reptiles': ['escamas', 'pele seca', 'cauda longa', 'habitat terrestre'],
   'amphibians': ['pele úmida', 'habitat próximo à água', 'sem escamas', 'olhos protuberantes'],
   'carnivores': ['dentes caninos desenvolvidos', 'garras afiadas', 'olhos frontais', 'predador'],
-  'pets': ['doméstico', 'comportamento dócil', 'interação com humanos']
+  'pets': ['doméstico', 'comportamento dócil', 'interação com humanos'],
+  'brazilian_natives': ['habitat cerrado', 'coloração camuflada', 'adaptações para clima tropical', 'espécie endêmica']
 };
 
-// Sistema de análise de características da imagem para identificação mais precisa
+// Sistema avançado de análise de características da imagem para identificação mais precisa
 const analyzeImageCharacteristics = (imageUrl: string): string[] => {
   // Em um sistema real, essa análise seria feita com um modelo de visão computacional
   const characteristics: string[] = [];
@@ -152,24 +171,37 @@ const analyzeImageCharacteristics = (imageUrl: string): string[] => {
     characteristics.push('bico', 'asas', 'penas');
   }
   
+  if (lowerUrl.includes('onça') || lowerUrl.includes('jaguar') || lowerUrl.includes('felino')) {
+    characteristics.push('predador', 'manchas na pelagem', 'garras afiadas', 'habitat florestal');
+  }
+  
   return characteristics;
 };
 
-// Função para avaliar similaridade entre características detectadas e assinaturas visuais de categorias
+// Função aprimorada para avaliar similaridade entre características detectadas e assinaturas visuais
 const findBestMatchingCategory = (detectedCharacteristics: string[]): string => {
   let bestMatch = '';
   let highestScore = -1;
   
   for (const [category, signatures] of Object.entries(visualSignatures)) {
     let score = 0;
+    let matches = 0;
+    
     for (const characteristic of detectedCharacteristics) {
-      if (signatures.some(sig => characteristic.includes(sig) || sig.includes(characteristic))) {
-        score++;
+      for (const signature of signatures) {
+        // Algoritmo de correspondência melhorado para detectar similaridades parciais
+        if (characteristic.includes(signature) || signature.includes(characteristic)) {
+          score += 1;
+          matches++;
+          break;
+        }
       }
     }
     
-    // Normalizar pontuação pela quantidade de assinaturas
-    const normalizedScore = score / signatures.length;
+    // Pontuação ponderada considerando tanto correspondências quanto especificidade
+    const matchRatio = matches / detectedCharacteristics.length;
+    const signatureRatio = matches / signatures.length;
+    const normalizedScore = (matchRatio * 0.6) + (signatureRatio * 0.4);
     
     if (normalizedScore > highestScore) {
       highestScore = normalizedScore;
@@ -178,7 +210,8 @@ const findBestMatchingCategory = (detectedCharacteristics: string[]): string => 
   }
   
   // Se não encontrar correspondência suficiente, retornar uma categoria aleatória
-  return highestScore > 0.2 ? bestMatch : Object.keys(animalDatabase)[Math.floor(Math.random() * Object.keys(animalDatabase).length)];
+  // com preferência para espécies brasileiras nativas
+  return highestScore > 0.2 ? bestMatch : ['forest', 'brazilian_natives'][Math.floor(Math.random() * 2)];
 };
 
 // Sistema avançado de impressão digital da imagem para identificação consistente
@@ -204,23 +237,61 @@ const getImageFingerprint = (imageUrl: string): string => {
 // Cache para resultados já processados
 const resultCache = new Map<string, Animal[]>();
 
-// Função que retorna SEMPRE javalis para uploads de usuário
-const detectWildPig = (): { category: string, animals: Animal[] } => {
-  // Seleciona entre 2 e 4 tipos de javalis aleatórios
-  const numberOfResults = Math.floor(Math.random() * 3) + 2;
-  const shuffledPigs = [...wildPigsDatabase].sort(() => 0.5 - Math.random());
-  const selectedPigs = shuffledPigs.slice(0, numberOfResults);
+// Função aprimorada para determinar se a imagem deve mostrar javalis ou animais nativos
+const shouldDetectWildPig = (imageUrl: string): boolean => {
+  // Para URLs blob (uploads de usuário), use um algoritmo baseado no hash para determinar
+  // se mostraremos javalis ou animais nativos, mantendo consistência com preferência por javalis
+  if (imageUrl.startsWith('blob:')) {
+    const fingerprint = getImageFingerprint(imageUrl);
+    const hashCode = Array.from(fingerprint).reduce(
+      (hash, char) => char.charCodeAt(0) + ((hash << 5) - hash), 0
+    );
+    
+    // 70% de chance de mostrar javalis para uploads
+    return (Math.abs(hashCode) % 10) < 7;
+  }
   
-  // Adicionar pequenas variações na confiança para parecer mais natural
-  const wildPigsWithVariation = selectedPigs.map(pig => ({
-    ...pig,
-    confidence: Math.min(0.99, Math.max(0.85, pig.confidence + (Math.random() * 0.06 - 0.03)))
-  }));
+  return false;
+};
+
+// Função que retorna javalis ou animais nativos para uploads de usuário
+const detectAnimalFromUpload = (): { category: string, animals: Animal[] } => {
+  // Determinar se mostraremos javalis ou animais nativos (para diversidade)
+  const showWildPig = Math.random() < 0.7; // 70% de chance de mostrar javalis
   
-  return { 
-    category: 'wild_pigs',
-    animals: wildPigsWithVariation
-  };
+  if (showWildPig) {
+    // Seleciona entre 1 e 3 tipos de javalis aleatórios
+    const numberOfResults = Math.floor(Math.random() * 3) + 1;
+    const shuffledPigs = [...wildPigsDatabase].sort(() => 0.5 - Math.random());
+    const selectedPigs = shuffledPigs.slice(0, numberOfResults);
+    
+    // Adicionar pequenas variações na confiança para parecer mais natural
+    const wildPigsWithVariation = selectedPigs.map(pig => ({
+      ...pig,
+      confidence: Math.min(0.99, Math.max(0.85, pig.confidence + (Math.random() * 0.06 - 0.03)))
+    }));
+    
+    return { 
+      category: 'wild_pigs',
+      animals: wildPigsWithVariation
+    };
+  } else {
+    // Seleciona entre 1 e 2 tipos de animais nativos aleatórios
+    const numberOfResults = Math.floor(Math.random() * 2) + 1;
+    const shuffledNatives = [...nativeAnimalsDatabase].sort(() => 0.5 - Math.random());
+    const selectedNatives = shuffledNatives.slice(0, numberOfResults);
+    
+    // Adicionar pequenas variações na confiança para parecer mais natural
+    const nativesWithVariation = selectedNatives.map(animal => ({
+      ...animal,
+      confidence: Math.min(0.99, Math.max(0.80, animal.confidence + (Math.random() * 0.08 - 0.04)))
+    }));
+    
+    return { 
+      category: 'brazilian_natives',
+      animals: nativesWithVariation
+    };
+  }
 };
 
 // Função avançada para detectar tipo de animal com base em dados da imagem
@@ -235,9 +306,9 @@ const detectAnimalType = (imageUrl: string): { category: string, animals: Animal
     };
   }
   
-  // Para URLs blob (uploads de usuário), SEMPRE retornar javalis
+  // Para URLs blob (uploads de usuário), usar nossa função especializada
   if (imageUrl.startsWith('blob:')) {
-    return detectWildPig();
+    return detectAnimalFromUpload();
   }
   
   // Analisar características da imagem
@@ -254,8 +325,8 @@ const detectAnimalType = (imageUrl: string): { category: string, animals: Animal
       (hash, char) => char.charCodeAt(0) + ((hash << 5) - hash), 0
     );
     const categories = Object.keys(animalDatabase);
-    // Priorizar javalis quando não temos certeza
-    const weightedCategories = [...categories, 'wild_pigs', 'wild_pigs', 'wild_pigs'];
+    // Balancear entre espécies invasoras e nativas
+    const weightedCategories = [...categories, 'wild_pigs', 'wild_pigs', 'brazilian_natives', 'brazilian_natives'];
     return weightedCategories[Math.abs(hashCode) % weightedCategories.length];
   })();
   
@@ -281,11 +352,11 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
     return resultCache.get(fingerprint)!;
   }
   
-  // Para URLs de blob (uploads do usuário), SEMPRE retornar javalis
+  // Para uploads do usuário, usar nossa função especializada
   if (imageUrl.startsWith('blob:')) {
-    const { animals: wildPigs } = detectWildPig();
-    resultCache.set(fingerprint, wildPigs);
-    return wildPigs;
+    const { animals } = detectAnimalFromUpload();
+    resultCache.set(fingerprint, animals);
+    return animals;
   }
   
   // Realizar detecção avançada do tipo de animal para imagens do sistema (não uploads)
@@ -323,8 +394,8 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
       const randomFactor = ((fingerprintHash % 1000) / 1000) * 0.2;
       return (b.confidence + randomFactor) - (a.confidence + randomFactor);
     })
-    // Limitar a quantidade de resultados baseado no hash (2-4 resultados)
-    .slice(0, 2 + (fingerprintHash % 3));
+    // Limitar a quantidade de resultados baseado no hash (1-3 resultados)
+    .slice(0, 1 + (fingerprintHash % 3));
   
   // Armazenar em cache para consultas futuras
   resultCache.set(fingerprint, results);
@@ -334,12 +405,26 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
 
 // Função para buscar informações sobre um animal específico
 export async function getAnimalInfo(animalName: string): Promise<Animal | null> {
-  // Procura em todas as categorias
+  // Procura em todos os bancos de dados
+  // Primeiro verificar no banco de dados de javalis
+  const wildPigMatch = wildPigsDatabase.find(
+    animal => animal.name.toLowerCase() === animalName.toLowerCase()
+  );
+  if (wildPigMatch) return wildPigMatch;
+  
+  // Depois verificar no banco de dados de animais nativos
+  const nativeMatch = nativeAnimalsDatabase.find(
+    animal => animal.name.toLowerCase() === animalName.toLowerCase()
+  );
+  if (nativeMatch) return nativeMatch;
+  
+  // Por fim, verificar no banco de dados geral
   for (const category in animalDatabase) {
     const found = animalDatabase[category].find(
       animal => animal.name.toLowerCase() === animalName.toLowerCase()
     );
     if (found) return found;
   }
+  
   return null;
 }
