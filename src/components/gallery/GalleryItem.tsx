@@ -36,6 +36,7 @@ export default function GalleryItem({
   const [detectedAnimals, setDetectedAnimals] = useState<{animal: Animal, box: HTMLDivElement | null}[]>([]);
   const [animalMovements, setAnimalMovements] = useState<{[key: number]: {x: number, y: number, speed: number, pattern: string, lastUpdate: number}}>({}); 
   const [videoProgress, setVideoProgress] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const formatConfidence = (confidence: number) => {
     return `${Math.round(confidence * 100)}%`;
@@ -100,6 +101,8 @@ export default function GalleryItem({
   // Initialize movement patterns for each animal when detected
   useEffect(() => {
     if (animals.length > 0 && !isAnalyzing) {
+      console.log("Setting up animal detection boxes for", animals.length, "animals");
+      
       // Clear previous detection boxes
       setDetectedAnimals([]);
       
@@ -151,6 +154,7 @@ export default function GalleryItem({
   useEffect(() => {
     // Set up video playback if this is a video element
     if (isVideo && videoRef.current) {
+      console.log("Setting up video playback with src:", imageUrl);
       videoRef.current.src = imageUrl;
       
       // Add event listeners for video playback to update detection box
@@ -198,7 +202,7 @@ export default function GalleryItem({
         }
       };
     }
-  }, [imageUrl, isVideo, detectedAnimals, animalMovements]);
+  }, [imageUrl, isVideo, detectedAnimals]);
   
   // Enhanced tracking algorithm with adaptive movements based on scene analysis
   const updateAnimalPositions = (progressPercent: number, currentTime: number) => {
@@ -369,14 +373,6 @@ export default function GalleryItem({
             } else {
               setTrackingQuality('high');
             }
-            
-            // Notify user of quality changes only when they occur (removed to avoid notification spam)
-            // if (trackingQuality !== 'high' && qualityRandom > 0.98) {
-            //   toast({ 
-            //     title: "Qualidade de rastreamento reduzida",
-            //     description: "Movimentos complexos e condições da cena podem afetar a precisão."
-            //   });
-            // }
           } else {
             setTrackingQuality('high');
           }
@@ -396,19 +392,24 @@ export default function GalleryItem({
   // Create refs for detection boxes
   useEffect(() => {
     if (animals.length > 0 && detectedAnimals.length > 0) {
+      console.log("Setting up detection box refs for", detectedAnimals.length, "animals");
+      
       // Use a timeout to ensure the component is fully rendered
       const timeout = setTimeout(() => {
         const boxes = document.querySelectorAll('.animal-detection-box');
+        console.log("Found", boxes.length, "detection boxes");
+        
         const updatedAnimals = [...detectedAnimals];
         
         boxes.forEach((box, index) => {
           if (index < updatedAnimals.length) {
             updatedAnimals[index].box = box as HTMLDivElement;
+            console.log(`Assigned box reference for animal ${index}`);
           }
         });
         
         setDetectedAnimals(updatedAnimals);
-      }, 100);
+      }, 200); // Increased timeout for better chance of DOM being ready
       
       return () => clearTimeout(timeout);
     }
@@ -439,7 +440,7 @@ export default function GalleryItem({
   return (
     <Card className="overflow-hidden w-full max-w-md">
       <CardContent className="p-0">
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
           {isVideo ? (
             <video 
               ref={videoRef}
@@ -752,7 +753,7 @@ export default function GalleryItem({
         </div>
       </CardContent>
       
-      {/* Fix the style element by removing the jsx property */}
+      {/* CSS animations for tracking effects */}
       <style>
         {`
         @keyframes scanAnimation {
