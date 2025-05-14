@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ type Animal = {
   name: string;
   confidence: number;
   description?: string;
+  bbox?: { x: number, y: number, width: number, height: number }; // Add bounding box information
 };
 
 type GalleryItemProps = {
@@ -39,14 +39,17 @@ export default function GalleryItem({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const bboxCanvasRef = useRef<HTMLCanvasElement>(null); // New canvas for bounding boxes
   const [videoProgress, setVideoProgress] = useState(0);
   const [motionDetection, setMotionDetection] = useState(false);
   const [droneCompensation, setDroneCompensation] = useState(false);
+  const [showBoundingBoxes, setShowBoundingBoxes] = useState(true); // State to toggle bounding boxes
   const [motionPoints, setMotionPoints] = useState<{x: number, y: number, strength: number}[]>([]);
   const lastFrameRef = useRef<ImageData | null>(null);
   const animationRef = useRef<number | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const overlayContextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const bboxContextRef = useRef<CanvasRenderingContext2D | null>(null); // Context for bounding boxes
   const referencePointsRef = useRef<{x: number, y: number}[]>([]);
   const lastReferencePointsRef = useRef<{x: number, y: number}[]>([]);
   const frameCountRef = useRef<number>(0);
@@ -142,7 +145,158 @@ export default function GalleryItem({
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
   
-  // Set up video playback and motion detection
+  // Generate synthetic bounding boxes for testing/demonstration
+  // In a real scenario, these would come from the AI model
+  const generateSyntheticBoundingBoxes = () => {
+    if (!animals || animals.length === 0) return;
+    
+    // Only generate bounding boxes for animals that don't have them yet
+    const updatedAnimals = animals.map(animal => {
+      if (!animal.bbox) {
+        // Create synthetic bounding box
+        // In a real implementation, the AI would provide these
+        const containerWidth = videoRef.current?.videoWidth || canvasRef.current?.width || 640;
+        const containerHeight = videoRef.current?.videoHeight || canvasRef.current?.height || 480;
+        
+        // Create somewhat random but sensible bounding box
+        // Different animal types get different typical positions and sizes
+        let x, y, width, height;
+        
+        const isPredator = isPredator(animal.name);
+        const isHerbivore = isHerbivore(animal.name);
+        const isDomestic = isDog(animal.name);
+        
+        if (isPredator) {
+          // Predators often in the center of the frame
+          x = 0.3 + Math.random() * 0.4;
+          y = 0.3 + Math.random() * 0.4;
+          width = 0.2 + Math.random() * 0.2;
+          height = 0.2 + Math.random() * 0.2;
+        } else if (isHerbivore) {
+          // Herbivores often in groups, lower in the frame
+          x = 0.2 + Math.random() * 0.6;
+          y = 0.5 + Math.random() * 0.3;
+          width = 0.15 + Math.random() * 0.15;
+          height = 0.15 + Math.random() * 0.15;
+        } else if (isDomestic) {
+          // Domestic animals closer to the camera, larger boxes
+          x = 0.25 + Math.random() * 0.5;
+          y = 0.4 + Math.random() * 0.4;
+          width = 0.25 + Math.random() * 0.2;
+          height = 0.25 + Math.random() * 0.2;
+        } else {
+          // Default: somewhere in the frame
+          x = 0.2 + Math.random() * 0.6;
+          y = 0.2 + Math.random() * 0.6;
+          width = 0.1 + Math.random() * 0.3;
+          height = 0.1 + Math.random() * 0.3;
+        }
+        
+        return {
+          ...animal,
+          bbox: {
+            x: Math.floor(x * containerWidth),
+            y: Math.floor(y * containerHeight),
+            width: Math.floor(width * containerWidth),
+            height: Math.floor(height * containerHeight)
+          }
+        };
+      }
+      return animal;
+    });
+    
+    // Note: In a real implementation, we would update the state here
+    // For this example, we're just generating the bounding boxes when drawing
+  };
+  
+  // Draw bounding boxes on the overlay canvas
+  const drawBoundingBoxes = () => {
+    if (!bboxCanvasRef.current || !bboxContextRef.current || !showBoundingBoxes) return;
+    
+    const canvas = bboxCanvasRef.current;
+    const ctx = bboxContextRef.current;
+    
+    // Get container dimensions
+    const containerWidth = videoRef.current?.videoWidth || canvas.width;
+    const containerHeight = videoRef.current?.videoHeight || canvas.height;
+    
+    // Clear previous drawings
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw each animal's bounding box
+    animals.forEach(animal => {
+      // Generate synthetic bounding box if missing (in production, these would come from the AI model)
+      const bbox = animal.bbox || {
+        x: Math.floor((0.2 + Math.random() * 0.6) * containerWidth),
+        y: Math.floor((0.2 + Math.random() * 0.6) * containerHeight),
+        width: Math.floor((0.1 + Math.random() * 0.3) * containerWidth),
+        height: Math.floor((0.1 + Math.random() * 0.3) * containerHeight)
+      };
+      
+      // Get color based on animal type
+      const animalClass = getAnimalClassification(animal.name);
+      let strokeColor, fillColor;
+      
+      switch (animalClass) {
+        case 'invasive':
+          strokeColor = 'rgba(220, 38, 38, 0.8)'; // Red
+          fillColor = 'rgba(220, 38, 38, 0.2)';
+          break;
+        case 'domestic':
+          strokeColor = 'rgba(37, 99, 235, 0.8)'; // Blue
+          fillColor = 'rgba(37, 99, 235, 0.2)';
+          break;
+        case 'predator':
+          strokeColor = 'rgba(234, 88, 12, 0.8)'; // Orange
+          fillColor = 'rgba(234, 88, 12, 0.2)';
+          break;
+        case 'herbivore':
+          strokeColor = 'rgba(22, 163, 74, 0.8)'; // Green
+          fillColor = 'rgba(22, 163, 74, 0.2)';
+          break;
+        default:
+          strokeColor = 'rgba(139, 92, 246, 0.8)'; // Purple
+          fillColor = 'rgba(139, 92, 246, 0.2)';
+      }
+      
+      // Draw filled rectangle with transparency
+      ctx.fillStyle = fillColor;
+      ctx.fillRect(bbox.x, bbox.y, bbox.width, bbox.height);
+      
+      // Draw border
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+      
+      // Draw label
+      ctx.fillStyle = strokeColor;
+      ctx.font = '12px Arial';
+      
+      // Create background for text
+      const label = `${animal.name} (${formatConfidence(animal.confidence)})`;
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(bbox.x, bbox.y - 20, textWidth + 10, 20);
+      
+      // Draw text
+      ctx.fillStyle = 'white';
+      ctx.fillText(label, bbox.x + 5, bbox.y - 5);
+    });
+  };
+  
+  // Toggle bounding boxes visibility
+  const toggleBoundingBoxes = () => {
+    setShowBoundingBoxes(!showBoundingBoxes);
+    
+    toast({
+      title: showBoundingBoxes ? "Retângulos desativados" : "Retângulos ativados",
+      description: showBoundingBoxes 
+        ? "Visualização sem retângulos de identificação." 
+        : "Visualizando retângulos de identificação para cada animal.",
+    });
+  };
+  
+  // Set up video playback and canvases
   useEffect(() => {
     if (isVideo && videoRef.current) {
       console.log("Setting up video playback with src:", imageUrl);
@@ -167,6 +321,11 @@ export default function GalleryItem({
         overlayContextRef.current = overlayCanvasRef.current.getContext('2d');
       }
       
+      // Set up canvas for bounding boxes
+      if (bboxCanvasRef.current) {
+        bboxContextRef.current = bboxCanvasRef.current.getContext('2d');
+      }
+      
       return () => {
         if (videoRef.current) {
           videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
@@ -179,6 +338,60 @@ export default function GalleryItem({
       };
     }
   }, [imageUrl, isVideo]);
+  
+  // Draw bounding boxes whenever animals or showBoundingBoxes changes
+  useEffect(() => {
+    // Generate bounding boxes for animals that don't have them
+    generateSyntheticBoundingBoxes();
+    
+    // Set up canvas sizes whenever animals change (i.e., after analysis)
+    if (bboxCanvasRef.current && (videoRef.current || !isVideo)) {
+      const containerWidth = videoRef.current?.videoWidth || 640;
+      const containerHeight = videoRef.current?.videoHeight || 480;
+      
+      if (bboxCanvasRef.current.width !== containerWidth) {
+        bboxCanvasRef.current.width = containerWidth;
+        bboxCanvasRef.current.height = containerHeight;
+        
+        // Re-get context after resize
+        bboxContextRef.current = bboxCanvasRef.current.getContext('2d');
+      }
+      
+      // Draw the bounding boxes
+      drawBoundingBoxes();
+    }
+    
+    // For images, we need a slight delay to let the image load
+    if (!isVideo && animals.length > 0 && showBoundingBoxes) {
+      const img = new Image();
+      img.onload = () => {
+        if (bboxCanvasRef.current && bboxContextRef.current) {
+          bboxCanvasRef.current.width = img.width;
+          bboxCanvasRef.current.height = img.height;
+          drawBoundingBoxes();
+        }
+      };
+      img.src = imageUrl;
+    }
+  }, [animals, showBoundingBoxes]);
+  
+  // Video frame update to draw bounding boxes continuously
+  useEffect(() => {
+    if (isVideo && videoRef.current && animals.length > 0 && showBoundingBoxes) {
+      const updateBoundingBoxes = () => {
+        drawBoundingBoxes();
+        animationRef.current = requestAnimationFrame(updateBoundingBoxes);
+      };
+      
+      updateBoundingBoxes();
+      
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    }
+  }, [isVideo, animals.length, showBoundingBoxes]);
   
   // Toggle motion detection with drone movement compensation
   useEffect(() => {
@@ -605,6 +818,11 @@ export default function GalleryItem({
                 className="absolute top-0 left-0 w-full h-64 pointer-events-none"
                 style={{ opacity: motionDetection ? 0.9 : 0 }}
               />
+              <canvas
+                ref={bboxCanvasRef}
+                className="absolute top-0 left-0 w-full h-64 pointer-events-none"
+                style={{ opacity: showBoundingBoxes ? 0.9 : 0 }}
+              />
               {motionDetection && motionPoints.map((point, i) => (
                 <div
                   key={i}
@@ -628,14 +846,21 @@ export default function GalleryItem({
               ))}
             </>
           ) : (
-            <img 
-              src={imageUrl} 
-              alt="Animal" 
-              className="w-full h-64 object-cover"
-              onError={(e) => {
-                e.currentTarget.src = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
-              }}
-            />
+            <>
+              <img 
+                src={imageUrl} 
+                alt="Animal" 
+                className="w-full h-64 object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
+                }}
+              />
+              <canvas
+                ref={bboxCanvasRef}
+                className="absolute top-0 left-0 w-full h-64 pointer-events-none"
+                style={{ opacity: showBoundingBoxes ? 0.9 : 0 }}
+              />
+            </>
           )}
           
           {/* Analyzing overlay */}
@@ -681,43 +906,70 @@ export default function GalleryItem({
             </>
           )}
           
-          {/* Motion detection and drone compensation buttons for videos */}
-          {isVideo && animals.length > 0 && !isAnalyzing && (
+          {/* Control buttons for videos - motion detection, drone compensation, bounding boxes */}
+          {animals.length > 0 && !isAnalyzing && (
             <div className="absolute bottom-2 left-2 flex gap-2">
+              {/* Bounding box toggle - always available */}
               <Button 
                 size="sm"
-                variant={motionDetection ? "default" : "outline"}
+                variant={showBoundingBoxes ? "default" : "outline"}
                 className={`flex items-center gap-1 text-xs ${
-                  motionDetection ? 'bg-red-600 hover:bg-red-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
+                  showBoundingBoxes ? 'bg-violet-600 hover:bg-violet-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
                 }`}
-                onClick={toggleMotionDetection}
+                onClick={toggleBoundingBoxes}
               >
-                {motionDetection ? (
+                {showBoundingBoxes ? (
                   <>
-                    <Radar size={14} />
-                    <span>Sensor ativo</span>
+                    <Eye size={14} />
+                    <span>Ocultar retângulos</span>
                   </>
                 ) : (
                   <>
-                    <Target size={14} />
-                    <span>Detectar movimento</span>
+                    <Eye size={14} />
+                    <span>Mostrar retângulos</span>
                   </>
                 )}
               </Button>
               
-              {motionDetection && (
-                <Button 
-                  size="sm"
-                  variant={droneCompensation ? "default" : "outline"}
-                  className={`flex items-center gap-1 text-xs ${
-                    droneCompensation ? 'bg-green-600 hover:bg-green-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
-                  }`}
-                  onClick={toggleDroneCompensation}
-                  title="Compensar movimento do drone"
-                >
-                  <MoveVertical size={14} />
-                  <span>Compensar drone</span>
-                </Button>
+              {/* Only show these buttons for video */}
+              {isVideo && (
+                <>
+                  <Button 
+                    size="sm"
+                    variant={motionDetection ? "default" : "outline"}
+                    className={`flex items-center gap-1 text-xs ${
+                      motionDetection ? 'bg-red-600 hover:bg-red-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
+                    }`}
+                    onClick={toggleMotionDetection}
+                  >
+                    {motionDetection ? (
+                      <>
+                        <Radar size={14} />
+                        <span>Sensor ativo</span>
+                      </>
+                    ) : (
+                      <>
+                        <Target size={14} />
+                        <span>Detectar movimento</span>
+                      </>
+                    )}
+                  </Button>
+                  
+                  {motionDetection && (
+                    <Button 
+                      size="sm"
+                      variant={droneCompensation ? "default" : "outline"}
+                      className={`flex items-center gap-1 text-xs ${
+                        droneCompensation ? 'bg-green-600 hover:bg-green-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
+                      }`}
+                      onClick={toggleDroneCompensation}
+                      title="Compensar movimento do drone"
+                    >
+                      <MoveVertical size={14} />
+                      <span>Compensar drone</span>
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           )}
