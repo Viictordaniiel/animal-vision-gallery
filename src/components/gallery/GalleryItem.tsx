@@ -1,9 +1,8 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, MoveHorizontal, Target, Move, MoveVertical, Radar } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 type Animal = {
@@ -36,7 +35,13 @@ export default function GalleryItem({
 }: GalleryItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [motionDetection, setMotionDetection] = useState(false);
+  const [motionPoints, setMotionPoints] = useState<{x: number, y: number, strength: number}[]>([]);
+  const lastFrameRef = useRef<ImageData | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   
   // Enhanced species identification with detailed taxonomy
   const getDetailedSpecies = (animalName: string): string => {
@@ -128,7 +133,7 @@ export default function GalleryItem({
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
   
-  // Set up video playback
+  // Set up video playback and motion detection
   useEffect(() => {
     if (isVideo && videoRef.current) {
       console.log("Setting up video playback with src:", imageUrl);
@@ -143,13 +148,122 @@ export default function GalleryItem({
       
       videoRef.current.addEventListener('timeupdate', handleTimeUpdate);
       
+      // Set up canvas for motion detection
+      if (canvasRef.current) {
+        contextRef.current = canvasRef.current.getContext('2d');
+      }
+      
       return () => {
         if (videoRef.current) {
           videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         }
+        
+        // Clean up motion detection
+        if (animationRef.current !== null) {
+          cancelAnimationFrame(animationRef.current);
+        }
       };
     }
   }, [imageUrl, isVideo]);
+  
+  // Toggle motion detection
+  useEffect(() => {
+    if (isVideo && motionDetection && videoRef.current && canvasRef.current && contextRef.current) {
+      // Reset previous motion detection
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        lastFrameRef.current = null;
+      }
+      
+      // Start motion detection
+      const detectMotion = () => {
+        if (videoRef.current && canvasRef.current && contextRef.current) {
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          const context = contextRef.current;
+          
+          // Set canvas dimensions to match video
+          if (video.videoWidth > 0 && canvas.width !== video.videoWidth) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }
+          
+          // Draw current video frame to canvas
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Get image data for current frame
+          const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // Compare with last frame to detect motion
+          if (lastFrameRef.current) {
+            const lastFrame = lastFrameRef.current;
+            const motionData = [];
+            const blockSize = 16; // Size of blocks to analyze for motion
+            const threshold = 30; // Threshold for motion detection
+            
+            // Analyze blocks of pixels for changes
+            for (let y = 0; y < canvas.height; y += blockSize) {
+              for (let x = 0; x < canvas.width; x += blockSize) {
+                let diffCount = 0;
+                let totalDiff = 0;
+                
+                // Check a sampling of pixels in this block
+                for (let by = 0; by < blockSize && y + by < canvas.height; by += 4) {
+                  for (let bx = 0; bx < blockSize && x + bx < canvas.width; bx += 4) {
+                    const pixelPos = ((y + by) * canvas.width + (x + bx)) * 4;
+                    
+                    // Calculate difference between frames for this pixel
+                    const rDiff = Math.abs(currentFrame.data[pixelPos] - lastFrame.data[pixelPos]);
+                    const gDiff = Math.abs(currentFrame.data[pixelPos + 1] - lastFrame.data[pixelPos + 1]);
+                    const bDiff = Math.abs(currentFrame.data[pixelPos + 2] - lastFrame.data[pixelPos + 2]);
+                    
+                    const diff = (rDiff + gDiff + bDiff) / 3;
+                    if (diff > threshold) {
+                      diffCount++;
+                      totalDiff += diff;
+                    }
+                  }
+                }
+                
+                // If enough pixels changed, mark this as a motion point
+                if (diffCount > 3) {
+                  motionData.push({
+                    x: x + blockSize / 2, 
+                    y: y + blockSize / 2,
+                    strength: Math.min(1, totalDiff / (255 * diffCount))
+                  });
+                }
+              }
+            }
+            
+            // Update motion points
+            setMotionPoints(motionData);
+          }
+          
+          // Save current frame for next comparison
+          lastFrameRef.current = currentFrame;
+          
+          // Continue detection loop
+          animationRef.current = requestAnimationFrame(detectMotion);
+        }
+      };
+      
+      // Start the detection loop
+      detectMotion();
+      
+      return () => {
+        if (animationRef.current !== null) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    } else if (!motionDetection && animationRef.current !== null) {
+      // Stop motion detection
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+      lastFrameRef.current = null;
+      setMotionPoints([]);
+    }
+  }, [motionDetection, isVideo]);
   
   // Get the appropriate badge colors based on animal type
   const getBadgeStyle = (animalName: string): string => {
@@ -169,20 +283,69 @@ export default function GalleryItem({
     }
   };
   
+  // Toggle motion detection
+  const toggleMotionDetection = () => {
+    // Only allow toggling on videos
+    if (!isVideo) {
+      toast({
+        title: "Sensor de movimento",
+        description: "Detecção de movimento disponível apenas para vídeos.",
+      });
+      return;
+    }
+    
+    if (!motionDetection) {
+      toast({
+        title: "Sensor de movimento ativado",
+        description: "Monitorando movimentos no vídeo em tempo real.",
+      });
+    }
+    
+    setMotionDetection(!motionDetection);
+  };
+  
   return (
     <Card className="overflow-hidden w-full max-w-md">
       <CardContent className="p-0">
         <div className="relative">
           {isVideo ? (
-            <video 
-              ref={videoRef}
-              controls
-              className="w-full h-64 object-cover"
-              onError={(e) => {
-                console.error("Error loading video:", e);
-                e.currentTarget.poster = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
-              }}
-            />
+            <>
+              <video 
+                ref={videoRef}
+                controls
+                className="w-full h-64 object-cover"
+                onError={(e) => {
+                  console.error("Error loading video:", e);
+                  e.currentTarget.poster = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
+                }}
+              />
+              <canvas
+                ref={canvasRef}
+                className="absolute top-0 left-0 w-full h-64 pointer-events-none"
+                style={{ opacity: motionDetection ? 1 : 0 }}
+              />
+              {motionDetection && motionPoints.map((point, i) => (
+                <div
+                  key={i}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${(point.x / (canvasRef.current?.width || 1)) * 100}%`,
+                    top: `${(point.y / (canvasRef.current?.height || 1)) * 100}%`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10
+                  }}
+                >
+                  <div 
+                    className="animate-ping rounded-full bg-red-500"
+                    style={{
+                      width: `${12 + point.strength * 16}px`,
+                      height: `${12 + point.strength * 16}px`,
+                      opacity: 0.5 + point.strength * 0.3
+                    }}
+                  />
+                </div>
+              ))}
+            </>
           ) : (
             <img 
               src={imageUrl} 
@@ -235,6 +398,30 @@ export default function GalleryItem({
                 </div>
               )}
             </>
+          )}
+          
+          {/* Motion detection button for videos */}
+          {isVideo && animals.length > 0 && !isAnalyzing && (
+            <Button 
+              size="sm"
+              variant={motionDetection ? "default" : "outline"}
+              className={`absolute bottom-2 left-2 flex items-center gap-1 text-xs ${
+                motionDetection ? 'bg-red-600 hover:bg-red-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
+              }`}
+              onClick={toggleMotionDetection}
+            >
+              {motionDetection ? (
+                <>
+                  <Radar size={14} />
+                  <span>Sensor ativo</span>
+                </>
+              ) : (
+                <>
+                  <Target size={14} />
+                  <span>Detectar movimento</span>
+                </>
+              )}
+            </Button>
           )}
         </div>
         
