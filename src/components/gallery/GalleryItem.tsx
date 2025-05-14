@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ export default function GalleryItem({
   const [isTracking, setIsTracking] = useState(false);
   const [trackingQuality, setTrackingQuality] = useState<'high' | 'medium' | 'low'>('high');
   const [detectedAnimals, setDetectedAnimals] = useState<{animal: Animal, box: HTMLDivElement | null}[]>([]);
+  const [animalMovements, setAnimalMovements] = useState<{[key: number]: {x: number, y: number, speed: number, pattern: string}}>({}); 
   
   const formatConfidence = (confidence: number) => {
     return `${Math.round(confidence * 100)}%`;
@@ -72,14 +74,45 @@ export default function GalleryItem({
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
   
+  // Initialize movement patterns for each animal when detected
   useEffect(() => {
-    // Create tracking boxes for each animal (up to 3)
     if (animals.length > 0 && !isAnalyzing) {
       // Clear previous detection boxes
       setDetectedAnimals([]);
       
-      // Create new detection boxes
-      const newBoxes = animals.slice(0, Math.min(3, animals.length)).map(animal => {
+      // Create new detection boxes and initialize movement patterns
+      const newBoxes = animals.slice(0, Math.min(5, animals.length)).map((animal, index) => {
+        // Initialize unique movement pattern for each animal
+        const newMovements = {...animalMovements};
+        
+        // Different movement patterns based on animal type
+        const isInvasive = isInvasiveSpecies(animal.name);
+        const isDogAnimal = isDog(animal.name);
+        
+        // Set different movement speeds and patterns for different animal types
+        let speed = 1.0;
+        let pattern = 'linear';
+        
+        if (isInvasive) {
+          speed = 0.8 + (Math.random() * 0.4); // Slower, more deliberate
+          pattern = Math.random() > 0.5 ? 'circular' : 'zigzag';
+        } else if (isDogAnimal) {
+          speed = 1.2 + (Math.random() * 0.6); // Faster, more energetic
+          pattern = Math.random() > 0.7 ? 'bouncy' : 'playful';
+        } else {
+          speed = 0.5 + (Math.random() * 0.6); // Varied for other animals
+          pattern = Math.random() > 0.5 ? 'cautious' : 'random';
+        }
+        
+        newMovements[index] = {
+          x: (Math.random() * 50) - 25, // Random starting position offset
+          y: (Math.random() * 30) - 15,
+          speed,
+          pattern
+        };
+        
+        setAnimalMovements(newMovements);
+        
         return {
           animal,
           box: null
@@ -90,6 +123,7 @@ export default function GalleryItem({
     }
   }, [animals, isAnalyzing]);
   
+  // Enhanced video tracking with more natural movement patterns
   useEffect(() => {
     // Set up video playback if this is a video element
     if (isVideo && videoRef.current) {
@@ -111,7 +145,7 @@ export default function GalleryItem({
         setIsTracking(false);
       };
       
-      // Enhanced tracking events for the detection rectangle with advanced motion tracking simulation
+      // Enhanced tracking with advanced motion patterns
       const handleTimeUpdate = () => {
         if (detectedAnimals.length > 0 && videoRef.current) {
           // Get current playback position
@@ -121,72 +155,117 @@ export default function GalleryItem({
           
           detectedAnimals.forEach((detectedAnimal, index) => {
             if (detectedAnimal.box) {
-              // Generate different patterns based on animal type
-              const isInvasive = isInvasiveSpecies(detectedAnimal.animal.name);
-              const isDogAnimal = isDog(detectedAnimal.animal.name);
+              const animalType = detectedAnimal.animal.name.toLowerCase();
+              const isInvasive = isInvasiveSpecies(animalType);
+              const isDogAnimal = isDog(animalType);
+              const movement = animalMovements[index] || {
+                x: 0, y: 0, speed: 1, pattern: 'linear'
+              };
               
-              // Different movement patterns based on animal type
-              let baseX, baseY, microX, microY, jitterX, jitterY;
+              // Get base movement characteristics
+              const { speed, pattern } = movement;
               
-              if (isInvasive) {
-                // Invasive animals move more deliberately
-                baseX = Math.sin(progressPercent * Math.PI * 3 + index) * 10;
-                baseY = Math.cos(progressPercent * Math.PI * 2 + index) * 8;
-                microX = Math.sin(videoProgress * 2 + index) * 2;
-                microY = Math.cos(videoProgress * 3 + index) * 2;
-                jitterX = isTracking ? (Math.sin(videoProgress * 12 + index) * 1) : 0;
-                jitterY = isTracking ? (Math.cos(videoProgress * 15 + index) * 1) : 0;
-              } else if (isDogAnimal) {
-                // Dogs move more quickly and energetically
-                baseX = Math.sin(progressPercent * Math.PI * 4 + index) * 12;
-                baseY = Math.cos(progressPercent * Math.PI * 3 + index) * 10;
-                microX = Math.sin(videoProgress * 4 + index) * 3;
-                microY = Math.cos(videoProgress * 5 + index) * 3;
-                jitterX = isTracking ? (Math.sin(videoProgress * 18 + index) * 2) : 0;
-                jitterY = isTracking ? (Math.cos(videoProgress * 20 + index) * 2) : 0;
-              } else {
-                // Other animals move more cautiously
-                baseX = Math.sin(progressPercent * Math.PI * 2 + index) * 7;
-                baseY = Math.cos(progressPercent * Math.PI * 1.5 + index) * 5;
-                microX = Math.sin(videoProgress * 1.5 + index) * 1.5;
-                microY = Math.cos(videoProgress * 2 + index) * 1.5;
-                jitterX = isTracking ? (Math.sin(videoProgress * 10 + index) * 0.8) : 0;
-                jitterY = isTracking ? (Math.cos(videoProgress * 12 + index) * 0.8) : 0;
+              // Calculate movement based on pattern
+              let baseX = 0, baseY = 0, microX = 0, microY = 0, jitterX = 0, jitterY = 0;
+              const time = videoProgress * speed;
+              
+              // Create different movement patterns based on animal type
+              switch(pattern) {
+                case 'circular':
+                  // Circular movement pattern
+                  baseX = Math.cos(time * 1.2) * 15;
+                  baseY = Math.sin(time * 1.2) * 15;
+                  break;
+                  
+                case 'zigzag':
+                  // Zig-zag movement
+                  baseX = Math.sin(time * 2) * 20;
+                  baseY = Math.cos(time * 0.5) * 5;
+                  break;
+                  
+                case 'bouncy':
+                  // Bouncy, playful dog movement
+                  baseX = Math.sin(time * 3) * 25;
+                  baseY = Math.abs(Math.sin(time * 5)) * 15;
+                  break;
+                  
+                case 'playful':
+                  // More playful movement
+                  baseX = Math.sin(time * 2.5) * 18 + Math.cos(time * 4) * 8;
+                  baseY = Math.cos(time * 3.5) * 12;
+                  break;
+                  
+                case 'cautious':
+                  // More cautious animal movement
+                  baseX = Math.sin(time * 1.2) * 10;
+                  baseY = Math.cos(time * 0.8) * 6;
+                  break;
+                  
+                case 'random':
+                default:
+                  // Semi-random movement
+                  baseX = (Math.sin(time) + Math.cos(time * 2.3)) * 12;
+                  baseY = (Math.cos(time * 1.5) + Math.sin(time * 0.7)) * 8;
               }
               
-              // Different positions for each animal
-              const offsetMultiplier = index + 1;
-              const offsetX = (baseX + microX + jitterX) * (1 + index * 0.2);
-              const offsetY = (baseY + microY + jitterY) * (1 + index * 0.2);
+              // Add micro-movements for natural feel
+              microX = Math.sin(time * 7) * 3;
+              microY = Math.cos(time * 8) * 3;
               
-              // Position the box at different regions of the video based on index
+              // Add jitter when actively tracking
+              if (isTracking) {
+                const jitterIntensity = isDogAnimal ? 1.5 : (isInvasive ? 0.8 : 0.5);
+                jitterX = (Math.random() - 0.5) * jitterIntensity;
+                jitterY = (Math.random() - 0.5) * jitterIntensity;
+              }
+              
+              // Calculate different positions for each animal to avoid overlap
+              // Make them more spread out
               let regionX = 0, regionY = 0;
               
-              // Simple layout: first in center, second top-right, third bottom-left
-              if (index === 0) {
-                regionX = 0;
-                regionY = 0;
-              } else if (index === 1) {
-                regionX = 50;
-                regionY = -40;
-              } else {
-                regionX = -40;
-                regionY = 30;
+              // Position based on array index, with more spacing
+              switch (index % 5) {
+                case 0: // Center
+                  regionX = 0;
+                  regionY = 0;
+                  break;
+                case 1: // Top-right
+                  regionX = 70;
+                  regionY = -50;
+                  break;
+                case 2: // Bottom-left
+                  regionX = -60;
+                  regionY = 40;
+                  break;
+                case 3: // Top-left
+                  regionX = -70;
+                  regionY = -50;
+                  break;
+                case 4: // Bottom-right
+                  regionX = 60;
+                  regionY = 40;
+                  break;
               }
               
-              // Apply transform with easing to make movements smoother
-              detectedAnimal.box.style.transform = `translate(calc(${regionX}px + ${offsetX}px), calc(${regionY}px + ${offsetY}px)) scale(${1 + Math.sin(videoProgress + index) * 0.02})`;
+              // Combine all movements
+              const totalX = regionX + baseX + microX + jitterX;
+              const totalY = regionY + baseY + microY + jitterY;
+              
+              // Apply transform with easing for smoother movements
+              detectedAnimal.box.style.transform = `translate(calc(${totalX}px), calc(${totalY}px)) scale(${1 + Math.sin(videoProgress + index) * 0.03})`;
               
               // Update tracking quality based on confidence and time
-              if (progressPercent > 0.8) {
-                // Simulate reduced tracking quality near the end
+              if (progressPercent > 0.7) {
+                // Simulate reduced tracking quality near the end of video
                 const qualityRandom = Math.random();
-                const confidenceAdjustment = detectedAnimal.animal.confidence * 0.2;
+                const confidenceAdjustment = detectedAnimal.animal.confidence * 0.3;
                 
-                if (qualityRandom > (0.8 - confidenceAdjustment)) {
+                if (qualityRandom > (0.85 - confidenceAdjustment)) {
                   setTrackingQuality('medium');
-                } else if (qualityRandom > (0.95 - confidenceAdjustment)) {
+                } else if (qualityRandom > (0.97 - confidenceAdjustment)) {
                   setTrackingQuality('low');
+                } else {
+                  setTrackingQuality('high');
                 }
               } else {
                 setTrackingQuality('high');
@@ -210,7 +289,7 @@ export default function GalleryItem({
         }
       };
     }
-  }, [imageUrl, isVideo, detectedAnimals]);
+  }, [imageUrl, isVideo, detectedAnimals, animalMovements]);
   
   // Create refs for detection boxes
   useEffect(() => {
@@ -331,26 +410,9 @@ export default function GalleryItem({
                   const isDogAnimal = isDog(detectedAnimal.animal.name);
                   
                   // Calculate different sizes and positions for each animal
-                  const sizeAdjustment = 1 - (index * 0.15); // First box is 100%, second 85%, third 70%
-                  const width = isVideo ? `${65 * sizeAdjustment}%` : `${85 * sizeAdjustment}%`;
-                  const height = isVideo ? `${65 * sizeAdjustment}%` : `${85 * sizeAdjustment}%`;
-                  
-                  // Position offset from center based on index
-                  let positionX = '0px', positionY = '0px';
-                  
-                  if (index === 0) {
-                    // First animal in center
-                    positionX = '0px';
-                    positionY = '0px';
-                  } else if (index === 1) {
-                    // Second animal top-right
-                    positionX = '50px';
-                    positionY = '-40px';
-                  } else if (index === 2) {
-                    // Third animal bottom-left
-                    positionX = '-40px';
-                    positionY = '30px';
-                  }
+                  const sizeAdjustment = 1 - (index * 0.1); // First box is 100%, second 90%, third 80%
+                  const width = isVideo ? `${55 * sizeAdjustment}%` : `${70 * sizeAdjustment}%`;
+                  const height = isVideo ? `${55 * sizeAdjustment}%` : `${70 * sizeAdjustment}%`;
                   
                   // Define box shadow based on animal type
                   let boxShadow = '';
@@ -365,7 +427,7 @@ export default function GalleryItem({
                   return (
                     <div 
                       key={index}
-                      className={`animal-detection-box border-4 ${
+                      className={`animal-detection-box border-3 ${
                         isInvasive ? 'border-red-500' : 
                         isDogAnimal ? 'border-blue-500' : 
                         'border-green-500'
@@ -376,8 +438,7 @@ export default function GalleryItem({
                         boxShadow: `0 0 10px ${boxShadow}`,
                         position: 'absolute',
                         zIndex: 50 - index, // Higher index, lower z-index
-                        transition: 'transform 0.12s ease-out, border-color 0.3s ease, box-shadow 0.3s ease',
-                        transform: `translate(${positionX}, ${positionY})`
+                        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       }}
                     >
                       {/* Corner decorations */}
