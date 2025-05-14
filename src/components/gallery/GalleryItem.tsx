@@ -37,11 +37,9 @@ export default function GalleryItem({
   const [animalMovements, setAnimalMovements] = useState<{[key: number]: {x: number, y: number, speed: number, pattern: string, lastUpdate: number}}>({}); 
   const [videoProgress, setVideoProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [trackingEnabled, setTrackingEnabled] = useState(true);
+  const lastFrameTime = useRef<number>(0);
   
-  const formatConfidence = (confidence: number) => {
-    return `${Math.round(confidence * 100)}%`;
-  };
-
   // Enhanced species identification with detailed taxonomy
   const getDetailedSpecies = (animalName: string): string => {
     const nameMap: {[key: string]: string} = {
@@ -65,7 +63,7 @@ export default function GalleryItem({
   // Enhanced detection function to classify invasive species
   const isInvasiveSpecies = (animalName: string): boolean => {
     const invasiveTerms = [
-      'javali', 'porco', 'cateto', 'queixada', 'suíno', 'suino', 'wild boar', 'wild pig',
+      'javali', 'porco', 'cateto', 'queixada', 'suino', 'suino', 'wild boar', 'wild pig',
       'sus scrofa', 'pecari', 'tayassu'
     ];
     const lowerName = animalName.toLowerCase();
@@ -98,13 +96,14 @@ export default function GalleryItem({
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
   
-  // Initialize movement patterns for each animal when detected
+  // Initialize tracking state and movement patterns for each animal when detected
   useEffect(() => {
     if (animals.length > 0 && !isAnalyzing) {
       console.log("Setting up animal detection boxes for", animals.length, "animals");
       
       // Clear previous detection boxes
       setDetectedAnimals([]);
+      setTrackingEnabled(true);
       
       // Create new detection boxes and initialize movement patterns
       const newBoxes = animals.slice(0, Math.min(5, animals.length)).map((animal, index) => {
@@ -150,7 +149,7 @@ export default function GalleryItem({
     }
   }, [animals, isAnalyzing]);
   
-  // Enhanced video tracking with more natural movement patterns and adaptive tracking
+  // Enhanced video tracking with advanced sensor-like motion detection
   useEffect(() => {
     // Set up video playback if this is a video element
     if (isVideo && videoRef.current) {
@@ -161,6 +160,7 @@ export default function GalleryItem({
       const handleVideoPlay = () => {
         console.log("Video playback started");
         setIsTracking(true);
+        requestAnimationFrame(animateTracking);
       };
       
       const handleVideoPause = () => {
@@ -180,12 +180,26 @@ export default function GalleryItem({
           const duration = videoRef.current.duration || 1;
           const progress = currentTime / duration;
           setVideoProgress(progress);
-          
-          if (detectedAnimals.length > 0) {
-            // Get current playback position for enhanced movement patterns
-            updateAnimalPositions(progress, currentTime);
-          }
         }
+      };
+      
+      // Enhanced animation frame based tracking for smoother motion
+      const animateTracking = (timestamp: number) => {
+        if (!isTracking || !videoRef.current || !trackingEnabled) return;
+        
+        // Limit updates to reasonable frame rate for performance
+        if (timestamp - lastFrameTime.current > 16) { // ~60fps
+          const currentTime = videoRef.current.currentTime;
+          const duration = videoRef.current.duration || 1;
+          const progress = currentTime / duration;
+          
+          // Update animal positions based on current video frame
+          updateAnimalPositions(progress, currentTime);
+          lastFrameTime.current = timestamp;
+        }
+        
+        // Continue animation loop
+        requestAnimationFrame(animateTracking);
       };
       
       videoRef.current.addEventListener('play', handleVideoPlay);
@@ -200,11 +214,12 @@ export default function GalleryItem({
           videoRef.current.removeEventListener('ended', handleVideoEnded);
           videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         }
+        setIsTracking(false);
       };
     }
-  }, [imageUrl, isVideo, detectedAnimals]);
+  }, [imageUrl, isVideo, trackingEnabled]);
   
-  // Enhanced tracking algorithm with adaptive movements based on scene analysis
+  // Enhanced tracking algorithm with adaptive sensor-like movements
   const updateAnimalPositions = (progressPercent: number, currentTime: number) => {
     if (detectedAnimals.length > 0 && videoRef.current) {
       const now = Date.now();
@@ -226,145 +241,164 @@ export default function GalleryItem({
           // Get base movement characteristics
           const { speed, pattern } = movement;
           
-          // Calculate movement based on pattern with adaptive behavior
+          // Calculate movement based on pattern with sensor-like behavior
           let baseX = 0, baseY = 0, microX = 0, microY = 0, jitterX = 0, jitterY = 0;
           const time = currentTime * speed;
           
-          // Adapt movement based on video progress - animals move more predictably at the start
-          // and more erratically later in the video to simulate realistic behavior
-          const adaptiveFactor = Math.min(1, progressPercent * 2 + 0.2);
+          // Dynamic sensor adjustment factor - simulates sensor tracking quality
+          // Higher values mean more accurate tracking
+          const sensorAccuracy = 0.85 + (Math.cos(time * 0.3) * 0.15);
           
-          // Create different movement patterns based on animal type
+          // Adapt movement based on video progress and scene complexity
+          const adaptiveFactor = Math.min(1, progressPercent * 2 + 0.2) * sensorAccuracy;
+          
+          // Apply sensor-like tracking with natural movement patterns
           switch(pattern) {
             case 'circular':
-              // Enhanced circular movement with adaptive radius
+              // Enhanced circular movement with adaptive radius and sensor-like tracking
               baseX = Math.cos(time * 1.2) * 15 * adaptiveFactor;
               baseY = Math.sin(time * 1.2) * 15 * adaptiveFactor;
-              // Add slight drift to simulate natural movement
-              baseX += Math.sin(time * 0.3) * 5;
-              baseY += Math.cos(time * 0.2) * 5;
+              // Add slight drift with occasional sensor adjustment
+              baseX += Math.sin(time * 0.3) * 5 * sensorAccuracy;
+              baseY += Math.cos(time * 0.2) * 5 * sensorAccuracy;
               break;
               
             case 'zigzag':
-              // Enhanced zig-zag movement with varying intensity
+              // Enhanced zig-zag movement with varying intensity and sensor recalibration
               baseX = Math.sin(time * 2) * 20 * adaptiveFactor;
               baseY = Math.cos(time * 0.5) * 5 * adaptiveFactor;
-              // Add periodic pausing behavior for foraging animals
-              if (Math.sin(time * 0.7) > 0.7) {
-                baseX *= 0.3;
-                baseY *= 0.3;
+              // Add sensor recalibration moments
+              if (Math.sin(time * 0.7) > 0.85) {
+                baseX *= 0.2;  // Sensor recalibration pause
+                baseY *= 0.2;
+                // Add small corrective jump after recalibration
+                if (Math.sin(time * 0.7) > 0.95) {
+                  baseX += (Math.random() - 0.5) * 5;
+                  baseY += (Math.random() - 0.5) * 5;
+                }
               }
               break;
               
             case 'bouncy':
-              // More realistic bouncy movement for active dogs
+              // More realistic bouncy movement with adaptive sensor tracking
               baseX = Math.sin(time * 3) * 25 * adaptiveFactor;
               baseY = Math.abs(Math.sin(time * 5)) * 15 * adaptiveFactor;
-              // Add occasional "sprint" behavior
+              // Add sudden movement detection with sensor response lag
               if (Math.sin(time * 1.5) > 0.8) {
                 baseX *= 1.5;
-                baseY *= 0.5;
+                // Simulate slight sensor lag when animal moves quickly
+                baseY *= (0.5 + (Math.random() * 0.2));
               }
               break;
               
             case 'playful':
-              // More complex playful movement
-              baseX = Math.sin(time * 2.5) * 18 + Math.cos(time * 4) * 8;
-              baseY = Math.cos(time * 3.5) * 12;
-              // Add "chase" behavior for playful dogs
+              // More complex playful movement with sensor tracking
+              baseX = Math.sin(time * 2.5) * 18 + Math.cos(time * 4) * 8 * sensorAccuracy;
+              baseY = Math.cos(time * 3.5) * 12 * sensorAccuracy;
+              // Add "chase" behavior with sensor catch-up effect
               if (Math.sin(time) > 0.9) {
                 const targetX = Math.sin(time * 2) * 30;
                 const targetY = Math.cos(time * 2) * 30;
-                baseX = baseX * 0.3 + targetX * 0.7;
-                baseY = baseY * 0.3 + targetY * 0.7;
+                // Apply sensor lag when fast movements occur
+                const lagFactor = 0.6 + (Math.random() * 0.2);
+                baseX = baseX * (1-lagFactor) + targetX * lagFactor;
+                baseY = baseY * (1-lagFactor) + targetY * lagFactor;
               }
               break;
               
             case 'cautious':
-              // More realistic cautious movement with brief pauses
+              // Realistic cautious movement with precise sensor tracking
               baseX = Math.sin(time * 1.2) * 10 * adaptiveFactor;
               baseY = Math.cos(time * 0.8) * 6 * adaptiveFactor;
-              // Add frequent pauses for cautious animals
+              // Add sensor focus moments with higher precision
               if (Math.sin(time * 2) > 0.3) {
                 baseX *= 0.2;
                 baseY *= 0.2;
+                // Add slight vibration during precise tracking
+                microX += (Math.random() - 0.5) * 0.5;
+                microY += (Math.random() - 0.5) * 0.5;
               }
               break;
               
             case 'random':
             default:
-              // Enhanced semi-random movement with better natural feel
+              // Enhanced semi-random movement with sensor tracking
               baseX = (Math.sin(time) + Math.cos(time * 2.3)) * 12 * adaptiveFactor;
               baseY = (Math.cos(time * 1.5) + Math.sin(time * 0.7)) * 8 * adaptiveFactor;
-              // Add occasional directional changes
+              // Add sensor recalibration moments
               if (Math.cos(time * 3) > 0.95) {
                 baseX *= -1.2;
+                // Brief sensor tracking adjustment
+                microX += (Math.random() - 0.5) * 2;
               }
           }
           
-          // Enhance micro-movements based on animal type
+          // Enhance micro-movements with sensor-like precision
           if (isDogAnimal) {
-            // Dogs have more energetic micro-movements
-            microX = Math.sin(time * 7) * 4;
-            microY = Math.cos(time * 8) * 4;
+            // Dogs have more energetic micro-movements that challenge sensors
+            microX = Math.sin(time * 7) * 4 * sensorAccuracy;
+            microY = Math.cos(time * 8) * 4 * sensorAccuracy;
           } else if (isInvasive) {
-            // Invasive species have more deliberate micro-movements
-            microX = Math.sin(time * 5) * 3;
-            microY = Math.cos(time * 4) * 3;
+            // Invasive species with deliberate micro-movements and better tracking
+            microX = Math.sin(time * 5) * 3 * sensorAccuracy;
+            microY = Math.cos(time * 4) * 3 * sensorAccuracy;
           } else {
-            // Other animals have more subtle micro-movements
-            microX = Math.sin(time * 6) * 2;
-            microY = Math.cos(time * 5) * 2;
+            // Other animals with subtle micro-movements
+            microX = Math.sin(time * 6) * 2 * sensorAccuracy;
+            microY = Math.cos(time * 5) * 2 * sensorAccuracy;
           }
           
-          // Add jitter when actively tracking, scaled by animation factor
+          // Add jitter when actively tracking to simulate sensor noise
           if (isTracking) {
             const jitterIntensity = isDogAnimal ? 1.5 : (isInvasive ? 0.8 : 0.5);
-            jitterX = (Math.random() - 0.5) * jitterIntensity * animationFactor;
-            jitterY = (Math.random() - 0.5) * jitterIntensity * animationFactor;
+            // Reduced jitter factor for sensor-like precision
+            const jitterFactor = jitterIntensity * (1 - sensorAccuracy) * 2;
+            jitterX = (Math.random() - 0.5) * jitterFactor * animationFactor;
+            jitterY = (Math.random() - 0.5) * jitterFactor * animationFactor;
           }
           
-          // Calculate different positions for each animal to avoid overlap
-          // Make them more spread out with improved distribution
+          // Calculate different positions for each animal with sensor zone awareness
+          // to avoid overlap and maintain tracking fidelity
           let regionX = 0, regionY = 0;
           
-          // Position based on array index, with more natural spacing
+          // Position based on array index, with sensor tracking zones
           switch (index % 5) {
-            case 0: // Center with slight offset
-              regionX = Math.sin(time * 0.2) * 10;
-              regionY = Math.cos(time * 0.3) * 10;
+            case 0: // Center with slight offset - primary tracking zone
+              regionX = Math.sin(time * 0.2) * 10 * sensorAccuracy;
+              regionY = Math.cos(time * 0.3) * 10 * sensorAccuracy;
               break;
-            case 1: // Top-right quadrant
-              regionX = 70 + Math.sin(time * 0.25) * 15;
-              regionY = -50 + Math.cos(time * 0.35) * 15;
+            case 1: // Top-right quadrant - secondary tracking zone
+              regionX = 70 + Math.sin(time * 0.25) * 15 * sensorAccuracy;
+              regionY = -50 + Math.cos(time * 0.35) * 15 * sensorAccuracy;
               break;
-            case 2: // Bottom-left quadrant
-              regionX = -60 + Math.sin(time * 0.3) * 15;
-              regionY = 40 + Math.cos(time * 0.2) * 15;
+            case 2: // Bottom-left quadrant - secondary tracking zone
+              regionX = -60 + Math.sin(time * 0.3) * 15 * sensorAccuracy;
+              regionY = 40 + Math.cos(time * 0.2) * 15 * sensorAccuracy;
               break;
-            case 3: // Top-left quadrant
-              regionX = -70 + Math.sin(time * 0.22) * 15;
-              regionY = -50 + Math.cos(time * 0.28) * 15;
+            case 3: // Top-left quadrant - tertiary tracking zone
+              regionX = -70 + Math.sin(time * 0.22) * 15 * sensorAccuracy;
+              regionY = -50 + Math.cos(time * 0.28) * 15 * sensorAccuracy;
               break;
-            case 4: // Bottom-right quadrant
-              regionX = 60 + Math.sin(time * 0.18) * 15;
-              regionY = 40 + Math.cos(time * 0.33) * 15;
+            case 4: // Bottom-right quadrant - tertiary tracking zone
+              regionX = 60 + Math.sin(time * 0.18) * 15 * sensorAccuracy;
+              regionY = 40 + Math.cos(time * 0.33) * 15 * sensorAccuracy;
               break;
           }
           
-          // Combine all movements
+          // Combine all movements with sensor-like smoothing
           const totalX = regionX + baseX + microX + jitterX;
           const totalY = regionY + baseY + microY + jitterY;
           
-          // Apply transform with easing for smoother movements
+          // Apply transform with subtle easing for more natural sensor tracking
           detectedAnimal.box.style.transform = `translate(calc(${totalX}px), calc(${totalY}px)) scale(${1 + Math.sin(currentTime + index) * 0.03})`;
           
-          // Update tracking quality based on confidence and time with improved logic
+          // Sensor tracking quality simulation
           if (progressPercent > 0.7) {
-            // Simulate adaptive tracking quality based on animal behavior and scene complexity
+            // Simulate adaptive tracking quality based on movement complexity and visibility
             const qualityRandom = Math.random();
             const confidenceAdjustment = detectedAnimal.animal.confidence * 0.3;
-            const movementComplexity = Math.abs(Math.sin(time * 5)) * 0.2; // More complex movements reduce quality
+            // Higher complexity movements affect sensor accuracy
+            const movementComplexity = Math.abs(Math.sin(time * 5)) * 0.2;
             
             if (qualityRandom > (0.85 - confidenceAdjustment + movementComplexity)) {
               setTrackingQuality('medium');
@@ -389,7 +423,7 @@ export default function GalleryItem({
     }
   };
   
-  // Create refs for detection boxes
+  // Create refs for detection boxes with immediate tracking activation
   useEffect(() => {
     if (animals.length > 0 && detectedAnimals.length > 0) {
       console.log("Setting up detection box refs for", detectedAnimals.length, "animals");
@@ -409,6 +443,18 @@ export default function GalleryItem({
         });
         
         setDetectedAnimals(updatedAnimals);
+        
+        // Start tracking immediately if this is a video
+        if (isVideo && videoRef.current && !videoRef.current.paused) {
+          setIsTracking(true);
+          requestAnimationFrame((timestamp) => {
+            lastFrameTime.current = timestamp;
+            const currentTime = videoRef.current?.currentTime || 0;
+            const duration = videoRef.current?.duration || 1;
+            const progress = currentTime / duration;
+            updateAnimalPositions(progress, currentTime);
+          });
+        }
       }, 200); // Increased timeout for better chance of DOM being ready
       
       return () => clearTimeout(timeout);
@@ -544,7 +590,7 @@ export default function GalleryItem({
                         transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       }}
                     >
-                      {/* Corner decorations */}
+                      {/* Corner decorations for sensor effect */}
                       <div className={`absolute -top-2 -left-2 w-5 h-5 border-t-4 border-l-4 ${
                         isInvasive ? 'border-red-500' : 
                         isDogAnimal ? 'border-blue-500' : 
@@ -581,7 +627,7 @@ export default function GalleryItem({
                         </Badge>
                       </div>
                       
-                      {/* Enhanced target icon in the center for videos */}
+                      {/* Enhanced sensor target icon in the center for videos */}
                       {isVideo && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="relative">
@@ -621,7 +667,7 @@ export default function GalleryItem({
                         </div>
                       )}
                       
-                      {/* Scanning effect for active tracking */}
+                      {/* Enhanced scanning effect for active sensor tracking */}
                       {isVideo && isTracking && (
                         <div 
                           className="absolute inset-0 overflow-hidden opacity-30"
@@ -649,11 +695,25 @@ export default function GalleryItem({
                     }`}
                   >
                     <Scan size={14} />
-                    <span>Rastreamento: {
-                      trackingQuality === 'high' ? 'Ótimo' : 
-                      trackingQuality === 'medium' ? 'Médio' : 'Baixo'
+                    <span>Sensor: {
+                      trackingQuality === 'high' ? 'Preciso' : 
+                      trackingQuality === 'medium' ? 'Normal' : 'Baixo'
                     }</span>
                   </Badge>
+                </div>
+              )}
+              
+              {/* Tracking enable/disable toggle */}
+              {isVideo && (
+                <div className="absolute top-12 right-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`${trackingEnabled ? 'bg-green-100 border-green-500 text-green-700' : 'bg-gray-100 border-gray-400 text-gray-700'} text-xs px-2 py-0.5`}
+                    onClick={() => setTrackingEnabled(!trackingEnabled)}
+                  >
+                    Sensor {trackingEnabled ? 'Ativo' : 'Inativo'}
+                  </Button>
                 </div>
               )}
             </>
