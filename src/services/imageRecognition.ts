@@ -1,3 +1,4 @@
+
 // Simulação de um serviço avançado de reconhecimento de imagens de animais
 // Em uma implementação real, isso seria integrado com um serviço de IA como Google Cloud Vision ou Hugging Face
 
@@ -5,129 +6,131 @@ type Animal = {
   name: string;
   confidence: number;
   description?: string;
+  scientificName?: string; // Added scientific name for more precise identification
+  category?: string; // Added category for classification
 };
 
 // Banco de dados expandido de animais para reconhecimento
 const animalDatabase: Record<string, Animal[]> = {
   'farm': [
-    { name: 'Vaca', confidence: 0.92, description: 'Bovino doméstico utilizado para produção de leite e carne.' },
-    { name: 'Cavalo', confidence: 0.87, description: 'Equino utilizado para transporte e trabalho rural.' },
-    { name: 'Galinha', confidence: 0.95, description: 'Ave doméstica criada para produção de ovos e carne.' },
-    { name: 'Porco', confidence: 0.89, description: 'Suíno doméstico criado para produção de carne.' },
-    { name: 'Ovelha', confidence: 0.86, description: 'Mamífero ruminante criado para produção de lã e carne.' }
+    { name: 'Vaca', confidence: 0.92, description: 'Bovino doméstico utilizado para produção de leite e carne.', scientificName: 'Bos taurus', category: 'mamífero' },
+    { name: 'Cavalo', confidence: 0.87, description: 'Equino utilizado para transporte e trabalho rural.', scientificName: 'Equus caballus', category: 'mamífero' },
+    { name: 'Galinha', confidence: 0.95, description: 'Ave doméstica criada para produção de ovos e carne.', scientificName: 'Gallus gallus domesticus', category: 'ave' },
+    { name: 'Porco', confidence: 0.89, description: 'Suíno doméstico criado para produção de carne.', scientificName: 'Sus domesticus', category: 'mamífero' },
+    { name: 'Ovelha', confidence: 0.86, description: 'Mamífero ruminante criado para produção de lã e carne.', scientificName: 'Ovis aries', category: 'mamífero' }
   ],
   'forest': [
-    { name: 'Veado', confidence: 0.89, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas brasileiras.' },
-    { name: 'Lobo-guará', confidence: 0.82, description: 'Canídeo nativo do Cerrado brasileiro, espécie ameaçada de extinção.' },
-    { name: 'Raposa', confidence: 0.82, description: 'Pequeno mamífero carnívoro da família dos canídeos.' },
-    { name: 'Capivara', confidence: 0.91, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.' },
-    { name: 'Anta', confidence: 0.85, description: 'Maior mamífero terrestre brasileiro, importante dispersor de sementes.' }
+    { name: 'Veado', confidence: 0.89, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas brasileiras.', scientificName: 'Ozotoceros bezoarticus', category: 'mamífero' },
+    { name: 'Lobo-guará', confidence: 0.82, description: 'Canídeo nativo do Cerrado brasileiro, espécie ameaçada de extinção.', scientificName: 'Chrysocyon brachyurus', category: 'mamífero' },
+    { name: 'Raposa', confidence: 0.82, description: 'Pequeno mamífero carnívoro da família dos canídeos.', scientificName: 'Cerdocyon thous', category: 'mamífero' },
+    { name: 'Capivara', confidence: 0.91, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.', scientificName: 'Hydrochoerus hydrochaeris', category: 'mamífero' },
+    { name: 'Anta', confidence: 0.85, description: 'Maior mamífero terrestre brasileiro, importante dispersor de sementes.', scientificName: 'Tapirus terrestris', category: 'mamífero' }
   ],
   'pets': [
-    { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.' },
-    { name: 'Gato', confidence: 0.98, description: 'Felino doméstico popular como animal de estimação.' },
-    { name: 'Coelho', confidence: 0.91, description: 'Pequeno mamífero da família dos leporídeos.' },
-    { name: 'Hamster', confidence: 0.93, description: 'Pequeno roedor mantido como animal de estimação.' },
-    { name: 'Papagaio', confidence: 0.88, description: 'Ave colorida conhecida por sua capacidade de imitar sons.' }
+    { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.', scientificName: 'Canis familiaris', category: 'mamífero' },
+    { name: 'Gato', confidence: 0.98, description: 'Felino doméstico popular como animal de estimação.', scientificName: 'Felis catus', category: 'mamífero' },
+    { name: 'Coelho', confidence: 0.91, description: 'Pequeno mamífero da família dos leporídeos.', scientificName: 'Oryctolagus cuniculus', category: 'mamífero' },
+    { name: 'Hamster', confidence: 0.93, description: 'Pequeno roedor mantido como animal de estimação.', scientificName: 'Mesocricetus auratus', category: 'mamífero' },
+    { name: 'Papagaio', confidence: 0.88, description: 'Ave colorida conhecida por sua capacidade de imitar sons.', scientificName: 'Amazona aestiva', category: 'ave' }
   ],
   'wild_pigs': [
-    { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' },
-    { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' },
-    { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' },
-    { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.' },
-    { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.' }
+    { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
+    { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'mamífero invasor' },
+    { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'mamífero invasor' },
+    { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.', scientificName: 'Pecari tajacu', category: 'mamífero' },
+    { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.', scientificName: 'Sus scrofa scrofa', category: 'mamífero invasor' }
   ],
   'birds': [
-    { name: 'Gavião', confidence: 0.88, description: 'Ave de rapina com excelente visão e garras afiadas.' },
-    { name: 'Coruja', confidence: 0.91, description: 'Ave noturna conhecida por sua capacidade de girar a cabeça.' },
-    { name: 'Tucano', confidence: 0.93, description: 'Ave tropical com bico grande e colorido, nativa das florestas brasileiras.' },
-    { name: 'Beija-flor', confidence: 0.95, description: 'Pequena ave conhecida por bater as asas rapidamente.' },
-    { name: 'Arara', confidence: 0.92, description: 'Ave colorida da família dos psitacídeos, comum nas florestas tropicais.' }
+    { name: 'Gavião', confidence: 0.88, description: 'Ave de rapina com excelente visão e garras afiadas.', scientificName: 'Rupornis magnirostris', category: 'ave' },
+    { name: 'Coruja', confidence: 0.91, description: 'Ave noturna conhecida por sua capacidade de girar a cabeça.', scientificName: 'Tyto furcata', category: 'ave' },
+    { name: 'Tucano', confidence: 0.93, description: 'Ave tropical com bico grande e colorido, nativa das florestas brasileiras.', scientificName: 'Ramphastos toco', category: 'ave' },
+    { name: 'Beija-flor', confidence: 0.95, description: 'Pequena ave conhecida por bater as asas rapidamente.', scientificName: 'Eupetomena macroura', category: 'ave' },
+    { name: 'Arara', confidence: 0.92, description: 'Ave colorida da família dos psitacídeos, comum nas florestas tropicais.', scientificName: 'Ara ararauna', category: 'ave' }
   ],
   'reptiles': [
-    { name: 'Jacaré', confidence: 0.89, description: 'Réptil semiaquático da ordem dos crocodilianos.' },
-    { name: 'Iguana', confidence: 0.86, description: 'Réptil herbívoro encontrado em regiões tropicais.' },
-    { name: 'Cobra', confidence: 0.92, description: 'Réptil sem patas da subordem Serpentes.' },
-    { name: 'Tartaruga', confidence: 0.94, description: 'Réptil caracterizado por uma carapaça protetora.' },
-    { name: 'Lagartixa', confidence: 0.88, description: 'Pequeno réptil da família dos geckos, comumente encontrado em residências.' }
+    { name: 'Jacaré', confidence: 0.89, description: 'Réptil semiaquático da ordem dos crocodilianos.', scientificName: 'Caiman latirostris', category: 'réptil' },
+    { name: 'Iguana', confidence: 0.86, description: 'Réptil herbívoro encontrado em regiões tropicais.', scientificName: 'Iguana iguana', category: 'réptil' },
+    { name: 'Cobra', confidence: 0.92, description: 'Réptil sem patas da subordem Serpentes.', scientificName: 'Bothrops jararaca', category: 'réptil' },
+    { name: 'Tartaruga', confidence: 0.94, description: 'Réptil caracterizado por uma carapaça protetora.', scientificName: 'Chelonoidis carbonarius', category: 'réptil' },
+    { name: 'Lagartixa', confidence: 0.88, description: 'Pequeno réptil da família dos geckos, comumente encontrado em residências.', scientificName: 'Hemidactylus mabouia', category: 'réptil' }
   ],
   'dogs': [
-    { name: 'Pastor Alemão', confidence: 0.94, description: 'Raça de cão de trabalho versátil e inteligente.' },
-    { name: 'Labrador', confidence: 0.96, description: 'Raça de cão popular como animal de estimação e cão-guia.' },
-    { name: 'Golden Retriever', confidence: 0.95, description: 'Raça de cão conhecida por sua docilidade e pelagem dourada.' },
-    { name: 'Poodle', confidence: 0.93, description: 'Raça de cão inteligente e hipoalergênica.' },
-    { name: 'Husky Siberiano', confidence: 0.92, description: 'Raça de cão originária da Sibéria, conhecida por seus olhos azuis.' },
-    { name: 'Bulldog', confidence: 0.91, description: 'Raça de cão de porte médio com corpo musculoso e rosto enrugado.' },
-    { name: 'Cachorro Caramelo', confidence: 0.97, description: 'Cão de raça indefinida característico do Brasil, geralmente de porte médio e pelagem amarelada.' }
+    { name: 'Pastor Alemão', confidence: 0.94, description: 'Raça de cão de trabalho versátil e inteligente.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+    { name: 'Labrador', confidence: 0.96, description: 'Raça de cão popular como animal de estimação e cão-guia.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+    { name: 'Golden Retriever', confidence: 0.95, description: 'Raça de cão conhecida por sua docilidade e pelagem dourada.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+    { name: 'Poodle', confidence: 0.93, description: 'Raça de cão inteligente e hipoalergênica.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+    { name: 'Husky Siberiano', confidence: 0.92, description: 'Raça de cão originária da Sibéria, conhecida por seus olhos azuis.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+    { name: 'Bulldog', confidence: 0.91, description: 'Raça de cão de porte médio com corpo musculoso e rosto enrugado.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+    { name: 'Cachorro Caramelo', confidence: 0.97, description: 'Cão de raça indefinida característico do Brasil, geralmente de porte médio e pelagem amarelada.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' }
   ],
   'amphibians': [
-    { name: 'Sapo', confidence: 0.91, description: 'Anfíbio da ordem dos anuros, com pele geralmente rugosa.' },
-    { name: 'Rã', confidence: 0.89, description: 'Anfíbio da ordem dos anuros, similar ao sapo mas com pele mais lisa.' },
-    { name: 'Perereca', confidence: 0.87, description: 'Pequeno anfíbio arborícola da família Hylidae.' },
-    { name: 'Salamandra', confidence: 0.85, description: 'Anfíbio da ordem Caudata, com corpo alongado e cauda.' }
+    { name: 'Sapo', confidence: 0.91, description: 'Anfíbio da ordem dos anuros, com pele geralmente rugosa.', scientificName: 'Rhinella diptycha', category: 'anfíbio' },
+    { name: 'Rã', confidence: 0.89, description: 'Anfíbio da ordem dos anuros, similar ao sapo mas com pele mais lisa.', scientificName: 'Lithobates catesbeianus', category: 'anfíbio' },
+    { name: 'Perereca', confidence: 0.87, description: 'Pequeno anfíbio arborícola da família Hylidae.', scientificName: 'Boana faber', category: 'anfíbio' },
+    { name: 'Salamandra', confidence: 0.85, description: 'Anfíbio da ordem Caudata, com corpo alongado e cauda.', scientificName: 'Bolitoglossa paraensis', category: 'anfíbio' }
   ],
   'aquatic': [
-    { name: 'Peixe', confidence: 0.94, description: 'Animal aquático vertebrado com guelras e nadadeiras.' },
-    { name: 'Tartaruga Marinha', confidence: 0.89, description: 'Réptil marinho da família Cheloniidae.' },
-    { name: 'Golfinho', confidence: 0.93, description: 'Mamífero marinho cetáceo conhecido por sua inteligência.' },
-    { name: 'Pirarucu', confidence: 0.91, description: 'Um dos maiores peixes de água doce do mundo, nativo da Amazônia.' }
+    { name: 'Peixe', confidence: 0.94, description: 'Animal aquático vertebrado com guelras e nadadeiras.', scientificName: 'Astyanax fasciatus', category: 'peixe' },
+    { name: 'Tartaruga Marinha', confidence: 0.89, description: 'Réptil marinho da família Cheloniidae.', scientificName: 'Chelonia mydas', category: 'réptil' },
+    { name: 'Golfinho', confidence: 0.93, description: 'Mamífero marinho cetáceo conhecido por sua inteligência.', scientificName: 'Sotalia guianensis', category: 'mamífero marinho' },
+    { name: 'Pirarucu', confidence: 0.91, description: 'Um dos maiores peixes de água doce do mundo, nativo da Amazônia.', scientificName: 'Arapaima gigas', category: 'peixe' }
   ],
   'insects': [
-    { name: 'Borboleta', confidence: 0.93, description: 'Inseto da ordem Lepidoptera com asas coloridas.' },
-    { name: 'Abelha', confidence: 0.92, description: 'Inseto social da ordem Hymenoptera, importante polinizador.' },
-    { name: 'Formiga', confidence: 0.96, description: 'Inseto social da família Formicidae.' },
-    { name: 'Joaninha', confidence: 0.91, description: 'Pequeno inseto da família Coccinellidae, predador de pulgões.' }
+    { name: 'Borboleta', confidence: 0.93, description: 'Inseto da ordem Lepidoptera com asas coloridas.', scientificName: 'Morpho menelaus', category: 'inseto' },
+    { name: 'Abelha', confidence: 0.92, description: 'Inseto social da ordem Hymenoptera, importante polinizador.', scientificName: 'Apis mellifera', category: 'inseto' },
+    { name: 'Formiga', confidence: 0.96, description: 'Inseto social da família Formicidae.', scientificName: 'Atta cephalotes', category: 'inseto' },
+    { name: 'Joaninha', confidence: 0.91, description: 'Pequeno inseto da família Coccinellidae, predador de pulgões.', scientificName: 'Cycloneda sanguinea', category: 'inseto' }
   ],
   'brazilian_natives': [
-    { name: 'Onça-pintada', confidence: 0.94, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.' },
-    { name: 'Tamanduá-bandeira', confidence: 0.92, description: 'Mamífero com focinho alongado, especializado em se alimentar de formigas e cupins.' },
-    { name: 'Tatu', confidence: 0.93, description: 'Mamífero com carapaça protetora característica, comum no Brasil.' },
-    { name: 'Quati', confidence: 0.91, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.' },
-    { name: 'Bugio', confidence: 0.90, description: 'Macaco típico das florestas brasileiras, conhecido por seu ronco característico.' }
+    { name: 'Onça-pintada', confidence: 0.94, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.', scientificName: 'Panthera onca', category: 'mamífero' },
+    { name: 'Tamanduá-bandeira', confidence: 0.92, description: 'Mamífero com focinho alongado, especializado em se alimentar de formigas e cupins.', scientificName: 'Myrmecophaga tridactyla', category: 'mamífero' },
+    { name: 'Tatu', confidence: 0.93, description: 'Mamífero com carapaça protetora característica, comum no Brasil.', scientificName: 'Dasypus novemcinctus', category: 'mamífero' },
+    { name: 'Quati', confidence: 0.91, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.', scientificName: 'Nasua nasua', category: 'mamífero' },
+    { name: 'Bugio', confidence: 0.90, description: 'Macaco típico das florestas brasileiras, conhecido por seu ronco característico.', scientificName: 'Alouatta caraya', category: 'mamífero' }
   ]
 };
 
-// Banco de dados específico para javalis e porcos selvagens
+// Banco de dados específico para javalis e porcos selvagens - com informações taxonômicas mais detalhadas
 const wildPigsDatabase: Animal[] = [
-  { name: 'Javali', confidence: 0.98, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' },
-  { name: 'Javali Filhote', confidence: 0.97, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' },
-  { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' },
-  { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.' },
-  { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.' },
-  { name: 'Javali adulto', confidence: 0.94, description: 'Espécime adulto de Sus scrofa, conhecido por seu focinho alongado e comportamento destrutivo.' },
-  { name: 'Porco-monteiro', confidence: 0.93, description: 'Variação de porco selvagem comum no Pantanal brasileiro, descendente de porcos domésticos.' },
-  { name: 'Javali em área agrícola', confidence: 0.92, description: 'Javali encontrado próximo a plantações, onde costuma causar danos significativos.' },
-  { name: 'Cateto', confidence: 0.91, description: 'Porco selvagem menor (Pecari tajacu), nativo das Américas, às vezes confundido com javalis.' },
-  { name: 'Queixada', confidence: 0.90, description: 'Porco selvagem social (Tayassu pecari) que forma grandes grupos nas florestas da América do Sul.' }
+  { name: 'Javali', confidence: 0.98, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
+  { name: 'Javali Filhote', confidence: 0.97, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'mamífero invasor' },
+  { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'mamífero invasor' },
+  { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.', scientificName: 'Pecari tajacu', category: 'mamífero' },
+  { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.', scientificName: 'Sus scrofa scrofa', category: 'mamífero invasor' },
+  { name: 'Javali adulto', confidence: 0.94, description: 'Espécime adulto de Sus scrofa, conhecido por seu focinho alongado e comportamento destrutivo.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
+  { name: 'Porco-monteiro', confidence: 0.93, description: 'Variação de porco selvagem comum no Pantanal brasileiro, descendente de porcos domésticos.', scientificName: 'Sus scrofa domesticus (ferais)', category: 'mamífero invasor' },
+  { name: 'Javali em área agrícola', confidence: 0.92, description: 'Javali encontrado próximo a plantações, onde costuma causar danos significativos.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
+  { name: 'Cateto', confidence: 0.91, description: 'Porco selvagem menor (Pecari tajacu), nativo das Américas, às vezes confundido com javalis.', scientificName: 'Pecari tajacu', category: 'mamífero nativo' },
+  { name: 'Queixada', confidence: 0.90, description: 'Porco selvagem social (Tayassu pecari) que forma grandes grupos nas florestas da América do Sul.', scientificName: 'Tayassu pecari', category: 'mamífero nativo' }
 ];
 
-// Banco de dados de animais nativos comuns no Brasil
+// Banco de dados de animais nativos comuns no Brasil - com taxonomia completa
 const nativeAnimalsDatabase: Animal[] = [
-  { name: 'Veado-campeiro', confidence: 0.94, description: 'Cervídeo típico do cerrado e campos abertos.' },
-  { name: 'Lobo-guará', confidence: 0.93, description: 'Canídeo nativo do Cerrado brasileiro, espécie ameaçada de extinção.' },
-  { name: 'Capivara', confidence: 0.97, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.' },
-  { name: 'Anta', confidence: 0.92, description: 'Maior mamífero terrestre brasileiro, importante dispersor de sementes.' },
-  { name: 'Onça-pintada', confidence: 0.91, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.' },
-  { name: 'Tamanduá-bandeira', confidence: 0.95, description: 'Mamífero com focinho alongado, especializado em se alimentar de formigas e cupins.' },
-  { name: 'Tatu', confidence: 0.96, description: 'Mamífero com carapaça protetora característica, comum no Brasil.' },
-  { name: 'Puma', confidence: 0.90, description: 'Felino de grande porte também conhecido como onça-parda ou suçuarana.' },
-  { name: 'Jaguatirica', confidence: 0.89, description: 'Felino de médio porte com pelagem manchada, típico de florestas.' },
-  { name: 'Macaco-prego', confidence: 0.94, description: 'Primata inteligente comum em várias regiões florestais do Brasil.' },
-  { name: 'Cervo-do-pantanal', confidence: 0.91, description: 'Maior cervídeo da América do Sul, habita áreas alagadas.' },
-  { name: 'Quati', confidence: 0.93, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.' }
+  { name: 'Veado-campeiro', confidence: 0.94, description: 'Cervídeo típico do cerrado e campos abertos.', scientificName: 'Ozotoceros bezoarticus', category: 'mamífero nativo' },
+  { name: 'Lobo-guará', confidence: 0.93, description: 'Canídeo nativo do Cerrado brasileiro, espécie ameaçada de extinção.', scientificName: 'Chrysocyon brachyurus', category: 'mamífero nativo' },
+  { name: 'Capivara', confidence: 0.97, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.', scientificName: 'Hydrochoerus hydrochaeris', category: 'mamífero nativo' },
+  { name: 'Anta', confidence: 0.92, description: 'Maior mamífero terrestre brasileiro, importante dispersor de sementes.', scientificName: 'Tapirus terrestris', category: 'mamífero nativo' },
+  { name: 'Onça-pintada', confidence: 0.91, description: 'Maior felino das Américas, com pelagem amarela com manchas pretas.', scientificName: 'Panthera onca', category: 'mamífero nativo' },
+  { name: 'Tamanduá-bandeira', confidence: 0.95, description: 'Mamífero com focinho alongado, especializado em se alimentar de formigas e cupins.', scientificName: 'Myrmecophaga tridactyla', category: 'mamífero nativo' },
+  { name: 'Tatu', confidence: 0.96, description: 'Mamífero com carapaça protetora característica, comum no Brasil.', scientificName: 'Dasypus novemcinctus', category: 'mamífero nativo' },
+  { name: 'Puma', confidence: 0.90, description: 'Felino de grande porte também conhecido como onça-parda ou suçuarana.', scientificName: 'Puma concolor', category: 'mamífero nativo' },
+  { name: 'Jaguatirica', confidence: 0.89, description: 'Felino de médio porte com pelagem manchada, típico de florestas.', scientificName: 'Leopardus pardalis', category: 'mamífero nativo' },
+  { name: 'Macaco-prego', confidence: 0.94, description: 'Primata inteligente comum em várias regiões florestais do Brasil.', scientificName: 'Sapajus nigritus', category: 'mamífero nativo' },
+  { name: 'Cervo-do-pantanal', confidence: 0.91, description: 'Maior cervídeo da América do Sul, habita áreas alagadas.', scientificName: 'Blastocerus dichotomus', category: 'mamífero nativo' },
+  { name: 'Quati', confidence: 0.93, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.', scientificName: 'Nasua nasua', category: 'mamífero nativo' }
 ];
 
-// Banco de dados de cães domésticos para melhorar a detecção em vídeos
+// Banco de dados de cães domésticos para melhorar a detecção em vídeos - com raças específicas
 const domesticDogsDatabase: Animal[] = [
-  { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.' },
-  { name: 'Pastor Alemão', confidence: 0.94, description: 'Raça de cão de trabalho versátil e inteligente.' },
-  { name: 'Labrador', confidence: 0.96, description: 'Raça de cão popular como animal de estimação e cão-guia.' },
-  { name: 'Golden Retriever', confidence: 0.95, description: 'Raça de cão conhecida por sua docilidade e pelagem dourada.' },
-  { name: 'Poodle', confidence: 0.93, description: 'Raça de cão inteligente e hipoalergênica.' },
-  { name: 'Husky Siberiano', confidence: 0.92, description: 'Raça de cão originária da Sibéria, conhecida por seus olhos azuis.' },
-  { name: 'Bulldog', confidence: 0.91, description: 'Raça de cão de porte médio com corpo musculoso e rosto enrugado.' },
-  { name: 'Cachorro Caramelo', confidence: 0.97, description: 'Cão de raça indefinida característico do Brasil, geralmente de porte médio e pelagem amarelada.' },
-  { name: 'Vira-lata', confidence: 0.98, description: 'Cão sem raça definida, comum em todo o Brasil.' }
+  { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
+  { name: 'Pastor Alemão', confidence: 0.94, description: 'Raça de cão de trabalho versátil e inteligente.', scientificName: 'Canis familiaris (Pastor Alemão)', category: 'mamífero doméstico' },
+  { name: 'Labrador', confidence: 0.96, description: 'Raça de cão popular como animal de estimação e cão-guia.', scientificName: 'Canis familiaris (Labrador Retriever)', category: 'mamífero doméstico' },
+  { name: 'Golden Retriever', confidence: 0.95, description: 'Raça de cão conhecida por sua docilidade e pelagem dourada.', scientificName: 'Canis familiaris (Golden Retriever)', category: 'mamífero doméstico' },
+  { name: 'Poodle', confidence: 0.93, description: 'Raça de cão inteligente e hipoalergênica.', scientificName: 'Canis familiaris (Poodle)', category: 'mamífero doméstico' },
+  { name: 'Husky Siberiano', confidence: 0.92, description: 'Raça de cão originária da Sibéria, conhecida por seus olhos azuis.', scientificName: 'Canis familiaris (Husky Siberiano)', category: 'mamífero doméstico' },
+  { name: 'Bulldog', confidence: 0.91, description: 'Raça de cão de porte médio com corpo musculoso e rosto enrugado.', scientificName: 'Canis familiaris (Bulldog)', category: 'mamífero doméstico' },
+  { name: 'Cachorro Caramelo', confidence: 0.97, description: 'Cão de raça indefinida característico do Brasil, geralmente de porte médio e pelagem amarelada.', scientificName: 'Canis familiaris (SRD Brasileiro)', category: 'mamífero doméstico' },
+  { name: 'Vira-lata', confidence: 0.98, description: 'Cão sem raça definida, comum em todo o Brasil.', scientificName: 'Canis familiaris (SRD)', category: 'mamífero doméstico' }
 ];
 
 // Mapeamento de imagens de treinamento com IDs específicos para javalis e outros animais
@@ -135,27 +138,27 @@ const specificImages = {
   // Javalis e animais silvestres específicos
   'ce96c99c-0586-4460-a3af-af02d84fbf45': { 
     category: 'wild_pigs',
-    result: [{ name: 'Javali', confidence: 0.98, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.' }]
+    result: [{ name: 'Javali', confidence: 0.98, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'mamífero invasor' }]
   },
   'fff1fa46-90d0-4f73-a04f-065ad14447f5': { 
     category: 'wild_pigs',
-    result: [{ name: 'Javali Filhote', confidence: 0.97, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.' }]
+    result: [{ name: 'Javali Filhote', confidence: 0.97, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'mamífero invasor' }]
   },
   '20897a2e-76e4-4906-92b0-a798999f5c45': { 
     category: 'wild_pigs',
-    result: [{ name: 'Javali perto de cerca', confidence: 0.96, description: 'Javali adulto próximo a uma cerca, comum em invasões de propriedades rurais.' }]
+    result: [{ name: 'Javali perto de cerca', confidence: 0.96, description: 'Javali adulto próximo a uma cerca, comum em invasões de propriedades rurais.', scientificName: 'Sus scrofa', category: 'mamífero invasor' }]
   },
   'c26c1704-463e-4f86-a15c-56901b7ed7ea': { 
     category: 'wild_pigs',
-    result: [{ name: 'Grupo de Javalis', confidence: 0.99, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.' }]
+    result: [{ name: 'Grupo de Javalis', confidence: 0.99, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'mamífero invasor' }]
   },
   'ab9e1f1e-55fd-47f3-b7b2-7d0e99c4669a': { 
     category: 'wild_pigs', 
-    result: [{ name: 'Porco-do-mato', confidence: 0.95, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.' }]
+    result: [{ name: 'Porco-do-mato', confidence: 0.95, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.', scientificName: 'Pecari tajacu', category: 'mamífero nativo' }]
   },
   'f677b28b-4909-4fb7-9c21-509d1ba8522b': { 
     category: 'forest',
-    result: [{ name: 'Veado-campeiro', confidence: 0.97, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas e campos do Brasil.' }]
+    result: [{ name: 'Veado-campeiro', confidence: 0.97, description: 'Mamífero ruminante da família dos cervídeos, comum em florestas e campos do Brasil.', scientificName: 'Ozotoceros bezoarticus', category: 'mamífero nativo' }]
   }
 };
 
@@ -389,7 +392,7 @@ const detectAnimalType = (imageUrl: string): { category: string, animals: Animal
 // Função para gerar um atraso aleatório simulando processamento
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Função para analisar a imagem usando técnicas avançadas de reconhecimento
+// Função aprimorada para analisar a imagem usando técnicas avançadas de reconhecimento
 export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
   console.log('Analisando imagem com sistema aprimorado:', imageUrl);
   
@@ -408,8 +411,26 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
   // Para uploads do usuário, usar nossa função especializada
   if (imageUrl.startsWith('blob:')) {
     const { animals } = detectAnimalFromUpload(imageUrl);
-    resultCache.set(fingerprint, animals);
-    return animals;
+    
+    // Garantir que todos os animais tenham nome científico e categoria
+    const enhancedAnimals = animals.map(animal => {
+      if (!animal.scientificName) {
+        if (animal.name.toLowerCase().includes('javali')) {
+          animal.scientificName = 'Sus scrofa';
+          animal.category = 'mamífero invasor';
+        } else if (animal.name.toLowerCase().includes('cachorro') || animal.name.toLowerCase().includes('cão')) {
+          animal.scientificName = 'Canis familiaris';
+          animal.category = 'mamífero doméstico';
+        } else {
+          animal.scientificName = 'Espécie não identificada';
+          animal.category = 'mamífero';
+        }
+      }
+      return animal;
+    });
+    
+    resultCache.set(fingerprint, enhancedAnimals);
+    return enhancedAnimals;
   }
   
   // Realizar detecção avançada do tipo de animal para imagens do sistema (não uploads)
@@ -486,4 +507,31 @@ export async function getAnimalInfo(animalName: string): Promise<Animal | null> 
   }
   
   return null;
+}
+
+// Nova função para obter o nome científico de um animal
+export async function getScientificName(animalName: string): Promise<string> {
+  const animal = await getAnimalInfo(animalName);
+  return animal?.scientificName || 'Espécie não identificada cientificamente';
+}
+
+// Nova função para classificar o tipo de animal
+export function classifyAnimalType(animalName: string): string {
+  const lowerName = animalName.toLowerCase();
+  
+  if (lowerName.includes('javali') || lowerName.includes('sus scrofa')) {
+    return 'Mamífero Invasor';
+  } else if (lowerName.includes('cachorro') || lowerName.includes('cão') || 
+             lowerName.includes('canis familiaris') || lowerName.includes('dog')) {
+    return 'Mamífero Doméstico';
+  } else if (lowerName.includes('ave') || lowerName.includes('pássaro') || 
+             lowerName.includes('bird') || lowerName.includes('coruja') ||
+             lowerName.includes('arara') || lowerName.includes('tucano')) {
+    return 'Ave';
+  } else if (lowerName.includes('cobra') || lowerName.includes('jacaré') || 
+             lowerName.includes('tartaruga') || lowerName.includes('lagarto')) {
+    return 'Réptil';
+  } else {
+    return 'Mamífero Nativo';
+  }
 }
