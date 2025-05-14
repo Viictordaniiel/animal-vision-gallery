@@ -1,8 +1,9 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, Target, Move, Shield, Crosshair, Dog, Scan } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 type Animal = {
@@ -35,15 +36,7 @@ export default function GalleryItem({
 }: GalleryItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isTracking, setIsTracking] = useState(false);
-  const [trackingQuality, setTrackingQuality] = useState<'high' | 'medium' | 'low'>('high');
-  const [animalBoxes, setAnimalBoxes] = useState<{animal: Animal, element: HTMLDivElement | null}[]>([]);
-  const [animalPositions, setAnimalPositions] = useState<{[key: number]: {x: number, y: number, width: number, height: number}}>({}); 
   const [videoProgress, setVideoProgress] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [trackingEnabled, setTrackingEnabled] = useState(true);
-  const lastFrameTime = useRef<number>(0);
-  const frameRef = useRef<number | null>(null);
   
   // Enhanced species identification with detailed taxonomy
   const getDetailedSpecies = (animalName: string): string => {
@@ -123,74 +116,6 @@ export default function GalleryItem({
     return 'other';
   };
   
-  // Enhanced box size function with improved dog detection based on Stanford Dataset
-  const getAnimalBoxSize = (animalName: string, confidence: number): {width: number, height: number} => {
-    const animalClass = getAnimalClassification(animalName);
-    const confidenceBoost = Math.min(confidence * 1.2, 1); // Higher confidence = slightly larger box
-    
-    // Better-sized boxes for different animal types (smaller and more focused)
-    switch(animalClass) {
-      case 'invasive': // Wild boars, etc.
-        return {
-          width: 8 + (Math.random() * 3) * confidenceBoost, // 8-11% width
-          height: 6 + (Math.random() * 2) * confidenceBoost  // 6-8% height
-        };
-      case 'domestic': // Dogs - improved sizing for dogs specifically
-        // More precise box sizing for dogs based on the breed patterns from Stanford Dogs Dataset
-        if (isDog(animalName)) {
-          const lowerName = animalName.toLowerCase();
-          
-          // Smaller breeds get smaller boxes
-          if (lowerName.includes('chihuahua') || lowerName.includes('pug') || 
-              lowerName.includes('yorkshire') || lowerName.includes('shih tzu')) {
-            return {
-              width: 7 + (Math.random() * 1.5) * confidenceBoost,  // 7-8.5% width
-              height: 6 + (Math.random() * 1.5) * confidenceBoost  // 6-7.5% height
-            };
-          }
-          
-          // Medium-sized breeds get medium boxes
-          else if (lowerName.includes('beagle') || lowerName.includes('cocker') || 
-                   lowerName.includes('bulldog') || lowerName.includes('border')) {
-            return {
-              width: 8 + (Math.random() * 1.5) * confidenceBoost,  // 8-9.5% width
-              height: 7 + (Math.random() * 1.5) * confidenceBoost  // 7-8.5% height
-            };
-          }
-          
-          // Larger breeds get larger boxes
-          else if (lowerName.includes('pastor') || lowerName.includes('labrador') || 
-                   lowerName.includes('golden') || lowerName.includes('rottweiler')) {
-            return {
-              width: 9 + (Math.random() * 1.5) * confidenceBoost,  // 9-10.5% width
-              height: 8 + (Math.random() * 1.5) * confidenceBoost  // 8-9.5% height
-            };
-          }
-        }
-        
-        // Default dog size
-        return {
-          width: 8 + (Math.random() * 2) * confidenceBoost,  // 8-10% width
-          height: 7 + (Math.random() * 2) * confidenceBoost  // 7-9% height
-        };
-      case 'predator': // Cats, etc.
-        return {
-          width: 7 + (Math.random() * 2) * confidenceBoost,  // 7-9% width
-          height: 6 + (Math.random() * 2) * confidenceBoost  // 6-8% height
-        };
-      case 'herbivore': // Deer, etc.
-        return {
-          width: 8 + (Math.random() * 2) * confidenceBoost,  // 8-10% width
-          height: 10 + (Math.random() * 2) * confidenceBoost // 10-12% height
-        };
-      default:
-        return {
-          width: 8 + (Math.random() * 2) * confidenceBoost,  // 8-10% width
-          height: 8 + (Math.random() * 2) * confidenceBoost  // 8-10% height
-        };
-    }
-  };
-  
   // Find the primary invasive animal if available (highest confidence)
   const primaryInvasiveAnimal = animals.length > 0 
     ? animals.filter(animal => isInvasiveSpecies(animal.name))
@@ -203,170 +128,11 @@ export default function GalleryItem({
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
   
-  // Initialize animal boxes when animals are detected or analyzed with improved positioning
-  useEffect(() => {
-    if (animals.length > 0 && !isAnalyzing) {
-      console.log("Setting up animal detection boxes for", animals.length, "animals");
-      
-      // Take up to 7 animals to avoid overcrowding
-      const detectedAnimals = animals.slice(0, Math.min(7, animals.length)).map(animal => ({
-        animal,
-        element: null
-      }));
-      
-      setAnimalBoxes(detectedAnimals);
-      
-      // Initialize positions for each animal with more focused positioning
-      const newPositions = {...animalPositions};
-      
-      // Better distribution strategy for different animal types
-      detectedAnimals.forEach((animalBox, index) => {
-        // Get optimal box size based on animal type with improved dog detection
-        const boxSize = getAnimalBoxSize(animalBox.animal.name, animalBox.animal.confidence);
-        
-        // Place dogs in more natural positions in the frame (centered, foreground)
-        if (isDog(animalBox.animal.name)) {
-          // Dogs tend to be more central in frame
-          const centerOffsetX = (Math.random() * 30) - 15; // -15% to +15% from center
-          const centerOffsetY = (Math.random() * 20); // 0% to +20% from center (bottom half)
-          
-          newPositions[index] = {
-            x: Math.max(0, Math.min(100 - boxSize.width, 50 + centerOffsetX - (boxSize.width / 2))),
-            y: Math.max(0, Math.min(100 - boxSize.height, 60 + centerOffsetY - (boxSize.height / 2))),
-            width: boxSize.width,
-            height: boxSize.height
-          };
-        }
-        // Place invasive species (wild pigs) in different areas
-        else if (isInvasiveSpecies(animalBox.animal.name)) {
-          // Wild pigs often appear at edges or in groups
-          const edgePosition = Math.random() > 0.5;
-          
-          if (edgePosition) {
-            // Near edge of frame
-            const edge = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
-            
-            switch(edge) {
-              case 0: // top
-                newPositions[index] = {
-                  x: Math.random() * (100 - boxSize.width),
-                  y: Math.random() * 20,
-                  width: boxSize.width,
-                  height: boxSize.height
-                };
-                break;
-              case 1: // right
-                newPositions[index] = {
-                  x: 80 - (Math.random() * 20),
-                  y: Math.random() * (100 - boxSize.height),
-                  width: boxSize.width,
-                  height: boxSize.height
-                };
-                break;
-              case 2: // bottom
-                newPositions[index] = {
-                  x: Math.random() * (100 - boxSize.width),
-                  y: 80 - (Math.random() * 20),
-                  width: boxSize.width,
-                  height: boxSize.height
-                };
-                break;
-              case 3: // left
-                newPositions[index] = {
-                  x: Math.random() * 20,
-                  y: Math.random() * (100 - boxSize.height),
-                  width: boxSize.width,
-                  height: boxSize.height
-                };
-                break;
-            }
-          } else {
-            // Group positioning - clustered
-            newPositions[index] = {
-              x: 30 + (Math.random() * 40),
-              y: 50 + (Math.random() * 30),
-              width: boxSize.width,
-              height: boxSize.height
-            };
-          }
-        }
-        // Other animals with natural positioning
-        else {
-          // Grid-based positioning with natural variation
-          const gridSize = Math.ceil(Math.sqrt(detectedAnimals.length));
-          const cellWidth = 100 / gridSize;
-          const cellHeight = 100 / gridSize;
-          
-          // Calculate position in grid
-          const gridX = index % gridSize;
-          const gridY = Math.floor(index / gridSize);
-          
-          // Center position in cell with some randomization to appear natural
-          // Focus more toward the center of the video for better visibility
-          const centerBias = 0.25; // Bias animals toward center of frame
-          const centerX = 50;
-          const centerY = 50;
-          
-          const rawX = (gridX * cellWidth) + (cellWidth / 2) - (boxSize.width / 2);
-          const rawY = (gridY * cellHeight) + (cellHeight / 2) - (boxSize.height / 2);
-          
-          // Apply center bias - pull positions slightly toward center
-          const x = rawX + (centerX - rawX) * centerBias + (Math.random() * 6 - 3);
-          const y = rawY + (centerY - rawY) * centerBias + (Math.random() * 6 - 3);
-          
-          newPositions[index] = {
-            x: Math.max(0, Math.min(100 - boxSize.width, x)),
-            y: Math.max(0, Math.min(100 - boxSize.height, y)),
-            width: boxSize.width,
-            height: boxSize.height
-          };
-        }
-      });
-      
-      setAnimalPositions(newPositions);
-    }
-  }, [animals, isAnalyzing]);
-  
-  // Set up video playback and tracking
+  // Set up video playback
   useEffect(() => {
     if (isVideo && videoRef.current) {
       console.log("Setting up video playback with src:", imageUrl);
       videoRef.current.src = imageUrl;
-      
-      const handleVideoPlay = () => {
-        console.log("Video playback started");
-        setIsTracking(true);
-        
-        // Cancel any existing animation frame
-        if (frameRef.current) {
-          cancelAnimationFrame(frameRef.current);
-        }
-        
-        // Start the animation loop
-        frameRef.current = requestAnimationFrame(updateAnimalPositions);
-      };
-      
-      const handleVideoPause = () => {
-        console.log("Video playback paused");
-        setIsTracking(false);
-        
-        // Cancel animation frame when video is paused
-        if (frameRef.current) {
-          cancelAnimationFrame(frameRef.current);
-          frameRef.current = null;
-        }
-      };
-      
-      const handleVideoEnded = () => {
-        console.log("Video playback ended");
-        setIsTracking(false);
-        
-        // Cancel animation frame when video ends
-        if (frameRef.current) {
-          cancelAnimationFrame(frameRef.current);
-          frameRef.current = null;
-        }
-      };
       
       const handleTimeUpdate = () => {
         if (videoRef.current) {
@@ -375,250 +141,17 @@ export default function GalleryItem({
         }
       };
       
-      videoRef.current.addEventListener('play', handleVideoPlay);
-      videoRef.current.addEventListener('pause', handleVideoPause);
-      videoRef.current.addEventListener('ended', handleVideoEnded);
       videoRef.current.addEventListener('timeupdate', handleTimeUpdate);
       
       return () => {
         if (videoRef.current) {
-          videoRef.current.removeEventListener('play', handleVideoPlay);
-          videoRef.current.removeEventListener('pause', handleVideoPause);
-          videoRef.current.removeEventListener('ended', handleVideoEnded);
           videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
-        }
-        
-        // Clean up any remaining animation frame
-        if (frameRef.current) {
-          cancelAnimationFrame(frameRef.current);
         }
       };
     }
   }, [imageUrl, isVideo]);
   
-  // Update animal box references
-  useEffect(() => {
-    if (animalBoxes.length > 0) {
-      // Set a timeout to allow the DOM to render
-      const timeout = setTimeout(() => {
-        const boxes = document.querySelectorAll('.animal-tracking-box');
-        
-        if (boxes.length) {
-          const updatedBoxes = [...animalBoxes];
-          
-          boxes.forEach((box, index) => {
-            if (index < updatedBoxes.length) {
-              updatedBoxes[index].element = box as HTMLDivElement;
-            }
-          });
-          
-          setAnimalBoxes(updatedBoxes);
-        }
-      }, 100);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [animalBoxes.length]);
-  
-  // Enhanced tracking algorithm for more realistic and focused animal movements
-  const updateAnimalPositions = (timestamp: number) => {
-    if (!isTracking || !trackingEnabled || !videoRef.current) {
-      // Request next frame if still tracking
-      if (isTracking && trackingEnabled) {
-        frameRef.current = requestAnimationFrame(updateAnimalPositions);
-      }
-      return;
-    }
-    
-    // Limit updates to reasonable frame rate (30fps)
-    if (timestamp - lastFrameTime.current > 33) {
-      lastFrameTime.current = timestamp;
-      
-      // Get video dimensions for positioning
-      const videoWidth = videoRef.current.clientWidth;
-      const videoHeight = videoRef.current.clientHeight;
-      
-      // Get the current video time for time-based animations
-      const currentTime = videoRef.current.currentTime;
-      const videoProgress = currentTime / (videoRef.current.duration || 1);
-      
-      // Update each animal box position with more focused movement
-      animalBoxes.forEach((animalBox, index) => {
-        if (animalBox.element && animalPositions[index]) {
-          const animalClass = getAnimalClassification(animalBox.animal.name);
-          
-          // Create more focused, animal-specific motion patterns
-          let newX = animalPositions[index].x;
-          let newY = animalPositions[index].y;
-          
-          // Generate more focused, smaller movement patterns based on animal type
-          // These movements are now more subtle and realistic
-          if (isDog(animalBox.animal.name)) {
-            // Dogs have more energetic, playful movements
-            // Enhanced dog movement patterns based on Stanford Dogs Dataset behavior studies
-            const lowerName = animalBox.animal.name.toLowerCase();
-            
-            // Different dog breeds move differently
-            if (lowerName.includes('retriever') || lowerName.includes('labrador') || lowerName.includes('golden')) {
-              // Retrievers make more back-and-forth movements
-              newX += Math.sin(currentTime * 2.5 + index) * 0.45;
-              newY += Math.cos(currentTime * 2 + index) * 0.35;
-              // Occasional quick movements (playful retrievers)
-              if (Math.random() > 0.96) {
-                newX += (Math.random() - 0.5) * 2;
-                newY += (Math.random() - 0.5) * 1.8;
-              }
-            } 
-            else if (lowerName.includes('pastor') || lowerName.includes('shepherd') || lowerName.includes('border')) {
-              // Herding dogs make more deliberate movements
-              newX += Math.sin(currentTime * 1.8 + index) * 0.4;
-              newY += Math.cos(currentTime * 1.3 + index) * 0.3;
-              // Occasional quick direction changes (herding instinct)
-              if (Math.random() > 0.97) {
-                newX += Math.sign(Math.sin(currentTime)) * 1.5;
-                newY += Math.sign(Math.cos(currentTime)) * 1.2;
-              }
-            }
-            else if (lowerName.includes('pug') || lowerName.includes('bulldog') || lowerName.includes('boxer')) {
-              // Brachycephalic breeds move more slowly
-              newX += Math.sin(currentTime * 1.5 + index) * 0.25;
-              newY += Math.cos(currentTime * 1.2 + index) * 0.2;
-              // Occasional playful bursts (short bursts of energy)
-              if (Math.random() > 0.98) {
-                newX += (Math.random() - 0.5) * 1;
-                newY += (Math.random() - 0.5) * 1;
-              }
-            }
-            else {
-              // Generic dog movement
-              newX += Math.sin(currentTime * 2 + index) * 0.4;
-              newY += Math.cos(currentTime * 1.5 + index) * 0.4;
-              // Occasional quick movements
-              if (Math.random() > 0.97) {
-                newX += (Math.random() - 0.5) * 1.5;
-                newY += (Math.random() - 0.5) * 1.5;
-              }
-            }
-          }
-          else if (animalClass === 'invasive') {
-            // Wild pigs move in more predictable, deliberate patterns
-            // Less random movement, more focused progress in a direction
-            if (Math.random() > 0.95) {
-              // Occasional direction change (smaller range)
-              newX += (Math.random() - 0.5) * 2.5; 
-              newY += (Math.random() - 0.5) * 1.5;
-            } else {
-              // Smaller, more focused movements
-              newX += Math.cos(currentTime + index) * 0.25;
-              newY += Math.sin(currentTime * 0.7 + index) * 0.2;
-            }
-          }
-          else if (animalClass === 'predator') {
-            // Predators have precise, calculated movements
-            // Minimal random movement, focused stalking
-            newX += Math.sin(currentTime * 0.5 + index) * 0.25;
-            newY += Math.cos(currentTime * 0.4 + index) * 0.2;
-            // Occasional quick strike (more focused)
-            if (Math.random() > 0.98) {
-              newX += Math.sign(Math.sin(currentTime)) * 1;
-              newY += Math.sign(Math.cos(currentTime)) * 0.8;
-            }
-          }
-          else if (animalClass === 'herbivore') {
-            // Herbivores move with cautious, alert movements
-            newX += Math.sin(currentTime * 0.6 + index) * 0.3;
-            newY += Math.cos(currentTime * 0.3 + index) * 0.15;
-            // Occasional freeze (alertness)
-            if (Math.random() > 0.96) {
-              // Hold position momentarily
-              newX = animalPositions[index].x;
-              newY = animalPositions[index].y;
-            }
-          }
-          else {
-            // General wildlife movement pattern (smaller range)
-            newX += Math.sin(currentTime + index) * 0.3;
-            newY += Math.cos(currentTime * 0.7 + index) * 0.25;
-          }
-          
-          // Add subtle influence from video progression 
-          // Reduced range for more focused tracking
-          const progressInfluence = 0.15; // Reduced from previous value
-          newX += Math.sin(videoProgress * Math.PI * 2) * progressInfluence;
-          newY += Math.cos(videoProgress * Math.PI * 3) * progressInfluence;
-          
-          // Simulate animals moving in relation to scene changes
-          // Apply slight directional bias based on video progression
-          if (videoProgress < 0.33) {
-            // Early in video - animals tend to enter scene
-            newX += 0.02;
-            newY += 0.01;
-          } else if (videoProgress > 0.66) {
-            // Later in video - animals might be leaving
-            newX -= 0.02;
-            newY += 0.01;
-          }
-          
-          // Keep animals within frame bounds with smaller padding
-          const padding = 1; // percentage padding (reduced)
-          newX = Math.max(padding, Math.min(100 - padding - animalPositions[index].width, newX));
-          newY = Math.max(padding, Math.min(100 - padding - animalPositions[index].height, newY));
-          
-          // Update animal position
-          const updatedPositions = {...animalPositions};
-          updatedPositions[index] = {
-            ...animalPositions[index],
-            x: newX,
-            y: newY
-          };
-          setAnimalPositions(updatedPositions);
-          
-          // Apply position to element with more precise positioning
-          animalBox.element.style.width = `${animalPositions[index].width}%`;
-          animalBox.element.style.height = `${animalPositions[index].height}%`;
-          animalBox.element.style.left = `${newX}%`;
-          animalBox.element.style.top = `${newY}%`;
-          
-          // Add very subtle jitter for more realistic appearance
-          // Reduced jitter range for more focused tracking
-          const jitterX = (Math.random() - 0.5) * 0.1;
-          const jitterY = (Math.random() - 0.5) * 0.1;
-          animalBox.element.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
-          
-          // Simulate tracking quality changes (less frequent)
-          if (Math.random() > 0.98) {
-            setTrackingQuality(prev => {
-              if (prev === 'high') return Math.random() > 0.7 ? 'high' : 'medium';
-              if (prev === 'medium') return Math.random() > 0.6 ? 'high' : 'low';
-              return 'medium';
-            });
-          }
-        }
-      });
-    }
-    
-    // Continue animation loop
-    frameRef.current = requestAnimationFrame(updateAnimalPositions);
-  };
-  
-  // Get the appropriate border and badge colors based on animal type
-  const getBoxStyle = (animalName: string): string => {
-    const animalClass = getAnimalClassification(animalName);
-    
-    switch (animalClass) {
-      case 'invasive':
-        return 'border-red-500';
-      case 'domestic':
-        return 'border-blue-500';
-      case 'predator':
-        return 'border-orange-500';
-      case 'herbivore':
-        return 'border-green-500';
-      default:
-        return 'border-purple-500';
-    }
-  };
-  
+  // Get the appropriate badge colors based on animal type
   const getBadgeStyle = (animalName: string): string => {
     const animalClass = getAnimalClassification(animalName);
     
@@ -639,7 +172,7 @@ export default function GalleryItem({
   return (
     <Card className="overflow-hidden w-full max-w-md">
       <CardContent className="p-0">
-        <div className="relative" ref={containerRef}>
+        <div className="relative">
           {isVideo ? (
             <video 
               ref={videoRef}
@@ -671,7 +204,6 @@ export default function GalleryItem({
             </div>
           )}
           
-          {/* Animal tracking boxes */}
           {animals.length > 0 && !isAnalyzing && (
             <>
               {/* Warning badge for invasive species */}
@@ -700,144 +232,6 @@ export default function GalleryItem({
                   <Badge variant="outline" className="bg-black/70 text-white border-none flex items-center gap-1 px-2 py-1">
                     {animals.length} animais detectados
                   </Badge>
-                </div>
-              )}
-              
-              {/* Individual animal tracking boxes - with improved focus */}
-              <div className="absolute inset-0 pointer-events-none">
-                {animalBoxes.map((box, index) => {
-                  const animalClass = getAnimalClassification(box.animal.name);
-                  
-                  return (
-                    <div 
-                      key={index}
-                      className={`animal-tracking-box absolute border-2 ${getBoxStyle(box.animal.name)} rounded-md`}
-                      style={{
-                        width: animalPositions[index]?.width ? `${animalPositions[index].width}%` : '10%',
-                        height: animalPositions[index]?.height ? `${animalPositions[index].height}%` : '8%',
-                        left: animalPositions[index]?.x ? `${animalPositions[index].x}%` : '50%',
-                        top: animalPositions[index]?.y ? `${animalPositions[index].y}%` : '50%',
-                        boxShadow: `0 0 3px ${animalClass === 'invasive' ? 'rgba(220, 38, 38, 0.7)' : 
-                                    animalClass === 'domestic' ? 'rgba(37, 99, 235, 0.7)' : 
-                                    animalClass === 'predator' ? 'rgba(249, 115, 22, 0.7)' :
-                                    animalClass === 'herbivore' ? 'rgba(34, 197, 94, 0.7)' :
-                                    'rgba(124, 58, 237, 0.7)'}`,
-                      }}
-                    >
-                      {/* Corner indicators for tracking effect - smaller, more subtle corners */}
-                      <div className={`absolute -top-0.5 -left-0.5 w-1 h-1 border-t border-l ${getBoxStyle(box.animal.name)}`}></div>
-                      <div className={`absolute -top-0.5 -right-0.5 w-1 h-1 border-t border-r ${getBoxStyle(box.animal.name)}`}></div>
-                      <div className={`absolute -bottom-0.5 -left-0.5 w-1 h-1 border-b border-l ${getBoxStyle(box.animal.name)}`}></div>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-1 h-1 border-b border-r ${getBoxStyle(box.animal.name)}`}></div>
-                      
-                      {/* Animal label - more compact and subtle */}
-                      <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                        <Badge 
-                          variant="outline" 
-                          className={`${getBadgeStyle(box.animal.name)} text-xs px-1 py-0 text-[7px] whitespace-nowrap`}
-                        >
-                          {box.animal.name} {formatConfidence(box.animal.confidence)}
-                        </Badge>
-                      </div>
-                      
-                      {/* Target icon for tracking - smaller size for less intrusion */}
-                      {isVideo && isTracking && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          {animalClass === 'domestic' ? (
-                            <Dog 
-                              className={`text-blue-500 opacity-70`} 
-                              size={10}
-                              style={{ animation: 'pulse 1.5s infinite' }}
-                            />
-                          ) : animalClass === 'predator' ? (
-                            <Target 
-                              className={`text-orange-500 opacity-70`} 
-                              size={10}
-                              style={{ animation: 'pulse 1.5s infinite' }}
-                            />
-                          ) : animalClass === 'invasive' ? (
-                            <Target 
-                              className={`text-red-500 opacity-70`} 
-                              size={10}
-                              style={{ animation: 'pulse 1.5s infinite' }}
-                            />
-                          ) : (
-                            <Crosshair 
-                              className={`text-green-500 opacity-70`} 
-                              size={10}
-                              style={{ animation: 'pulse 1.5s infinite' }}
-                            />
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Subtle scanning effect */}
-                      {isVideo && isTracking && (
-                        <div 
-                          className="absolute inset-0 overflow-hidden opacity-20"
-                          style={{
-                            background: `linear-gradient(to bottom, transparent, ${
-                              animalClass === 'invasive' ? 'rgba(220, 38, 38, 0.4)' : 
-                              animalClass === 'domestic' ? 'rgba(37, 99, 235, 0.4)' : 
-                              animalClass === 'predator' ? 'rgba(249, 115, 22, 0.4)' :
-                              animalClass === 'herbivore' ? 'rgba(34, 197, 94, 0.4)' :
-                              'rgba(124, 58, 237, 0.4)'
-                            }, transparent)`,
-                            backgroundSize: '100% 200%',
-                            animation: 'scanAnimation 1.5s infinite linear'
-                          }}
-                        ></div>
-                      )}
-                      
-                      {/* ID number - minimized */}
-                      <div className="absolute top-0 left-0">
-                        <div className={`
-                          px-0.5 rounded-full text-[6px] font-mono 
-                          ${animalClass === 'invasive' ? 'bg-red-500 text-white' : 
-                            animalClass === 'domestic' ? 'bg-blue-500 text-white' : 
-                            animalClass === 'predator' ? 'bg-orange-500 text-white' : 
-                            animalClass === 'herbivore' ? 'bg-green-500 text-white' : 
-                            'bg-purple-500 text-white'
-                          }
-                        `}>
-                          {index + 1}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Tracking quality indicator */}
-              {isVideo && isTracking && (
-                <div className="absolute bottom-2 left-2">
-                  <Badge 
-                    variant="outline" 
-                    className={`border-none flex items-center gap-1 px-2 py-1 ${
-                      trackingQuality === 'high' ? 'bg-green-500/80 text-white' : 
-                      trackingQuality === 'medium' ? 'bg-yellow-500/80 text-white' : 'bg-red-500/80 text-white'
-                    }`}
-                  >
-                    <Scan size={14} />
-                    <span>Sensor: {
-                      trackingQuality === 'high' ? 'Preciso' : 
-                      trackingQuality === 'medium' ? 'Normal' : 'Baixo'
-                    }</span>
-                  </Badge>
-                </div>
-              )}
-              
-              {/* Tracking toggle */}
-              {isVideo && (
-                <div className="absolute top-12 right-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`${trackingEnabled ? 'bg-green-100 border-green-500 text-green-700' : 'bg-gray-100 border-gray-400 text-gray-700'} text-xs px-2 py-0.5`}
-                    onClick={() => setTrackingEnabled(!trackingEnabled)}
-                  >
-                    Sensor {trackingEnabled ? 'Ativo' : 'Inativo'}
-                  </Button>
                 </div>
               )}
             </>
@@ -925,21 +319,6 @@ export default function GalleryItem({
           )}
         </div>
       </CardContent>
-      
-      {/* CSS animations for tracking effects */}
-      <style>
-        {`
-        @keyframes scanAnimation {
-          0% { background-position: 0 -100%; }
-          100% { background-position: 0 100%; }
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.05); }
-        }
-        `}
-      </style>
     </Card>
   );
 }
