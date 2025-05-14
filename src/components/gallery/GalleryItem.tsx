@@ -20,6 +20,11 @@ type GalleryItemProps = {
   isVideo?: boolean;
 };
 
+// Helper function to format confidence scores as percentages
+const formatConfidence = (confidence: number): string => {
+  return `${Math.round(confidence * 100)}%`;
+};
+
 export default function GalleryItem({ 
   imageUrl, 
   animals, 
