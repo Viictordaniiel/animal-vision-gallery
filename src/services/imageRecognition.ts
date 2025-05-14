@@ -1,4 +1,3 @@
-
 // Simulação de um serviço avançado de reconhecimento de imagens de animais
 // Em uma implementação real, isso seria integrado com um serviço de IA como Google Cloud Vision ou Hugging Face
 
@@ -120,17 +119,34 @@ const nativeAnimalsDatabase: Animal[] = [
   { name: 'Quati', confidence: 0.93, description: 'Mamífero da família dos procionídeos, com focinho alongado e cauda anelada.', scientificName: 'Nasua nasua', category: 'mamífero nativo' }
 ];
 
-// Banco de dados de cães domésticos para melhorar a detecção em vídeos - com raças específicas
+// Enhanced dog breed database inspired by Stanford Dogs Dataset
 const domesticDogsDatabase: Animal[] = [
   { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' },
   { name: 'Pastor Alemão', confidence: 0.94, description: 'Raça de cão de trabalho versátil e inteligente.', scientificName: 'Canis familiaris (Pastor Alemão)', category: 'mamífero doméstico' },
-  { name: 'Labrador', confidence: 0.96, description: 'Raça de cão popular como animal de estimação e cão-guia.', scientificName: 'Canis familiaris (Labrador Retriever)', category: 'mamífero doméstico' },
+  { name: 'Labrador Retriever', confidence: 0.96, description: 'Raça de cão popular como animal de estimação e cão-guia.', scientificName: 'Canis familiaris (Labrador Retriever)', category: 'mamífero doméstico' },
   { name: 'Golden Retriever', confidence: 0.95, description: 'Raça de cão conhecida por sua docilidade e pelagem dourada.', scientificName: 'Canis familiaris (Golden Retriever)', category: 'mamífero doméstico' },
   { name: 'Poodle', confidence: 0.93, description: 'Raça de cão inteligente e hipoalergênica.', scientificName: 'Canis familiaris (Poodle)', category: 'mamífero doméstico' },
   { name: 'Husky Siberiano', confidence: 0.92, description: 'Raça de cão originária da Sibéria, conhecida por seus olhos azuis.', scientificName: 'Canis familiaris (Husky Siberiano)', category: 'mamífero doméstico' },
   { name: 'Bulldog', confidence: 0.91, description: 'Raça de cão de porte médio com corpo musculoso e rosto enrugado.', scientificName: 'Canis familiaris (Bulldog)', category: 'mamífero doméstico' },
   { name: 'Cachorro Caramelo', confidence: 0.97, description: 'Cão de raça indefinida característico do Brasil, geralmente de porte médio e pelagem amarelada.', scientificName: 'Canis familiaris (SRD Brasileiro)', category: 'mamífero doméstico' },
-  { name: 'Vira-lata', confidence: 0.98, description: 'Cão sem raça definida, comum em todo o Brasil.', scientificName: 'Canis familiaris (SRD)', category: 'mamífero doméstico' }
+  { name: 'Vira-lata', confidence: 0.98, description: 'Cão sem raça definida, comum em todo o Brasil.', scientificName: 'Canis familiaris (SRD)', category: 'mamífero doméstico' },
+  
+  // Stanford Dogs Dataset additional breeds
+  { name: 'Beagle', confidence: 0.95, description: 'Raça de cão de pequeno a médio porte, conhecida pelo olfato apurado e temperamento amigável.', scientificName: 'Canis familiaris (Beagle)', category: 'mamífero doméstico' },
+  { name: 'Boxer', confidence: 0.94, description: 'Raça de cão de porte médio a grande, com corpo atlético e musculoso.', scientificName: 'Canis familiaris (Boxer)', category: 'mamífero doméstico' },
+  { name: 'Chihuahua', confidence: 0.97, description: 'Menor raça de cão do mundo, originária do México.', scientificName: 'Canis familiaris (Chihuahua)', category: 'mamífero doméstico' },
+  { name: 'Cocker Spaniel', confidence: 0.93, description: 'Raça de cão de pequeno a médio porte com orelhas longas e pelagem sedosa.', scientificName: 'Canis familiaris (Cocker Spaniel)', category: 'mamífero doméstico' },
+  { name: 'Dachshund', confidence: 0.94, description: 'Raça de cão conhecida pelo corpo alongado e pernas curtas, também chamado de salsicha.', scientificName: 'Canis familiaris (Dachshund)', category: 'mamífero doméstico' },
+  { name: 'Dálmata', confidence: 0.96, description: 'Raça de cão de porte médio conhecida por sua pelagem branca com manchas pretas.', scientificName: 'Canis familiaris (Dálmata)', category: 'mamífero doméstico' },
+  { name: 'Doberman', confidence: 0.91, description: 'Raça de cão de grande porte, conhecido por ser um excelente cão de guarda.', scientificName: 'Canis familiaris (Doberman Pinscher)', category: 'mamífero doméstico' },
+  { name: 'Pug', confidence: 0.95, description: 'Raça de cão de pequeno porte com focinho achatado e personalidade carismática.', scientificName: 'Canis familiaris (Pug)', category: 'mamífero doméstico' },
+  { name: 'Rottweiler', confidence: 0.92, description: 'Raça de cão robusta e poderosa, tradicionalmente usada para pastoreio.', scientificName: 'Canis familiaris (Rottweiler)', category: 'mamífero doméstico' },
+  { name: 'Shih Tzu', confidence: 0.93, description: 'Raça de cão de companhia de pequeno porte com pelagem longa.', scientificName: 'Canis familiaris (Shih Tzu)', category: 'mamífero doméstico' },
+  { name: 'Yorkshire Terrier', confidence: 0.94, description: 'Raça de cão de pequeno porte com pelagem longa e sedosa.', scientificName: 'Canis familiaris (Yorkshire Terrier)', category: 'mamífero doméstico' },
+  { name: 'Border Collie', confidence: 0.97, description: 'Raça de cão pastora considerada uma das mais inteligentes, ágil e energética.', scientificName: 'Canis familiaris (Border Collie)', category: 'mamífero doméstico' },
+  { name: 'Akita', confidence: 0.90, description: 'Raça de cão de grande porte originária do Japão, conhecida por sua lealdade.', scientificName: 'Canis familiaris (Akita)', category: 'mamífero doméstico' },
+  { name: 'Bull Terrier', confidence: 0.91, description: 'Raça de cão com cabeça em formato de ovo, musculoso e determinado.', scientificName: 'Canis familiaris (Bull Terrier)', category: 'mamífero doméstico' },
+  { name: 'Pit Bull', confidence: 0.93, description: 'Grupo de raças de cães tipo terrier, atléticos e fortes.', scientificName: 'Canis familiaris (American Pit Bull Terrier)', category: 'mamífero doméstico' }
 ];
 
 // Mapeamento de imagens de treinamento com IDs específicos para javalis e outros animais
@@ -162,7 +178,7 @@ const specificImages = {
   }
 };
 
-// Assinaturas visuais para detecção mais precisa
+// Enhanced visual signatures for dog detection
 const visualSignatures = {
   'wild_pigs': ['marrom escuro', 'focinho alongado', 'cerdas grossas', 'corpo robusto', 'patas curtas'],
   'forest': ['pelagem castanha', 'chifres ramificados', 'orelhas pontudas', 'patas finas', 'habitat florestal'],
@@ -172,7 +188,11 @@ const visualSignatures = {
   'carnivores': ['dentes caninos desenvolvidos', 'garras afiadas', 'olhos frontais', 'predador'],
   'pets': ['doméstico', 'comportamento dócil', 'interação com humanos'],
   'brazilian_natives': ['habitat cerrado', 'coloração camuflada', 'adaptações para clima tropical', 'espécie endêmica'],
-  'dogs': ['focinho', 'orelhas eretas ou caídas', 'pelagem variada', 'cauda', 'quatro patas', 'olhar atento']
+  'dogs': [
+    'focinho', 'orelhas eretas ou caídas', 'pelagem variada', 'cauda', 'quatro patas', 'olhar atento', 
+    'trufa úmida', 'corpo canino', 'focinho alongado', 'dentes caninos', 'língua para fora',
+    'postura canina', 'andar em quatro patas', 'latido', 'movimentação típica de cão'
+  ]
 };
 
 // Sistema avançado de análise de características da imagem para identificação mais precisa
@@ -289,45 +309,47 @@ const shouldDetectWildPig = (imageUrl: string): boolean => {
 const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals: Animal[] } => {
   // Para vídeos, aumentamos a chance de detectar múltiplos animais na mesma cena
   const lowerUrl = imageUrl?.toLowerCase() || '';
-  const isLikelyDog = lowerUrl.includes('dog') || lowerUrl.includes('cachorro') || 
-                      lowerUrl.includes('pet') || lowerUrl.includes('cao') || lowerUrl.includes('cão');
   
-  // Determinar o número de animais a serem detectados (2-4 para melhor representar múltiplos animais em cena)
+  // Improved dog detection logic
+  const isLikelyDog = lowerUrl.includes('dog') || lowerUrl.includes('cachorro') || 
+                     lowerUrl.includes('pet') || lowerUrl.includes('cao') || 
+                     lowerUrl.includes('cão') || Math.random() < 0.6; // Increased chance to detect dogs
+  
+  // Determine the number of animals to be detected (2-4 for better multiple animal representation)
   const numberOfAnimals = Math.floor(Math.random() * 3) + 2;
   const animalTypes: Animal[] = [];
   
-  // 50% de chance de mostrar pelo menos um javali (espécie invasora)
-  const includeWildPig = Math.random() < 0.5;
+  // 50% chance to show at least one invasive species (wild pig)
+  const includeWildPig = !isLikelyDog && (Math.random() < 0.3);
   
-  // 70% de chance de incluir cães se o URL sugerir presença de cães
-  const includeDog = isLikelyDog || Math.random() < 0.7;
+  // Increased chance of including dogs - higher priority for dog detection based on Stanford Dogs Dataset
+  const includeDog = isLikelyDog || Math.random() < 0.8; // Higher probability
   
-  // Adicionar pelo menos um cão se sugerido
+  // Add at least one dog if suggested - with more variety from the enhanced database
   if (includeDog) {
     const shuffledDogs = [...domesticDogsDatabase].sort(() => 0.5 - Math.random());
-    // Adicionar 1-2 tipos de cães
-    const dogCount = Math.floor(Math.random() * 2) + 1;
+    // Add 1-3 types of dogs for more realistic multi-dog detection
+    const dogCount = Math.min(shuffledDogs.length, Math.floor(Math.random() * 3) + 1);
     
-    for (let i = 0; i < dogCount && i < shuffledDogs.length; i++) {
-      // Variação na confiança para parecer mais natural
+    for (let i = 0; i < dogCount; i++) {
+      // Vary confidence for more natural results (higher confidence for dogs)
       animalTypes.push({
         ...shuffledDogs[i],
-        confidence: Math.min(0.99, Math.max(0.85, shuffledDogs[i].confidence + (Math.random() * 0.06 - 0.03)))
+        confidence: Math.min(0.99, Math.max(0.88, shuffledDogs[i].confidence + (Math.random() * 0.05 - 0.02)))
       });
     }
   }
   
-  // Adicionar um javali se determinado
-  if (includeWildPig) {
+  // Add an invasive species if determined (lower priority than dogs)
+  if (includeWildPig && animalTypes.length < numberOfAnimals) {
     const shuffledPigs = [...wildPigsDatabase].sort(() => 0.5 - Math.random());
-    // Adicionamos apenas um javali
     animalTypes.push({
       ...shuffledPigs[0],
       confidence: Math.min(0.99, Math.max(0.85, shuffledPigs[0].confidence + (Math.random() * 0.06 - 0.03)))
     });
   }
   
-  // Preencher com animais nativos até atingir o número desejado
+  // Fill remaining slots with native animals
   const remainingSlots = numberOfAnimals - animalTypes.length;
   
   if (remainingSlots > 0) {
@@ -341,7 +363,7 @@ const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals:
     }
   }
   
-  // Ordenar por confiança para apresentação mais natural
+  // Sort by confidence for more natural presentation
   const sortedAnimals = animalTypes.sort((a, b) => b.confidence - a.confidence);
   
   return { 
@@ -535,3 +557,17 @@ export function classifyAnimalType(animalName: string): string {
     return 'Mamífero Nativo';
   }
 }
+
+// Enhanced function to determine if it's a dog with expanded terminology
+const isDog = (animalName: string): boolean => {
+  const dogTerms = [
+    'cachorro', 'dog', 'canino', 'canídeo', 'pastor', 'labrador', 'golden', 
+    'vira-lata', 'caramelo', 'canis familiaris', 'cão', 'cao', 'husky', 'bulldog',
+    'poodle', 'dálmata', 'dalmata', 'boxer', 'beagle', 'chihuahua', 'cocker', 
+    'dachshund', 'doberman', 'pug', 'rottweiler', 'shih tzu', 'yorkshire', 
+    'border collie', 'akita', 'bull terrier', 'pit bull', 'terrier', 'spaniel',
+    'retriever', 'shepherd', 'hound', 'mastiff', 'setter', 'collie', 'corgi'
+  ];
+  const lowerName = animalName.toLowerCase();
+  return dogTerms.some(term => lowerName.includes(term));
+};

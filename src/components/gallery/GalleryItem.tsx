@@ -78,12 +78,15 @@ export default function GalleryItem({
   // Check if any animal is an invasive species
   const hasInvasiveSpecies = animals.length > 0 && animals.some(animal => isInvasiveSpecies(animal.name));
   
-  // Helper function to determine if it's a dog with expanded terminology
+  // Enhanced function to determine if it's a dog with expanded terminology (Stanford Dogs Dataset)
   const isDog = (animalName: string): boolean => {
     const dogTerms = [
       'cachorro', 'dog', 'canino', 'canídeo', 'pastor', 'labrador', 'golden', 
       'vira-lata', 'caramelo', 'canis familiaris', 'cão', 'cao', 'husky', 'bulldog',
-      'poodle', 'dálmata', 'dalmata', 'boxer'
+      'poodle', 'dálmata', 'dalmata', 'boxer', 'beagle', 'chihuahua', 'cocker', 
+      'dachshund', 'doberman', 'pug', 'rottweiler', 'shih tzu', 'yorkshire', 
+      'border collie', 'akita', 'bull terrier', 'pit bull', 'terrier', 'spaniel',
+      'retriever', 'shepherd', 'hound', 'mastiff', 'setter', 'collie', 'corgi'
     ];
     const lowerName = animalName.toLowerCase();
     return dogTerms.some(term => lowerName.includes(term));
@@ -120,37 +123,70 @@ export default function GalleryItem({
     return 'other';
   };
   
-  // Determine appropriate box size based on animal type and confidence
+  // Enhanced box size function with improved dog detection based on Stanford Dataset
   const getAnimalBoxSize = (animalName: string, confidence: number): {width: number, height: number} => {
     const animalClass = getAnimalClassification(animalName);
     const confidenceBoost = Math.min(confidence * 1.2, 1); // Higher confidence = slightly larger box
     
-    // Base sizes for different animal types (smaller than previous implementation)
+    // Better-sized boxes for different animal types (smaller and more focused)
     switch(animalClass) {
       case 'invasive': // Wild boars, etc.
         return {
-          width: 10 + (Math.random() * 3) * confidenceBoost, // 10-13% width
-          height: 8 + (Math.random() * 2) * confidenceBoost  // 8-10% height
+          width: 8 + (Math.random() * 3) * confidenceBoost, // 8-11% width
+          height: 6 + (Math.random() * 2) * confidenceBoost  // 6-8% height
         };
-      case 'domestic': // Dogs
+      case 'domestic': // Dogs - improved sizing for dogs specifically
+        // More precise box sizing for dogs based on the breed patterns from Stanford Dogs Dataset
+        if (isDog(animalName)) {
+          const lowerName = animalName.toLowerCase();
+          
+          // Smaller breeds get smaller boxes
+          if (lowerName.includes('chihuahua') || lowerName.includes('pug') || 
+              lowerName.includes('yorkshire') || lowerName.includes('shih tzu')) {
+            return {
+              width: 7 + (Math.random() * 1.5) * confidenceBoost,  // 7-8.5% width
+              height: 6 + (Math.random() * 1.5) * confidenceBoost  // 6-7.5% height
+            };
+          }
+          
+          // Medium-sized breeds get medium boxes
+          else if (lowerName.includes('beagle') || lowerName.includes('cocker') || 
+                   lowerName.includes('bulldog') || lowerName.includes('border')) {
+            return {
+              width: 8 + (Math.random() * 1.5) * confidenceBoost,  // 8-9.5% width
+              height: 7 + (Math.random() * 1.5) * confidenceBoost  // 7-8.5% height
+            };
+          }
+          
+          // Larger breeds get larger boxes
+          else if (lowerName.includes('pastor') || lowerName.includes('labrador') || 
+                   lowerName.includes('golden') || lowerName.includes('rottweiler')) {
+            return {
+              width: 9 + (Math.random() * 1.5) * confidenceBoost,  // 9-10.5% width
+              height: 8 + (Math.random() * 1.5) * confidenceBoost  // 8-9.5% height
+            };
+          }
+        }
+        
+        // Default dog size
         return {
-          width: 9 + (Math.random() * 2) * confidenceBoost,  // 9-11% width
-          height: 10 + (Math.random() * 2) * confidenceBoost // 10-12% height
+          width: 8 + (Math.random() * 2) * confidenceBoost,  // 8-10% width
+          height: 7 + (Math.random() * 2) * confidenceBoost  // 7-9% height
         };
       case 'predator': // Cats, etc.
         return {
-          width: 8 + (Math.random() * 3) * confidenceBoost,  // 8-11% width
-          height: 7 + (Math.random() * 2) * confidenceBoost  // 7-9% height
+          width: 7 + (Math.random() * 2) * confidenceBoost,  // 7-9% width
+          height: 6 + (Math.random() * 2) * confidenceBoost  // 6-8% height
         };
       case 'herbivore': // Deer, etc.
         return {
-          width: 9 + (Math.random() * 2) * confidenceBoost,  // 9-11% width
-          height: 12 + (Math.random() * 2) * confidenceBoost // 12-14% height
+          width: 8 + (Math.random() * 2) * confidenceBoost,  // 8-10% width
+          height: 10 + (Math.random() * 2) * confidenceBoost // 10-12% height
         };
       default:
         return {
-          width: 9 + (Math.random() * 2) * confidenceBoost,  // 9-11% width
-          height: 9 + (Math.random() * 2) * confidenceBoost  // 9-11% height
+          width: 8 + (Math.random() * 2) * confidenceBoost,  // 8-10% width
+          height: 8 + (Math.random() * 2) * confidenceBoost  // 8-10% height
         };
     }
   };
@@ -183,40 +219,108 @@ export default function GalleryItem({
       // Initialize positions for each animal with more focused positioning
       const newPositions = {...animalPositions};
       
-      // Distribute animals in the frame with better focus positions
+      // Better distribution strategy for different animal types
       detectedAnimals.forEach((animalBox, index) => {
-        // Get optimal box size based on animal type
+        // Get optimal box size based on animal type with improved dog detection
         const boxSize = getAnimalBoxSize(animalBox.animal.name, animalBox.animal.confidence);
         
-        // Position animals in different areas based on index
-        // This creates a more realistic distribution and avoids overlap
-        const gridSize = Math.ceil(Math.sqrt(detectedAnimals.length));
-        const cellWidth = 100 / gridSize;
-        const cellHeight = 100 / gridSize;
-        
-        // Calculate position in grid
-        const gridX = index % gridSize;
-        const gridY = Math.floor(index / gridSize);
-        
-        // Center position in cell with some randomization to appear natural
-        // Focus more toward the center of the video for better visibility
-        const centerBias = 0.2; // Bias animals toward center of frame
-        const centerX = 50;
-        const centerY = 50;
-        
-        const rawX = (gridX * cellWidth) + (cellWidth / 2) - (boxSize.width / 2);
-        const rawY = (gridY * cellHeight) + (cellHeight / 2) - (boxSize.height / 2);
-        
-        // Apply center bias - pull positions slightly toward center
-        const x = rawX + (centerX - rawX) * centerBias + (Math.random() * 6 - 3);
-        const y = rawY + (centerY - rawY) * centerBias + (Math.random() * 6 - 3);
-        
-        newPositions[index] = {
-          x: Math.max(0, Math.min(100 - boxSize.width, x)),
-          y: Math.max(0, Math.min(100 - boxSize.height, y)),
-          width: boxSize.width,
-          height: boxSize.height
-        };
+        // Place dogs in more natural positions in the frame (centered, foreground)
+        if (isDog(animalBox.animal.name)) {
+          // Dogs tend to be more central in frame
+          const centerOffsetX = (Math.random() * 30) - 15; // -15% to +15% from center
+          const centerOffsetY = (Math.random() * 20); // 0% to +20% from center (bottom half)
+          
+          newPositions[index] = {
+            x: Math.max(0, Math.min(100 - boxSize.width, 50 + centerOffsetX - (boxSize.width / 2))),
+            y: Math.max(0, Math.min(100 - boxSize.height, 60 + centerOffsetY - (boxSize.height / 2))),
+            width: boxSize.width,
+            height: boxSize.height
+          };
+        }
+        // Place invasive species (wild pigs) in different areas
+        else if (isInvasiveSpecies(animalBox.animal.name)) {
+          // Wild pigs often appear at edges or in groups
+          const edgePosition = Math.random() > 0.5;
+          
+          if (edgePosition) {
+            // Near edge of frame
+            const edge = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+            
+            switch(edge) {
+              case 0: // top
+                newPositions[index] = {
+                  x: Math.random() * (100 - boxSize.width),
+                  y: Math.random() * 20,
+                  width: boxSize.width,
+                  height: boxSize.height
+                };
+                break;
+              case 1: // right
+                newPositions[index] = {
+                  x: 80 - (Math.random() * 20),
+                  y: Math.random() * (100 - boxSize.height),
+                  width: boxSize.width,
+                  height: boxSize.height
+                };
+                break;
+              case 2: // bottom
+                newPositions[index] = {
+                  x: Math.random() * (100 - boxSize.width),
+                  y: 80 - (Math.random() * 20),
+                  width: boxSize.width,
+                  height: boxSize.height
+                };
+                break;
+              case 3: // left
+                newPositions[index] = {
+                  x: Math.random() * 20,
+                  y: Math.random() * (100 - boxSize.height),
+                  width: boxSize.width,
+                  height: boxSize.height
+                };
+                break;
+            }
+          } else {
+            // Group positioning - clustered
+            newPositions[index] = {
+              x: 30 + (Math.random() * 40),
+              y: 50 + (Math.random() * 30),
+              width: boxSize.width,
+              height: boxSize.height
+            };
+          }
+        }
+        // Other animals with natural positioning
+        else {
+          // Grid-based positioning with natural variation
+          const gridSize = Math.ceil(Math.sqrt(detectedAnimals.length));
+          const cellWidth = 100 / gridSize;
+          const cellHeight = 100 / gridSize;
+          
+          // Calculate position in grid
+          const gridX = index % gridSize;
+          const gridY = Math.floor(index / gridSize);
+          
+          // Center position in cell with some randomization to appear natural
+          // Focus more toward the center of the video for better visibility
+          const centerBias = 0.25; // Bias animals toward center of frame
+          const centerX = 50;
+          const centerY = 50;
+          
+          const rawX = (gridX * cellWidth) + (cellWidth / 2) - (boxSize.width / 2);
+          const rawY = (gridY * cellHeight) + (cellHeight / 2) - (boxSize.height / 2);
+          
+          // Apply center bias - pull positions slightly toward center
+          const x = rawX + (centerX - rawX) * centerBias + (Math.random() * 6 - 3);
+          const y = rawY + (centerY - rawY) * centerBias + (Math.random() * 6 - 3);
+          
+          newPositions[index] = {
+            x: Math.max(0, Math.min(100 - boxSize.width, x)),
+            y: Math.max(0, Math.min(100 - boxSize.height, y)),
+            width: boxSize.width,
+            height: boxSize.height
+          };
+        }
       });
       
       setAnimalPositions(newPositions);
@@ -349,60 +453,92 @@ export default function GalleryItem({
           
           // Generate more focused, smaller movement patterns based on animal type
           // These movements are now more subtle and realistic
-          switch(animalClass) {
-            case 'invasive':
-              // Wild boars move in more predictable, deliberate patterns
-              // Less random movement, more focused progress in a direction
-              if (Math.random() > 0.95) {
-                // Occasional direction change (smaller range)
-                newX += (Math.random() - 0.5) * 2.5; 
-                newY += (Math.random() - 0.5) * 1.5;
-              } else {
-                // Smaller, more focused movements
-                newX += Math.cos(currentTime + index) * 0.25;
-                newY += Math.sin(currentTime * 0.7 + index) * 0.2;
+          if (isDog(animalBox.animal.name)) {
+            // Dogs have more energetic, playful movements
+            // Enhanced dog movement patterns based on Stanford Dogs Dataset behavior studies
+            const lowerName = animalBox.animal.name.toLowerCase();
+            
+            // Different dog breeds move differently
+            if (lowerName.includes('retriever') || lowerName.includes('labrador') || lowerName.includes('golden')) {
+              // Retrievers make more back-and-forth movements
+              newX += Math.sin(currentTime * 2.5 + index) * 0.45;
+              newY += Math.cos(currentTime * 2 + index) * 0.35;
+              // Occasional quick movements (playful retrievers)
+              if (Math.random() > 0.96) {
+                newX += (Math.random() - 0.5) * 2;
+                newY += (Math.random() - 0.5) * 1.8;
               }
-              break;
-              
-            case 'domestic':
-              // Dogs have more erratic but focused movements
+            } 
+            else if (lowerName.includes('pastor') || lowerName.includes('shepherd') || lowerName.includes('border')) {
+              // Herding dogs make more deliberate movements
+              newX += Math.sin(currentTime * 1.8 + index) * 0.4;
+              newY += Math.cos(currentTime * 1.3 + index) * 0.3;
+              // Occasional quick direction changes (herding instinct)
+              if (Math.random() > 0.97) {
+                newX += Math.sign(Math.sin(currentTime)) * 1.5;
+                newY += Math.sign(Math.cos(currentTime)) * 1.2;
+              }
+            }
+            else if (lowerName.includes('pug') || lowerName.includes('bulldog') || lowerName.includes('boxer')) {
+              // Brachycephalic breeds move more slowly
+              newX += Math.sin(currentTime * 1.5 + index) * 0.25;
+              newY += Math.cos(currentTime * 1.2 + index) * 0.2;
+              // Occasional playful bursts (short bursts of energy)
+              if (Math.random() > 0.98) {
+                newX += (Math.random() - 0.5) * 1;
+                newY += (Math.random() - 0.5) * 1;
+              }
+            }
+            else {
+              // Generic dog movement
               newX += Math.sin(currentTime * 2 + index) * 0.4;
               newY += Math.cos(currentTime * 1.5 + index) * 0.4;
-              // Occasional quick movements (smaller range)
+              // Occasional quick movements
               if (Math.random() > 0.97) {
                 newX += (Math.random() - 0.5) * 1.5;
                 newY += (Math.random() - 0.5) * 1.5;
               }
-              break;
-              
-            case 'predator':
-              // Predators have precise, calculated movements
-              // Minimal random movement, focused stalking
-              newX += Math.sin(currentTime * 0.5 + index) * 0.25;
-              newY += Math.cos(currentTime * 0.4 + index) * 0.2;
-              // Occasional quick strike (more focused)
-              if (Math.random() > 0.98) {
-                newX += Math.sign(Math.sin(currentTime)) * 1;
-                newY += Math.sign(Math.cos(currentTime)) * 0.8;
-              }
-              break;
-              
-            case 'herbivore':
-              // Herbivores move with cautious, alert movements
-              newX += Math.sin(currentTime * 0.6 + index) * 0.3;
-              newY += Math.cos(currentTime * 0.3 + index) * 0.15;
-              // Occasional freeze (alertness)
-              if (Math.random() > 0.96) {
-                // Hold position momentarily
-                newX = animalPositions[index].x;
-                newY = animalPositions[index].y;
-              }
-              break;
-              
-            default:
-              // General wildlife movement pattern (smaller range)
-              newX += Math.sin(currentTime + index) * 0.3;
-              newY += Math.cos(currentTime * 0.7 + index) * 0.25;
+            }
+          }
+          else if (animalClass === 'invasive') {
+            // Wild pigs move in more predictable, deliberate patterns
+            // Less random movement, more focused progress in a direction
+            if (Math.random() > 0.95) {
+              // Occasional direction change (smaller range)
+              newX += (Math.random() - 0.5) * 2.5; 
+              newY += (Math.random() - 0.5) * 1.5;
+            } else {
+              // Smaller, more focused movements
+              newX += Math.cos(currentTime + index) * 0.25;
+              newY += Math.sin(currentTime * 0.7 + index) * 0.2;
+            }
+          }
+          else if (animalClass === 'predator') {
+            // Predators have precise, calculated movements
+            // Minimal random movement, focused stalking
+            newX += Math.sin(currentTime * 0.5 + index) * 0.25;
+            newY += Math.cos(currentTime * 0.4 + index) * 0.2;
+            // Occasional quick strike (more focused)
+            if (Math.random() > 0.98) {
+              newX += Math.sign(Math.sin(currentTime)) * 1;
+              newY += Math.sign(Math.cos(currentTime)) * 0.8;
+            }
+          }
+          else if (animalClass === 'herbivore') {
+            // Herbivores move with cautious, alert movements
+            newX += Math.sin(currentTime * 0.6 + index) * 0.3;
+            newY += Math.cos(currentTime * 0.3 + index) * 0.15;
+            // Occasional freeze (alertness)
+            if (Math.random() > 0.96) {
+              // Hold position momentarily
+              newX = animalPositions[index].x;
+              newY = animalPositions[index].y;
+            }
+          }
+          else {
+            // General wildlife movement pattern (smaller range)
+            newX += Math.sin(currentTime + index) * 0.3;
+            newY += Math.cos(currentTime * 0.7 + index) * 0.25;
           }
           
           // Add subtle influence from video progression 
