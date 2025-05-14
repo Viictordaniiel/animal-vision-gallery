@@ -752,8 +752,9 @@ export default function GalleryItem({
         </div>
       </CardContent>
       
-      {/* Add CSS for the scan animation */}
-      <style jsx>{`
+      {/* Fix the style element by removing the jsx property */}
+      <style>
+        {`
         @keyframes scanAnimation {
           0% { background-position: 0 -100%; }
           100% { background-position: 0 100%; }
@@ -763,7 +764,8 @@ export default function GalleryItem({
           0%, 100% { opacity: 0.6; transform: scale(1); }
           50% { opacity: 0.8; transform: scale(1.05); }
         }
-      `}</style>
+        `}
+      </style>
     </Card>
   );
 }
