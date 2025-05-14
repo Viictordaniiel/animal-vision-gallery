@@ -1,9 +1,11 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, MoveHorizontal, Target, Move, MoveVertical, Radar } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, RotateCw, AlertTriangle, Video, Frame, MoveHorizontal, Target, Move, MoveVertical, Radar, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 type Animal = {
   name: string;
@@ -36,12 +38,19 @@ export default function GalleryItem({
   const [showDetails, setShowDetails] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const [videoProgress, setVideoProgress] = useState(0);
   const [motionDetection, setMotionDetection] = useState(false);
+  const [droneCompensation, setDroneCompensation] = useState(false);
   const [motionPoints, setMotionPoints] = useState<{x: number, y: number, strength: number}[]>([]);
   const lastFrameRef = useRef<ImageData | null>(null);
   const animationRef = useRef<number | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const overlayContextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const referencePointsRef = useRef<{x: number, y: number}[]>([]);
+  const lastReferencePointsRef = useRef<{x: number, y: number}[]>([]);
+  const frameCountRef = useRef<number>(0);
+  const isFirstFrameRef = useRef<boolean>(true);
   
   // Enhanced species identification with detailed taxonomy
   const getDetailedSpecies = (animalName: string): string => {
@@ -152,6 +161,11 @@ export default function GalleryItem({
       if (canvasRef.current) {
         contextRef.current = canvasRef.current.getContext('2d');
       }
+
+      // Set up overlay canvas for visualization
+      if (overlayCanvasRef.current) {
+        overlayContextRef.current = overlayCanvasRef.current.getContext('2d');
+      }
       
       return () => {
         if (videoRef.current) {
@@ -166,27 +180,38 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo]);
   
-  // Toggle motion detection
+  // Toggle motion detection with drone movement compensation
   useEffect(() => {
     if (isVideo && motionDetection && videoRef.current && canvasRef.current && contextRef.current) {
       // Reset previous motion detection
       if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
         lastFrameRef.current = null;
+        isFirstFrameRef.current = true;
+        frameCountRef.current = 0;
       }
       
-      // Start motion detection
+      // Start motion detection with or without drone compensation
       const detectMotion = () => {
-        if (videoRef.current && canvasRef.current && contextRef.current) {
+        frameCountRef.current++;
+        
+        if (videoRef.current && canvasRef.current && contextRef.current && overlayCanvasRef.current && overlayContextRef.current) {
           const video = videoRef.current;
           const canvas = canvasRef.current;
           const context = contextRef.current;
+          const overlayCanvas = overlayCanvasRef.current;
+          const overlayContext = overlayContextRef.current;
           
           // Set canvas dimensions to match video
           if (video.videoWidth > 0 && canvas.width !== video.videoWidth) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            overlayCanvas.width = video.videoWidth;
+            overlayCanvas.height = video.videoHeight;
           }
+          
+          // Clear overlay canvas
+          overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
           
           // Draw current video frame to canvas
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -194,12 +219,95 @@ export default function GalleryItem({
           // Get image data for current frame
           const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
           
-          // Compare with last frame to detect motion
+          // If drone compensation is enabled, determine reference points and calculate global movement
+          let globalOffsetX = 0;
+          let globalOffsetY = 0;
+          
+          if (droneCompensation) {
+            // Every 15 frames, recalculate reference points
+            if (frameCountRef.current % 15 === 0 || isFirstFrameRef.current) {
+              // Find stable reference points (high contrast areas)
+              const tempReferencePoints = findReferencePoints(currentFrame, canvas.width, canvas.height);
+              
+              // Only update if we found enough reference points
+              if (tempReferencePoints.length >= 5) {
+                referencePointsRef.current = tempReferencePoints;
+                
+                // Draw reference points on overlay canvas for visualization
+                overlayContext.fillStyle = 'rgba(0, 255, 255, 0.7)';
+                referencePointsRef.current.forEach(point => {
+                  overlayContext.beginPath();
+                  overlayContext.arc(point.x, point.y, 3, 0, Math.PI * 2);
+                  overlayContext.fill();
+                });
+              }
+            }
+            
+            // If we have reference points from last frame, calculate movement
+            if (!isFirstFrameRef.current && 
+                lastFrameRef.current && 
+                referencePointsRef.current.length > 0 && 
+                lastReferencePointsRef.current.length > 0) {
+              
+              // Match reference points between frames and calculate global motion vector
+              const matchedPoints = matchReferencePoints(
+                lastReferencePointsRef.current, 
+                referencePointsRef.current,
+                lastFrameRef.current,
+                currentFrame,
+                canvas.width,
+                canvas.height
+              );
+              
+              if (matchedPoints.length >= 3) {
+                // Calculate average movement vector from matched points
+                const movements = matchedPoints.map(match => ({
+                  dx: match.current.x - match.previous.x,
+                  dy: match.current.y - match.previous.y
+                }));
+                
+                // Remove outliers (points with extreme movement)
+                const validMovements = filterOutliers(movements);
+                
+                if (validMovements.length >= 2) {
+                  // Calculate average movement
+                  globalOffsetX = validMovements.reduce((sum, m) => sum + m.dx, 0) / validMovements.length;
+                  globalOffsetY = validMovements.reduce((sum, m) => sum + m.dy, 0) / validMovements.length;
+                  
+                  // Draw drone movement vector on overlay canvas
+                  overlayContext.strokeStyle = 'rgba(255, 255, 0, 0.7)';
+                  overlayContext.lineWidth = 2;
+                  overlayContext.beginPath();
+                  const centerX = canvas.width / 2;
+                  const centerY = canvas.height / 2;
+                  overlayContext.moveTo(centerX, centerY);
+                  overlayContext.lineTo(centerX + globalOffsetX * 10, centerY + globalOffsetY * 10);
+                  overlayContext.stroke();
+                  
+                  // Draw label for drone movement
+                  overlayContext.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                  overlayContext.fillRect(10, 10, 200, 25);
+                  overlayContext.font = '12px Arial';
+                  overlayContext.fillStyle = 'white';
+                  overlayContext.fillText(
+                    `Drone: dx=${globalOffsetX.toFixed(1)}, dy=${globalOffsetY.toFixed(1)}`, 
+                    15, 
+                    25
+                  );
+                }
+              }
+            }
+            
+            // Store current reference points for next frame
+            lastReferencePointsRef.current = [...referencePointsRef.current];
+          }
+          
+          // Compare with last frame to detect motion (compensating for drone movement)
           if (lastFrameRef.current) {
             const lastFrame = lastFrameRef.current;
             const motionData = [];
             const blockSize = 16; // Size of blocks to analyze for motion
-            const threshold = 30; // Threshold for motion detection
+            const threshold = droneCompensation ? 35 : 30; // Higher threshold when compensation is on
             
             // Analyze blocks of pixels for changes
             for (let y = 0; y < canvas.height; y += blockSize) {
@@ -210,23 +318,35 @@ export default function GalleryItem({
                 // Check a sampling of pixels in this block
                 for (let by = 0; by < blockSize && y + by < canvas.height; by += 4) {
                   for (let bx = 0; bx < blockSize && x + bx < canvas.width; bx += 4) {
-                    const pixelPos = ((y + by) * canvas.width + (x + bx)) * 4;
+                    // Calculate adjusted position based on global motion
+                    let prevX = x + bx - globalOffsetX;
+                    let prevY = y + by - globalOffsetY;
                     
-                    // Calculate difference between frames for this pixel
-                    const rDiff = Math.abs(currentFrame.data[pixelPos] - lastFrame.data[pixelPos]);
-                    const gDiff = Math.abs(currentFrame.data[pixelPos + 1] - lastFrame.data[pixelPos + 1]);
-                    const bDiff = Math.abs(currentFrame.data[pixelPos + 2] - lastFrame.data[pixelPos + 2]);
-                    
-                    const diff = (rDiff + gDiff + bDiff) / 3;
-                    if (diff > threshold) {
-                      diffCount++;
-                      totalDiff += diff;
+                    // Check if the adjusted position is within frame boundaries
+                    if (prevX >= 0 && prevX < canvas.width && prevY >= 0 && prevY < canvas.height) {
+                      const currPos = ((y + by) * canvas.width + (x + bx)) * 4;
+                      const prevPos = Math.floor(prevY * canvas.width + prevX) * 4;
+                      
+                      if (prevPos >= 0 && prevPos < lastFrame.data.length - 4) {
+                        // Calculate difference between frames for this pixel
+                        const rDiff = Math.abs(currentFrame.data[currPos] - lastFrame.data[prevPos]);
+                        const gDiff = Math.abs(currentFrame.data[currPos + 1] - lastFrame.data[prevPos + 1]);
+                        const bDiff = Math.abs(currentFrame.data[currPos + 2] - lastFrame.data[prevPos + 2]);
+                        
+                        const diff = (rDiff + gDiff + bDiff) / 3;
+                        if (diff > threshold) {
+                          diffCount++;
+                          totalDiff += diff;
+                        }
+                      }
                     }
                   }
                 }
                 
                 // If enough pixels changed, mark this as a motion point
-                if (diffCount > 3) {
+                // More strict threshold when drone compensation is on
+                const minDiffCount = droneCompensation ? 5 : 3;
+                if (diffCount > minDiffCount) {
                   motionData.push({
                     x: x + blockSize / 2, 
                     y: y + blockSize / 2,
@@ -242,6 +362,7 @@ export default function GalleryItem({
           
           // Save current frame for next comparison
           lastFrameRef.current = currentFrame;
+          isFirstFrameRef.current = false;
           
           // Continue detection loop
           animationRef.current = requestAnimationFrame(detectMotion);
@@ -263,7 +384,139 @@ export default function GalleryItem({
       lastFrameRef.current = null;
       setMotionPoints([]);
     }
-  }, [motionDetection, isVideo]);
+  }, [motionDetection, droneCompensation, isVideo]);
+  
+  // Helper function to find good reference points for tracking
+  const findReferencePoints = (imageData: ImageData, width: number, height: number): {x: number, y: number}[] => {
+    const points: {x: number, y: number, score: number}[] = [];
+    const blockSize = 32;
+    const sampleSize = 16;
+    
+    // Divide image into blocks and calculate variance
+    for (let y = blockSize; y < height - blockSize; y += blockSize) {
+      for (let x = blockSize; x < width - blockSize; x += blockSize) {
+        // Sample pixels around this point to calculate variance
+        let values: number[] = [];
+        
+        for (let dy = -sampleSize/2; dy < sampleSize/2; dy++) {
+          for (let dx = -sampleSize/2; dx < sampleSize/2; dx++) {
+            const pixelPos = ((y + dy) * width + (x + dx)) * 4;
+            if (pixelPos >= 0 && pixelPos < imageData.data.length - 4) {
+              const r = imageData.data[pixelPos];
+              const g = imageData.data[pixelPos + 1];
+              const b = imageData.data[pixelPos + 2];
+              // Convert to grayscale
+              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+              values.push(gray);
+            }
+          }
+        }
+        
+        // Calculate variance (higher variance = better tracking point)
+        if (values.length > 0) {
+          const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+          const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+          
+          // Only consider points with high variance (high contrast areas)
+          if (variance > 300) {
+            points.push({x, y, score: variance});
+          }
+        }
+      }
+    }
+    
+    // Sort by variance score and return top points
+    return points.sort((a, b) => b.score - a.score).slice(0, 15).map(p => ({x: p.x, y: p.y}));
+  };
+  
+  // Helper function to match reference points between frames
+  const matchReferencePoints = (
+    prevPoints: {x: number, y: number}[],
+    currPoints: {x: number, y: number}[],
+    prevFrame: ImageData,
+    currFrame: ImageData,
+    width: number,
+    height: number
+  ) => {
+    const matches: {previous: {x: number, y: number}, current: {x: number, y: number}, score: number}[] = [];
+    const patchSize = 11; // Size of patch to compare
+    
+    // For each previous point, find best matching current point
+    for (const prevPoint of prevPoints) {
+      let bestMatch = { point: null as {x: number, y: number} | null, score: 999999 };
+      
+      for (const currPoint of currPoints) {
+        // Calculate difference between patches
+        let totalDiff = 0;
+        let samplesCompared = 0;
+        
+        // Compare patches around the points
+        for (let dy = -patchSize/2; dy <= patchSize/2; dy++) {
+          for (let dx = -patchSize/2; dx <= patchSize/2; dx++) {
+            const prevX = prevPoint.x + dx;
+            const prevY = prevPoint.y + dy;
+            const currX = currPoint.x + dx;
+            const currY = currPoint.y + dy;
+            
+            // Ensure positions are within frame
+            if (prevX >= 0 && prevX < width && prevY >= 0 && prevY < height &&
+                currX >= 0 && currX < width && currY >= 0 && currY < height) {
+              const prevPos = (prevY * width + prevX) * 4;
+              const currPos = (currY * width + currX) * 4;
+              
+              if (prevPos >= 0 && prevPos < prevFrame.data.length - 4 &&
+                  currPos >= 0 && currPos < currFrame.data.length - 4) {
+                // Calculate RGB difference
+                const rDiff = Math.abs(prevFrame.data[prevPos] - currFrame.data[currPos]);
+                const gDiff = Math.abs(prevFrame.data[prevPos + 1] - currFrame.data[currPos + 1]);
+                const bDiff = Math.abs(prevFrame.data[prevPos + 2] - currFrame.data[currPos + 2]);
+                
+                totalDiff += (rDiff + gDiff + bDiff) / 3;
+                samplesCompared++;
+              }
+            }
+          }
+        }
+        
+        // Calculate average difference
+        const avgDiff = samplesCompared > 0 ? totalDiff / samplesCompared : 9999;
+        
+        // Update best match if this is better
+        if (avgDiff < bestMatch.score) {
+          bestMatch = { point: currPoint, score: avgDiff };
+        }
+      }
+      
+      // If we found a good match with low difference
+      if (bestMatch.point && bestMatch.score < 50) {
+        matches.push({
+          previous: prevPoint,
+          current: bestMatch.point,
+          score: bestMatch.score
+        });
+      }
+    }
+    
+    return matches;
+  };
+  
+  // Helper function to filter outliers in movement vectors
+  const filterOutliers = (movements: {dx: number, dy: number}[]) => {
+    if (movements.length <= 3) return movements;
+    
+    // Calculate median values
+    const sortedX = [...movements].sort((a, b) => a.dx - b.dx);
+    const sortedY = [...movements].sort((a, b) => a.dy - b.dy);
+    const medianX = sortedX[Math.floor(sortedX.length / 2)].dx;
+    const medianY = sortedY[Math.floor(sortedY.length / 2)].dy;
+    
+    // Filter points that are too far from median
+    return movements.filter(m => {
+      const xDiff = Math.abs(m.dx - medianX);
+      const yDiff = Math.abs(m.dy - medianY);
+      return xDiff < 8 && yDiff < 8;
+    });
+  };
   
   // Get the appropriate badge colors based on animal type
   const getBadgeStyle = (animalName: string): string => {
@@ -303,6 +556,30 @@ export default function GalleryItem({
     
     setMotionDetection(!motionDetection);
   };
+
+  // Toggle drone movement compensation
+  const toggleDroneCompensation = () => {
+    if (!isVideo || !motionDetection) {
+      toast({
+        title: "Compensação de drone",
+        description: "Ative primeiro o sensor de movimento.",
+      });
+      return;
+    }
+    
+    setDroneCompensation(!droneCompensation);
+    
+    toast({
+      title: droneCompensation ? "Compensação de drone desativada" : "Compensação de drone ativada",
+      description: droneCompensation 
+        ? "Detector de movimento padrão restaurado." 
+        : "Compensando o movimento do drone para melhor detecção de animais.",
+    });
+
+    // Reset detection when toggling compensation
+    lastFrameRef.current = null;
+    isFirstFrameRef.current = true;
+  };
   
   return (
     <Card className="overflow-hidden w-full max-w-md">
@@ -321,8 +598,12 @@ export default function GalleryItem({
               />
               <canvas
                 ref={canvasRef}
+                className="absolute top-0 left-0 w-full h-64 pointer-events-none opacity-0"
+              />
+              <canvas
+                ref={overlayCanvasRef}
                 className="absolute top-0 left-0 w-full h-64 pointer-events-none"
-                style={{ opacity: motionDetection ? 1 : 0 }}
+                style={{ opacity: motionDetection ? 0.9 : 0 }}
               />
               {motionDetection && motionPoints.map((point, i) => (
                 <div
@@ -400,28 +681,45 @@ export default function GalleryItem({
             </>
           )}
           
-          {/* Motion detection button for videos */}
+          {/* Motion detection and drone compensation buttons for videos */}
           {isVideo && animals.length > 0 && !isAnalyzing && (
-            <Button 
-              size="sm"
-              variant={motionDetection ? "default" : "outline"}
-              className={`absolute bottom-2 left-2 flex items-center gap-1 text-xs ${
-                motionDetection ? 'bg-red-600 hover:bg-red-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
-              }`}
-              onClick={toggleMotionDetection}
-            >
-              {motionDetection ? (
-                <>
-                  <Radar size={14} />
-                  <span>Sensor ativo</span>
-                </>
-              ) : (
-                <>
-                  <Target size={14} />
-                  <span>Detectar movimento</span>
-                </>
+            <div className="absolute bottom-2 left-2 flex gap-2">
+              <Button 
+                size="sm"
+                variant={motionDetection ? "default" : "outline"}
+                className={`flex items-center gap-1 text-xs ${
+                  motionDetection ? 'bg-red-600 hover:bg-red-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
+                }`}
+                onClick={toggleMotionDetection}
+              >
+                {motionDetection ? (
+                  <>
+                    <Radar size={14} />
+                    <span>Sensor ativo</span>
+                  </>
+                ) : (
+                  <>
+                    <Target size={14} />
+                    <span>Detectar movimento</span>
+                  </>
+                )}
+              </Button>
+              
+              {motionDetection && (
+                <Button 
+                  size="sm"
+                  variant={droneCompensation ? "default" : "outline"}
+                  className={`flex items-center gap-1 text-xs ${
+                    droneCompensation ? 'bg-green-600 hover:bg-green-700' : 'bg-black/50 hover:bg-black/70 text-white border-none'
+                  }`}
+                  onClick={toggleDroneCompensation}
+                  title="Compensar movimento do drone"
+                >
+                  <MoveVertical size={14} />
+                  <span>Compensar drone</span>
+                </Button>
               )}
-            </Button>
+            </div>
           )}
         </div>
         
