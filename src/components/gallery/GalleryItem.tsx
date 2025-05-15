@@ -163,17 +163,17 @@ export default function GalleryItem({
         // Different animal types get different typical positions and sizes
         let x, y, width, height;
         
-        const isPredator = isPredator(animal.name);
-        const isHerbivore = isHerbivore(animal.name);
+        const isPredatorAnimal = isPredator(animal.name);
+        const isHerbivoreAnimal = isHerbivore(animal.name);
         const isDomestic = isDog(animal.name);
         
-        if (isPredator) {
+        if (isPredatorAnimal) {
           // Predators often in the center of the frame
           x = 0.3 + Math.random() * 0.4;
           y = 0.3 + Math.random() * 0.4;
           width = 0.2 + Math.random() * 0.2;
           height = 0.2 + Math.random() * 0.2;
-        } else if (isHerbivore) {
+        } else if (isHerbivoreAnimal) {
           // Herbivores often in groups, lower in the frame
           x = 0.2 + Math.random() * 0.6;
           y = 0.5 + Math.random() * 0.3;
