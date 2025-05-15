@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -85,9 +86,6 @@ export default function GalleryItem({
     return invasiveTerms.some(term => lowerName.includes(term));
   };
   
-  // Check if any animal is an invasive species
-  const hasInvasiveSpecies = animals.length > 0 && animals.some(animal => isInvasiveSpecies(animal.name));
-  
   // Enhanced function to determine if it's a dog with expanded terminology (Stanford Dogs Dataset)
   const isDog = (animalName: string): boolean => {
     const dogTerms = [
@@ -132,6 +130,9 @@ export default function GalleryItem({
     if (isHerbivore(animalName)) return 'herbivore';
     return 'other';
   };
+  
+  // Check if any animal is an invasive species
+  const hasInvasiveSpecies = animals.length > 0 && animals.some(animal => isInvasiveSpecies(animal.name));
   
   // Find the primary invasive animal if available (highest confidence)
   const primaryInvasiveAnimal = animals.length > 0 
