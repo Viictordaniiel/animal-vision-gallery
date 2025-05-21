@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +50,8 @@ export default function GalleryItem({
   const lastReferencePointsRef = useRef<{x: number, y: number}[]>([]);
   const frameCountRef = useRef<number>(0);
   const isFirstFrameRef = useRef<boolean>(true);
+  const motionHistoryRef = useRef<{x: number, y: number, strength: number, time: number}[]>([]);
+  const animalDetectionZonesRef = useRef<{x1: number, y1: number, x2: number, y2: number}[]>([]);
   
   // Advanced function to identify potential predator species
   const isPredator = (animalName: string): boolean => {
@@ -141,6 +142,60 @@ export default function GalleryItem({
     ? animals.filter(animal => !isInvasiveSpecies(animal.name))
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
+
+  // Calculate animal detection zones based on detected species
+  useEffect(() => {
+    if (animals.length > 0 && canvasRef.current) {
+      const width = canvasRef.current.width;
+      const height = canvasRef.current.height;
+      
+      // Create detection zones based on animal types to focus motion tracking
+      const zones: {x1: number, y1: number, x2: number, y2: number}[] = [];
+      
+      // Create zones based on animal types
+      if (hasInvasiveSpecies) {
+        // For invasive species like wild boars, focus on bottom half of video (ground level)
+        zones.push({
+          x1: 0,
+          y1: height * 0.4,
+          x2: width,
+          y2: height
+        });
+      }
+      
+      if (animals.some(animal => isPredator(animal.name))) {
+        // For predators, monitor the entire frame
+        zones.push({
+          x1: 0,
+          y1: 0,
+          x2: width,
+          y2: height
+        });
+      }
+      
+      if (animals.some(animal => isHerbivore(animal.name))) {
+        // For herbivores, focus on middle to lower areas of the frame
+        zones.push({
+          x1: 0,
+          y1: height * 0.3,
+          x2: width,
+          y2: height * 0.9
+        });
+      }
+      
+      // If no specific zones defined, monitor the whole frame
+      if (zones.length === 0) {
+        zones.push({
+          x1: 0,
+          y1: 0,
+          x2: width,
+          y2: height
+        });
+      }
+      
+      animalDetectionZonesRef.current = zones;
+    }
+  }, [animals, hasInvasiveSpecies]);
   
   // Set up video playback and canvases
   useEffect(() => {
@@ -179,6 +234,232 @@ export default function GalleryItem({
       };
     }
   }, [imageUrl, isVideo]);
+
+  // Helper function to find good reference points for tracking
+  const findReferencePoints = (imageData: ImageData, width: number, height: number): {x: number, y: number}[] => {
+    const points: {x: number, y: number, score: number}[] = [];
+    const blockSize = 32;
+    const sampleSize = 16;
+    
+    // Divide image into blocks and calculate variance
+    for (let y = blockSize; y < height - blockSize; y += blockSize) {
+      for (let x = blockSize; x < width - blockSize; x += blockSize) {
+        // Sample pixels around this point to calculate variance
+        let values: number[] = [];
+        
+        for (let dy = -sampleSize/2; dy < sampleSize/2; dy++) {
+          for (let dx = -sampleSize/2; dx < sampleSize/2; dx++) {
+            const pixelPos = ((y + dy) * width + (x + dx)) * 4;
+            if (pixelPos >= 0 && pixelPos < imageData.data.length - 4) {
+              const r = imageData.data[pixelPos];
+              const g = imageData.data[pixelPos + 1];
+              const b = imageData.data[pixelPos + 2];
+              // Convert to grayscale
+              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+              values.push(gray);
+            }
+          }
+        }
+        
+        // Calculate variance (higher variance = better tracking point)
+        if (values.length > 0) {
+          const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+          const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+          
+          // Only consider points with high variance (high contrast areas)
+          if (variance > 300) {
+            points.push({x, y, score: variance});
+          }
+        }
+      }
+    }
+    
+    // Sort by variance score and return top points
+    return points.sort((a, b) => b.score - a.score).slice(0, 15).map(p => ({x: p.x, y: p.y}));
+  };
+  
+  // Helper function to match reference points between frames
+  const matchReferencePoints = (
+    prevPoints: {x: number, y: number}[],
+    currPoints: {x: number, y: number}[],
+    prevFrame: ImageData,
+    currFrame: ImageData,
+    width: number,
+    height: number
+  ) => {
+    const matches: {previous: {x: number, y: number}, current: {x: number, y: number}, score: number}[] = [];
+    const patchSize = 11; // Size of patch to compare
+    
+    // For each previous point, find best matching current point
+    for (const prevPoint of prevPoints) {
+      let bestMatch = { point: null as {x: number, y: number} | null, score: 999999 };
+      
+      for (const currPoint of currPoints) {
+        // Calculate difference between patches
+        let totalDiff = 0;
+        let samplesCompared = 0;
+        
+        // Compare patches around the points
+        for (let dy = -patchSize/2; dy <= patchSize/2; dy++) {
+          for (let dx = -patchSize/2; dx <= patchSize/2; dx++) {
+            const prevX = prevPoint.x + dx;
+            const prevY = prevPoint.y + dy;
+            const currX = currPoint.x + dx;
+            const currY = currPoint.y + dy;
+            
+            // Ensure positions are within frame boundaries
+            if (prevX >= 0 && prevX < width && prevY >= 0 && prevY < height &&
+                currX >= 0 && currX < width && currY >= 0 && currY < height) {
+              const prevPos = (prevY * width + prevX) * 4;
+              const currPos = (currY * width + currX) * 4;
+              
+              if (prevPos >= 0 && prevPos < prevFrame.data.length - 4 &&
+                  currPos >= 0 && currPos < currFrame.data.length - 4) {
+                // Calculate RGB difference
+                const rDiff = Math.abs(prevFrame.data[prevPos] - currFrame.data[currPos]);
+                const gDiff = Math.abs(prevFrame.data[prevPos + 1] - currFrame.data[currPos + 1]);
+                const bDiff = Math.abs(prevFrame.data[prevPos + 2] - currFrame.data[currPos + 2]);
+                
+                totalDiff += (rDiff + gDiff + bDiff) / 3;
+                samplesCompared++;
+              }
+            }
+          }
+        }
+        
+        // Calculate average difference
+        const avgDiff = samplesCompared > 0 ? totalDiff / samplesCompared : 9999;
+        
+        // Update best match if this is better
+        if (avgDiff < bestMatch.score) {
+          bestMatch = { point: currPoint, score: avgDiff };
+        }
+      }
+      
+      // If we found a good match with low difference
+      if (bestMatch.point && bestMatch.score < 50) {
+        matches.push({
+          previous: prevPoint,
+          current: bestMatch.point,
+          score: bestMatch.score
+        });
+      }
+    }
+    
+    return matches;
+  };
+  
+  // Helper function to filter outliers in movement vectors
+  const filterOutliers = (movements: {dx: number, dy: number}[]) => {
+    if (movements.length <= 3) return movements;
+    
+    // Calculate median values
+    const sortedX = [...movements].sort((a, b) => a.dx - b.dx);
+    const sortedY = [...movements].sort((a, b) => a.dy - b.dy);
+    const medianX = sortedX[Math.floor(sortedX.length / 2)].dx;
+    const medianY = sortedY[Math.floor(sortedY.length / 2)].dy;
+    
+    // Filter points that are too far from median
+    return movements.filter(m => {
+      const xDiff = Math.abs(m.dx - medianX);
+      const yDiff = Math.abs(m.dy - medianY);
+      return xDiff < 8 && yDiff < 8;
+    });
+  };
+
+  // Function to detect animal-like movement patterns
+  const isAnimalMovement = (motionHistory: {x: number, y: number, strength: number, time: number}[], newPoint: {x: number, y: number, strength: number}) => {
+    // If we don't have enough history yet, consider all movement as potential animal movement
+    if (motionHistory.length < 5) return true;
+    
+    // Get recent motion points from the last 1 second (assuming 30fps)
+    const recentMotion = motionHistory.slice(-30);
+    
+    // Check if the motion is within any detection zone
+    const isInDetectionZone = animalDetectionZonesRef.current.some(zone => 
+      newPoint.x >= zone.x1 && newPoint.x <= zone.x2 && 
+      newPoint.y >= zone.y1 && newPoint.y <= zone.y2
+    );
+    
+    if (!isInDetectionZone) return false;
+    
+    // Calculate motion statistics
+    const avgStrength = recentMotion.reduce((sum, p) => sum + p.strength, 0) / recentMotion.length;
+    
+    // Calculate speed and direction changes
+    let directionChanges = 0;
+    let consistentDirection = 0;
+    let lastDx = 0;
+    let lastDy = 0;
+    
+    for (let i = 1; i < recentMotion.length; i++) {
+      const dx = recentMotion[i].x - recentMotion[i-1].x;
+      const dy = recentMotion[i].y - recentMotion[i-1].y;
+      
+      if (i > 1) {
+        // Check for direction changes (sign changes in dx or dy)
+        if ((dx * lastDx <= 0 && dx !== 0 && lastDx !== 0) || 
+            (dy * lastDy <= 0 && dy !== 0 && lastDy !== 0)) {
+          directionChanges++;
+        }
+        
+        // Check for consistent direction
+        if ((dx * lastDx > 0) || (dy * lastDy > 0)) {
+          consistentDirection++;
+        }
+      }
+      
+      lastDx = dx;
+      lastDy = dy;
+    }
+    
+    // Calculate spatial variance (how spread out the motion is)
+    const xValues = recentMotion.map(p => p.x);
+    const yValues = recentMotion.map(p => p.y);
+    const xMean = xValues.reduce((sum, x) => sum + x, 0) / xValues.length;
+    const yMean = yValues.reduce((sum, y) => sum + y, 0) / yValues.length;
+    const xVariance = xValues.reduce((sum, x) => sum + Math.pow(x - xMean, 2), 0) / xValues.length;
+    const yVariance = yValues.reduce((sum, y) => sum + Math.pow(y - yMean, 2), 0) / yValues.length;
+    const spatialVariance = Math.sqrt(xVariance + yVariance);
+    
+    // Adaptive thresholds based on detected species
+    let directionChangeThreshold = 3; // Default threshold
+    let consistencyThreshold = 5;
+    let strengthThreshold = 0.3;
+    
+    if (hasInvasiveSpecies) {
+      // Wild boars tend to move with more consistency and strength
+      directionChangeThreshold = 2;
+      consistencyThreshold = 7;
+      strengthThreshold = 0.35;
+    }
+    
+    if (animals.some(animal => isPredator(animal.name))) {
+      // Predators may have more varied movement patterns
+      directionChangeThreshold = 4;
+      consistencyThreshold = 4;
+      strengthThreshold = 0.25;
+    }
+    
+    // Check if the movement matches animal patterns
+    const hasAnimalStrength = newPoint.strength > strengthThreshold;
+    const hasAnimalDirectionChanges = directionChanges >= directionChangeThreshold;
+    const hasAnimalConsistency = consistentDirection >= consistencyThreshold;
+    const hasAppropriateVariance = spatialVariance > 5 && spatialVariance < 200;
+    
+    // Different animal classes have different movement patterns
+    if (hasInvasiveSpecies) {
+      // Invasive species like wild boars often move in consistent directions
+      return hasAnimalStrength && hasAnimalConsistency && hasAppropriateVariance;
+    } else if (animals.some(animal => isPredator(animal.name))) {
+      // Predators may have more direction changes and deliberate movements
+      return hasAnimalStrength && hasAnimalDirectionChanges && hasAppropriateVariance;
+    } else {
+      // General animal detection
+      return (hasAnimalStrength && hasAnimalDirectionChanges) || 
+             (hasAnimalStrength && hasAnimalConsistency && hasAppropriateVariance);
+    }
+  };
   
   // Toggle motion detection with drone movement compensation
   useEffect(() => {
@@ -189,6 +470,7 @@ export default function GalleryItem({
         lastFrameRef.current = null;
         isFirstFrameRef.current = true;
         frameCountRef.current = 0;
+        motionHistoryRef.current = [];
       }
       
       // Start motion detection with or without drone compensation
@@ -306,8 +588,8 @@ export default function GalleryItem({
           if (lastFrameRef.current) {
             const lastFrame = lastFrameRef.current;
             const motionData = [];
-            const blockSize = 16; // Size of blocks to analyze for motion
-            const threshold = droneCompensation ? 35 : 30; // Higher threshold when compensation is on
+            const blockSize = 12; // Smaller block size for more detailed motion detection
+            const threshold = droneCompensation ? 30 : 25; // Lower threshold for better sensitivity
             
             // Analyze blocks of pixels for changes
             for (let y = 0; y < canvas.height; y += blockSize) {
@@ -316,8 +598,8 @@ export default function GalleryItem({
                 let totalDiff = 0;
                 
                 // Check a sampling of pixels in this block
-                for (let by = 0; by < blockSize && y + by < canvas.height; by += 4) {
-                  for (let bx = 0; bx < blockSize && x + bx < canvas.width; bx += 4) {
+                for (let by = 0; by < blockSize && y + by < canvas.height; by += 3) {
+                  for (let bx = 0; bx < blockSize && x + bx < canvas.width; bx += 3) {
                     // Calculate adjusted position based on global motion
                     let prevX = x + bx - globalOffsetX;
                     let prevY = y + by - globalOffsetY;
@@ -345,19 +627,50 @@ export default function GalleryItem({
                 
                 // If enough pixels changed, mark this as a motion point
                 // More strict threshold when drone compensation is on
-                const minDiffCount = droneCompensation ? 5 : 3;
+                const minDiffCount = droneCompensation ? 4 : 3;
                 if (diffCount > minDiffCount) {
-                  motionData.push({
+                  const motionPoint = {
                     x: x + blockSize / 2, 
                     y: y + blockSize / 2,
                     strength: Math.min(1, totalDiff / (255 * diffCount))
+                  };
+                  
+                  // Add timestamp to motion point for tracking
+                  const timestamp = Date.now();
+                  motionHistoryRef.current.push({
+                    ...motionPoint,
+                    time: timestamp
                   });
+                  
+                  // Limit history size to prevent memory issues
+                  if (motionHistoryRef.current.length > 120) { // 4 seconds at 30fps
+                    motionHistoryRef.current = motionHistoryRef.current.slice(-120);
+                  }
+                  
+                  // Only keep points that match animal movement patterns
+                  if (isAnimalMovement(motionHistoryRef.current, motionPoint)) {
+                    motionData.push(motionPoint);
+                  }
                 }
               }
             }
             
             // Update motion points
             setMotionPoints(motionData);
+            
+            // Draw detection zones on overlay for debugging
+            if (frameCountRef.current % 30 === 0) { // Update once per second at 30fps
+              overlayContext.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+              overlayContext.lineWidth = 2;
+              animalDetectionZonesRef.current.forEach(zone => {
+                overlayContext.strokeRect(
+                  zone.x1, 
+                  zone.y1, 
+                  zone.x2 - zone.x1, 
+                  zone.y2 - zone.y1
+                );
+              });
+            }
           }
           
           // Save current frame for next comparison
@@ -383,140 +696,9 @@ export default function GalleryItem({
       animationRef.current = null;
       lastFrameRef.current = null;
       setMotionPoints([]);
+      motionHistoryRef.current = [];
     }
-  }, [motionDetection, droneCompensation, isVideo]);
-  
-  // Helper function to find good reference points for tracking
-  const findReferencePoints = (imageData: ImageData, width: number, height: number): {x: number, y: number}[] => {
-    const points: {x: number, y: number, score: number}[] = [];
-    const blockSize = 32;
-    const sampleSize = 16;
-    
-    // Divide image into blocks and calculate variance
-    for (let y = blockSize; y < height - blockSize; y += blockSize) {
-      for (let x = blockSize; x < width - blockSize; x += blockSize) {
-        // Sample pixels around this point to calculate variance
-        let values: number[] = [];
-        
-        for (let dy = -sampleSize/2; dy < sampleSize/2; dy++) {
-          for (let dx = -sampleSize/2; dx < sampleSize/2; dx++) {
-            const pixelPos = ((y + dy) * width + (x + dx)) * 4;
-            if (pixelPos >= 0 && pixelPos < imageData.data.length - 4) {
-              const r = imageData.data[pixelPos];
-              const g = imageData.data[pixelPos + 1];
-              const b = imageData.data[pixelPos + 2];
-              // Convert to grayscale
-              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-              values.push(gray);
-            }
-          }
-        }
-        
-        // Calculate variance (higher variance = better tracking point)
-        if (values.length > 0) {
-          const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-          const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
-          
-          // Only consider points with high variance (high contrast areas)
-          if (variance > 300) {
-            points.push({x, y, score: variance});
-          }
-        }
-      }
-    }
-    
-    // Sort by variance score and return top points
-    return points.sort((a, b) => b.score - a.score).slice(0, 15).map(p => ({x: p.x, y: p.y}));
-  };
-  
-  // Helper function to match reference points between frames
-  const matchReferencePoints = (
-    prevPoints: {x: number, y: number}[],
-    currPoints: {x: number, y: number}[],
-    prevFrame: ImageData,
-    currFrame: ImageData,
-    width: number,
-    height: number
-  ) => {
-    const matches: {previous: {x: number, y: number}, current: {x: number, y: number}, score: number}[] = [];
-    const patchSize = 11; // Size of patch to compare
-    
-    // For each previous point, find best matching current point
-    for (const prevPoint of prevPoints) {
-      let bestMatch = { point: null as {x: number, y: number} | null, score: 999999 };
-      
-      for (const currPoint of currPoints) {
-        // Calculate difference between patches
-        let totalDiff = 0;
-        let samplesCompared = 0;
-        
-        // Compare patches around the points
-        for (let dy = -patchSize/2; dy <= patchSize/2; dy++) {
-          for (let dx = -patchSize/2; dx <= patchSize/2; dx++) {
-            const prevX = prevPoint.x + dx;
-            const prevY = prevPoint.y + dy;
-            const currX = currPoint.x + dx;
-            const currY = currPoint.y + dy;
-            
-            // Ensure positions are within frame
-            if (prevX >= 0 && prevX < width && prevY >= 0 && prevY < height &&
-                currX >= 0 && currX < width && currY >= 0 && currY < height) {
-              const prevPos = (prevY * width + prevX) * 4;
-              const currPos = (currY * width + currX) * 4;
-              
-              if (prevPos >= 0 && prevPos < prevFrame.data.length - 4 &&
-                  currPos >= 0 && currPos < currFrame.data.length - 4) {
-                // Calculate RGB difference
-                const rDiff = Math.abs(prevFrame.data[prevPos] - currFrame.data[currPos]);
-                const gDiff = Math.abs(prevFrame.data[prevPos + 1] - currFrame.data[currPos + 1]);
-                const bDiff = Math.abs(prevFrame.data[prevPos + 2] - currFrame.data[currPos + 2]);
-                
-                totalDiff += (rDiff + gDiff + bDiff) / 3;
-                samplesCompared++;
-              }
-            }
-          }
-        }
-        
-        // Calculate average difference
-        const avgDiff = samplesCompared > 0 ? totalDiff / samplesCompared : 9999;
-        
-        // Update best match if this is better
-        if (avgDiff < bestMatch.score) {
-          bestMatch = { point: currPoint, score: avgDiff };
-        }
-      }
-      
-      // If we found a good match with low difference
-      if (bestMatch.point && bestMatch.score < 50) {
-        matches.push({
-          previous: prevPoint,
-          current: bestMatch.point,
-          score: bestMatch.score
-        });
-      }
-    }
-    
-    return matches;
-  };
-  
-  // Helper function to filter outliers in movement vectors
-  const filterOutliers = (movements: {dx: number, dy: number}[]) => {
-    if (movements.length <= 3) return movements;
-    
-    // Calculate median values
-    const sortedX = [...movements].sort((a, b) => a.dx - b.dx);
-    const sortedY = [...movements].sort((a, b) => a.dy - b.dy);
-    const medianX = sortedX[Math.floor(sortedX.length / 2)].dx;
-    const medianY = sortedY[Math.floor(sortedY.length / 2)].dy;
-    
-    // Filter points that are too far from median
-    return movements.filter(m => {
-      const xDiff = Math.abs(m.dx - medianX);
-      const yDiff = Math.abs(m.dy - medianY);
-      return xDiff < 8 && yDiff < 8;
-    });
-  };
+  }, [motionDetection, droneCompensation, isVideo, animals, hasInvasiveSpecies]);
   
   // Get the appropriate badge colors based on animal type
   const getBadgeStyle = (animalName: string): string => {
