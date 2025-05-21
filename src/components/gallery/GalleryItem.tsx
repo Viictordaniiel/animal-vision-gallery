@@ -26,6 +26,7 @@ type GalleryItemProps = {
 const animalColors = {
   cachorro: '#4ecdc4',
   capivara: '#ff6b6b',
+  javali: '#b76d2b',
   default: '#ff5e57'
 };
 
@@ -34,7 +35,8 @@ const getAnimalIcon = (animalType: string) => {
   const type = animalType.toLowerCase();
   if (type.includes('cachorro') || type.includes('cão') || type.includes('dog')) {
     return <Dog size={16} />;
-  } else if (type.includes('capivara') || type.includes('hydrochoerus')) {
+  } else if (type.includes('capivara') || type.includes('hydrochoerus') || 
+            type.includes('javali') || type.includes('sus scrofa')) {
     return <Rat size={16} />;
   } else {
     return null;
@@ -48,6 +50,8 @@ const getAnimalColor = (animalType: string) => {
     return animalColors.cachorro;
   } else if (type.includes('capivara')) {
     return animalColors.capivara;
+  } else if (type.includes('javali')) {
+    return animalColors.javali;
   } else {
     return animalColors.default;
   }
@@ -112,13 +116,14 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo]);
 
-  // Show alert for invasive species (capivaras)
+  // Show alert for invasive species (capivaras e javalis)
   useEffect(() => {
     if (!isAnalyzing && animals.length > 0 && !invasiveAlertShownRef.current) {
       const invasiveSpecies = animals.filter(animal => {
         const isInvasive = 
           animal.category?.toLowerCase().includes('invasora') ||
-          animal.name.toLowerCase().includes('capivara');
+          animal.name.toLowerCase().includes('capivara') ||
+          animal.name.toLowerCase().includes('javali');
         return isInvasive;
       });
       
@@ -169,6 +174,7 @@ export default function GalleryItem({
       const lowerType = animalType.toLowerCase();
       if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) return 19;
       if (lowerType.includes('capivara')) return 14; // Capivaras move slower than dogs
+      if (lowerType.includes('javali')) return 16; // Javalis move at moderate speed
       // Default movement distance
       return 16;
     };
@@ -189,6 +195,10 @@ export default function GalleryItem({
           // Capivaras are often near water or lower portions of the screen
           initialX = Math.random() * width * 0.8 + width * 0.1;
           initialY = Math.random() * height * 0.3 + height * 0.6;
+        } else if (type.includes('javali')) {
+          // Javalis são frequentemente encontrados em áreas de vegetação
+          initialX = Math.random() * width * 0.7 + width * 0.15;
+          initialY = Math.random() * height * 0.4 + height * 0.4;
         } else {
           // Default positioning
           initialX = Math.random() * width * 0.7 + width * 0.15;
@@ -269,6 +279,7 @@ export default function GalleryItem({
         const lowerType = animalType.toLowerCase();
         if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) return 3.0;
         if (lowerType.includes('capivara')) return 2.0; // Capivaras are slower
+        if (lowerType.includes('javali')) return 2.3; // Javalis move at moderate speed
         // Default speed
         return 2.5;
       };
@@ -293,6 +304,11 @@ export default function GalleryItem({
           const capybaraPause = Math.sin(frameCount * 0.05) > 0.8;
           patternDx = capybaraPause ? dx * 0.1 : dx * 0.9;
           patternDy = capybaraPause ? dy * 0.1 : dy * 0.9;
+        } else if (lowerType.includes('javali')) {
+          // Javalis move in short bursts with directional changes
+          const javaliSprint = Math.sin(frameCount * 0.08) > 0.7;
+          patternDx = javaliSprint ? dx * 1.3 : dx * 0.8;
+          patternDy = javaliSprint ? dy * 1.3 : dy * 0.8;
         } else {
           // Default pattern with slight randomness
           patternDx = dx * (1 + Math.sin(frameCount * 0.1) * 0.25);
@@ -505,7 +521,8 @@ export default function GalleryItem({
           // Draw heat points for each movement in history
           movementHistoryRef.current.forEach(point => {
             const color = getAnimalColor(point.animalName);
-            const isInvasive = point.animalName.toLowerCase().includes('capivara');
+            const isInvasive = point.animalName.toLowerCase().includes('capivara') || 
+                              point.animalName.toLowerCase().includes('javali');
             
             const gradient = heatMapCtx.createRadialGradient(
               point.x, point.y, 1,
@@ -536,6 +553,7 @@ export default function GalleryItem({
           if (!positions || positions.length <= 1) return;
           
           const isInvasive = animal.name.toLowerCase().includes('capivara') || 
+                            animal.name.toLowerCase().includes('javali') || 
                             animal.category?.toLowerCase().includes('invasora');
           
           // Draw movement trail (keep this for visual tracking)
@@ -676,7 +694,8 @@ export default function GalleryItem({
             {/* Invasive species indicator */}
             {!isAnalyzing && animals.some(animal => 
               animal.category?.toLowerCase().includes('invasora') || 
-              animal.name.toLowerCase().includes('capivara')
+              animal.name.toLowerCase().includes('capivara') ||
+              animal.name.toLowerCase().includes('javali')
             ) && (
               <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
                 <AlertTriangle size={16} className="text-red-500" />
@@ -703,6 +722,7 @@ export default function GalleryItem({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {animals.map((animal, index) => {
                 const isInvasive = animal.name.toLowerCase().includes('capivara') || 
+                                  animal.name.toLowerCase().includes('javali') ||
                                   animal.category?.toLowerCase().includes('invasora');
                 return (
                   <div 

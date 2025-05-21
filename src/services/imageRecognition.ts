@@ -10,13 +10,14 @@ type Animal = {
   category?: string;
 };
 
-// Banco de dados simplificado apenas com cachorros e capivaras
+// Banco de dados simplificado com cachorros, capivaras e javalis
 const animalDatabase: Record<string, Animal[]> = {
   'dogs': [
     { name: 'Cachorro', confidence: 0.97, description: 'Canídeo doméstico, considerado o melhor amigo do homem.', scientificName: 'Canis familiaris', category: 'mamífero doméstico' }
   ],
   'invasive': [
-    { name: 'Capivara', confidence: 0.91, description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.', scientificName: 'Hydrochoerus hydrochaeris', category: 'espécie invasora' }
+    { name: 'Capivara', confidence: 0.91, description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.', scientificName: 'Hydrochoerus hydrochaeris', category: 'espécie invasora' },
+    { name: 'Javali', confidence: 0.89, description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.', scientificName: 'Sus scrofa', category: 'espécie invasora' }
   ]
 };
 
@@ -25,6 +26,13 @@ const capivaraDatabase: Animal[] = [
   { name: 'Capivara', confidence: 0.98, description: 'Maior roedor do mundo, comum em áreas próximas a rios e lagos.', scientificName: 'Hydrochoerus hydrochaeris', category: 'espécie invasora' },
   { name: 'Filhote de Capivara', confidence: 0.96, description: 'Filhote do maior roedor do mundo.', scientificName: 'Hydrochoerus hydrochaeris (juvenil)', category: 'espécie invasora' },
   { name: 'Grupo de Capivaras', confidence: 0.95, description: 'Grupo familiar de capivaras, comumente visto próximo a corpos d\'água.', scientificName: 'Hydrochoerus hydrochaeris (grupo)', category: 'espécie invasora' }
+];
+
+// Base de dados para javalis
+const javaliDatabase: Animal[] = [
+  { name: 'Javali', confidence: 0.94, description: 'Suíno selvagem, espécie invasora causadora de danos ambientais.', scientificName: 'Sus scrofa', category: 'espécie invasora' },
+  { name: 'Filhote de Javali', confidence: 0.92, description: 'Filhote de javali, também conhecido como leitão.', scientificName: 'Sus scrofa (juvenil)', category: 'espécie invasora' },
+  { name: 'Grupo de Javalis', confidence: 0.91, description: 'Grupo familiar de javalis, podem causar sérios danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'espécie invasora' }
 ];
 
 // Base de dados simplificada para cães
@@ -53,9 +61,14 @@ const visualSignatures = {
     'postura canina', 'andar em quatro patas', 'latido', 'movimentação típica de cão'
   ],
   'invasive': [
+    // Capivara
     'corpo robusto', 'pelagem marrom', 'focinho arredondado', 'olhos pequenos', 
     'orelhas pequenas redondas', 'corpo grande', 'pelos marrons', 'quatro patas curtas', 
-    'roedor grande', 'sem cauda aparente', 'próximo à água'
+    'roedor grande', 'sem cauda aparente', 'próximo à água',
+    // Javali
+    'focinho alongado', 'presas', 'pelagem escura', 'corpo robusto', 'cabeça grande',
+    'pelos grossos', 'patas curtas', 'movimentação em grupo', 'postura de forrageio',
+    'coloração marrom-escura', 'cauda curta'
   ]
 };
 
@@ -75,6 +88,12 @@ const analyzeImageCharacteristics = (imageUrl: string): string[] => {
   if (lowerUrl.includes('capivara') || lowerUrl.includes('hydrochoerus') || 
       lowerUrl.includes('roedor') || lowerUrl.includes('capybara')) {
     characteristics.push('corpo robusto', 'pelagem marrom', 'focinho arredondado', 'olhos pequenos', 'sem cauda aparente');
+  }
+  
+  // Análise para javalis
+  if (lowerUrl.includes('javali') || lowerUrl.includes('sus scrofa') || 
+      lowerUrl.includes('wild boar') || lowerUrl.includes('suíno selvagem')) {
+    characteristics.push('focinho alongado', 'pelagem escura', 'corpo robusto', 'presas', 'cabeça grande');
   }
   
   return characteristics;
@@ -133,14 +152,14 @@ const getImageFingerprint = (imageUrl: string): string => {
 const resultCache = new Map<string, Animal[]>();
 
 // Função para determinar o tipo de animal a ser mostrado
-const shouldShowCapivara = (imageUrl: string): boolean => {
+const shouldShowInvasiveSpecies = (imageUrl: string): boolean => {
   if (imageUrl.startsWith('blob:')) {
     const fingerprint = getImageFingerprint(imageUrl);
     const hashCode = Array.from(fingerprint).reduce(
       (hash, char) => char.charCodeAt(0) + ((hash << 5) - hash), 0
     );
     
-    // 60% de chance de mostrar capivaras para uploads
+    // 60% de chance de mostrar espécies invasoras para uploads
     return (Math.abs(hashCode) % 10) < 6;
   }
   
@@ -160,8 +179,11 @@ const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals:
   const numberOfAnimals = Math.floor(Math.random() * 2) + 1;
   const animalTypes: Animal[] = [];
   
-  // 60% de chance de mostrar capivaras (espécie invasora)
-  const includeCapivara = !isLikelyDog && (Math.random() < 0.6);
+  // Chance de incluir espécies invasoras (capivara ou javali)
+  const includeInvasiveSpecies = !isLikelyDog && (Math.random() < 0.6);
+  
+  // Tipo de espécie invasora a ser incluída (capivara ou javali)
+  const invasiveType = Math.random() > 0.5 ? 'capivara' : 'javali';
   
   // Chance de incluir cachorro
   const includeDog = isLikelyDog || Math.random() < 0.4;
@@ -178,19 +200,31 @@ const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals:
     });
   }
   
-  // Adicionar capivara se determinado
-  if (includeCapivara && animalTypes.length < numberOfAnimals) {
-    const shuffledCapivaras = [...capivaraDatabase].sort(() => 0.5 - Math.random());
-    animalTypes.push({
-      ...shuffledCapivaras[0],
-      confidence: Math.min(0.99, Math.max(0.85, shuffledCapivaras[0].confidence + (Math.random() * 0.06 - 0.03)))
-    });
+  // Adicionar espécie invasora se determinado
+  if (includeInvasiveSpecies && animalTypes.length < numberOfAnimals) {
+    if (invasiveType === 'capivara') {
+      // Adicionar capivara
+      const shuffledCapivaras = [...capivaraDatabase].sort(() => 0.5 - Math.random());
+      animalTypes.push({
+        ...shuffledCapivaras[0],
+        confidence: Math.min(0.99, Math.max(0.85, shuffledCapivaras[0].confidence + (Math.random() * 0.06 - 0.03)))
+      });
+    } else {
+      // Adicionar javali
+      const shuffledJavalis = [...javaliDatabase].sort(() => 0.5 - Math.random());
+      animalTypes.push({
+        ...shuffledJavalis[0],
+        confidence: Math.min(0.99, Math.max(0.85, shuffledJavalis[0].confidence + (Math.random() * 0.06 - 0.03)))
+      });
+    }
   }
   
   // Se ainda não temos animais suficientes, adicionar um aleatoriamente
   if (animalTypes.length === 0) {
-    // Se não detectamos nenhum animal, adicionar cachorro ou capivara aleatoriamente
-    if (Math.random() > 0.5) {
+    // Se não detectamos nenhum animal, adicionar cachorro ou espécie invasora aleatoriamente
+    const randomChoice = Math.random();
+    if (randomChoice < 0.4) {
+      // Adicionar cachorro
       animalTypes.push({
         name: 'Cachorro',
         confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
@@ -198,12 +232,22 @@ const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals:
         scientificName: 'Canis familiaris',
         category: 'mamífero doméstico'
       });
-    } else {
+    } else if (randomChoice < 0.7) {
+      // Adicionar capivara
       animalTypes.push({
         name: 'Capivara',
         confidence: Math.min(0.99, Math.max(0.85, 0.91 + (Math.random() * 0.06 - 0.03))),
         description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.',
         scientificName: 'Hydrochoerus hydrochaeris',
+        category: 'espécie invasora'
+      });
+    } else {
+      // Adicionar javali
+      animalTypes.push({
+        name: 'Javali',
+        confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
+        description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
+        scientificName: 'Sus scrofa',
         category: 'espécie invasora'
       });
     }
@@ -213,7 +257,7 @@ const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals:
   const sortedAnimals = animalTypes.sort((a, b) => b.confidence - a.confidence);
   
   return { 
-    category: includeCapivara ? 'invasive' : 'dogs',
+    category: includeInvasiveSpecies ? 'invasive' : 'dogs',
     animals: sortedAnimals
   };
 };
@@ -272,6 +316,9 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
       if (!animal.scientificName) {
         if (animal.name.toLowerCase().includes('capivara')) {
           animal.scientificName = 'Hydrochoerus hydrochaeris';
+          animal.category = 'espécie invasora';
+        } else if (animal.name.toLowerCase().includes('javali')) {
+          animal.scientificName = 'Sus scrofa';
           animal.category = 'espécie invasora';
         } else if (animal.name.toLowerCase().includes('cachorro') || 
                   animal.name.toLowerCase().includes('cão')) {
@@ -342,6 +389,12 @@ export async function getAnimalInfo(animalName: string): Promise<Animal | null> 
   );
   if (capivaraMatch) return capivaraMatch;
   
+  // Verificar no banco de dados de javalis
+  const javaliMatch = javaliDatabase.find(
+    animal => animal.name.toLowerCase() === animalName.toLowerCase()
+  );
+  if (javaliMatch) return javaliMatch;
+  
   // Verificar no banco de dados de cães
   const dogMatch = domesticDogsDatabase.find(
     animal => animal.name.toLowerCase() === animalName.toLowerCase()
@@ -369,7 +422,7 @@ export async function getScientificName(animalName: string): Promise<string> {
 export function classifyAnimalType(animalName: string): string {
   const lowerName = animalName.toLowerCase();
   
-  if (lowerName.includes('capivara')) {
+  if (lowerName.includes('capivara') || lowerName.includes('javali')) {
     return 'Espécie Invasora';
   } else if (lowerName.includes('cachorro') || lowerName.includes('cão') || 
              lowerName.includes('canis familiaris') || lowerName.includes('dog')) {
@@ -388,11 +441,12 @@ const isDog = (animalName: string): boolean => {
   return dogTerms.some(term => lowerName.includes(term));
 };
 
-// Função para determinar se é uma capivara
-const isCapivara = (animalName: string): boolean => {
-  const capivaraTerms = [
-    'capivara', 'hydrochoerus', 'capybara', 'carpincho'
+// Função para determinar se é uma espécie invasora (capivara ou javali)
+const isInvasiveSpecies = (animalName: string): boolean => {
+  const invasiveTerms = [
+    'capivara', 'hydrochoerus', 'capybara', 'carpincho',
+    'javali', 'sus scrofa', 'wild boar', 'suíno selvagem'
   ];
   const lowerName = animalName.toLowerCase();
-  return capivaraTerms.some(term => lowerName.includes(term));
+  return invasiveTerms.some(term => lowerName.includes(term));
 };
