@@ -164,6 +164,21 @@ export default function GalleryItem({
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
+    // Enhanced maximum movement distance calculation based on animal type
+    const getMaxMovementDistance = (animalType: string): number => {
+      // More accurate distance in pixels per frame based on animal type
+      const lowerType = animalType.toLowerCase();
+      if (lowerType.includes('bird') || lowerType.includes('ave')) return 22; // Birds can move quickly
+      if (lowerType.includes('cat') || lowerType.includes('gato')) return 16;
+      if (lowerType.includes('dog') || lowerType.includes('cachorro') || lowerType.includes('cão')) return 19;
+      if (lowerType.includes('fish') || lowerType.includes('peixe')) return 13;
+      if (lowerType.includes('javali') || lowerType.includes('porco')) return 17; // Wild boars move at moderate speed
+      if (lowerType.includes('mouse') || lowerType.includes('rato')) return 11;
+      if (lowerType.includes('deer') || lowerType.includes('veado')) return 20; // Deer are fast
+      // Default movement distance
+      return 16;
+    };
+    
     // Initialize animal regions with intelligent positioning based on animal type
     const initializeAnimalPositions = (width: number, height: number) => {
       // For videos, place animals in more logical regions
@@ -275,21 +290,6 @@ export default function GalleryItem({
       }
       
       // Enhanced maximum movement distance calculation based on animal type
-      const getMaxMovementDistance = (animalType: string): number => {
-        // More accurate distance in pixels per frame based on animal type
-        const lowerType = animalType.toLowerCase();
-        if (lowerType.includes('bird') || lowerType.includes('ave')) return 22; // Birds can move quickly
-        if (lowerType.includes('cat') || lowerType.includes('gato')) return 16;
-        if (lowerType.includes('dog') || lowerType.includes('cachorro') || lowerType.includes('cão')) return 19;
-        if (lowerType.includes('fish') || lowerType.includes('peixe')) return 13;
-        if (lowerType.includes('javali') || lowerType.includes('porco')) return 17; // Wild boars move at moderate speed
-        if (lowerType.includes('mouse') || lowerType.includes('rato')) return 11;
-        if (lowerType.includes('deer') || lowerType.includes('veado')) return 20; // Deer are fast
-        // Default movement distance
-        return 16;
-      };
-      
-      // Improved animal speed calculation based on type
       const getAnimalSpeed = (animalType: string): number => {
         // More accurate speed in pixels per frame
         const lowerType = animalType.toLowerCase();
@@ -454,8 +454,8 @@ export default function GalleryItem({
               const distance = Math.sqrt(dx * dx + dy * dy);
               
               // Only consider regions within a reasonable distance based on animal type
-              const maxDistance = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
-              return distance < maxDistance;
+              const maxMovementDist = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
+              return distance < maxMovementDist;
             })
             .sort((a, b) => {
               // Sort by intensity but also consider proximity for more accurate tracking
@@ -463,8 +463,9 @@ export default function GalleryItem({
               const distB = Math.sqrt(Math.pow(b.x - currentPos.x, 2) + Math.pow(b.y - currentPos.y, 2));
               
               // Blend intensity and proximity factors
-              const scoreA = (a.intensity * 0.7) + ((1 - distA/maxDistance) * 0.3);
-              const scoreB = (b.intensity * 0.7) + ((1 - distB/maxDistance) * 0.3);
+              const maxMovementDist = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
+              const scoreA = (a.intensity * 0.7) + ((1 - distA/maxMovementDist) * 0.3);
+              const scoreB = (b.intensity * 0.7) + ((1 - distB/maxMovementDist) * 0.3);
               
               return scoreB - scoreA;
             });
