@@ -40,7 +40,7 @@ export default function Gallery() {
     if (isVideo) {
       toast({
         title: "Vídeo detectado",
-        description: "Pronto para análise de invasores em modo vídeo."
+        description: "Pronto para análise de movimentos em modo vídeo."
       });
     }
 
@@ -74,7 +74,7 @@ export default function Gallery() {
       if (type === 'video') {
         toast({
           title: "Processando vídeo",
-          description: "Analisando quadros para identificar espécies invasoras."
+          description: "Analisando quadros para identificar espécies."
         });
       }
       
@@ -94,8 +94,18 @@ export default function Gallery() {
       
       toast({
         title: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}!`,
-        description: results.map(a => a.name).join(', ')
+        description: "Agora o sensor de movimento focará automaticamente nos animais detectados."
       });
+      
+      // If it's a video with animals detected, inform about the enhanced motion tracking
+      if (type === 'video' && results.length > 0) {
+        setTimeout(() => {
+          toast({
+            title: "Sensor de movimento animal ativado",
+            description: "O sensor está otimizado para detectar os movimentos dos animais identificados."
+          });
+        }, 1500);
+      }
       
     } catch (error) {
       console.error('Erro ao analisar mídia:', error);
@@ -134,7 +144,7 @@ export default function Gallery() {
       if (currentMedia.type === 'video') {
         toast({
           title: "Processando vídeo",
-          description: "Reanalisando quadros do vídeo..."
+          description: "Reanalisando quadros do vídeo para melhor detecção de movimentos..."
         });
       }
       
@@ -185,7 +195,7 @@ export default function Gallery() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Reconhecimento de Animais</h1>
+      <h1 className="text-2xl font-bold mb-6">Detecção de Animais em Vídeo</h1>
       
       {showUploader ? (
         <div className="w-full max-w-2xl mx-auto">
@@ -218,7 +228,7 @@ export default function Gallery() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-500">Nenhuma mídia carregada. Faça upload para começar.</p>
+          <p className="text-gray-500">Carregue um vídeo ou imagem para começar a detecção de animais.</p>
           <Button 
             onClick={handleNewUpload}
             className="mt-4"
