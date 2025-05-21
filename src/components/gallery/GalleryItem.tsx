@@ -1,6 +1,7 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Cat, Dog, Bird, Fish, Mouse, AlertTriangle } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
@@ -24,43 +25,40 @@ type GalleryItemProps = {
 
 // Define colors for different animal types
 const animalColors = {
-  cat: '#ff6b6b',
-  dog: '#4ecdc4',
-  bird: '#ff9f43',
-  fish: '#45aaf2',
-  mouse: '#a55eea',
+  cachorro: '#4ecdc4',
+  capivara: '#ff6b6b',
   default: '#ff5e57'
 };
 
 // Get icon for animal type
 const getAnimalIcon = (animalType: string) => {
   const type = animalType.toLowerCase();
-  switch (type) {
-    case 'cat': 
-    case 'gato': return <Cat size={16} />;
-    case 'dog': 
-    case 'cachorro': return <Dog size={16} />;
-    case 'bird': 
-    case 'ave': return <Bird size={16} />;
-    case 'fish': 
-    case 'peixe': return <Fish size={16} />;
-    case 'mouse': 
-    case 'rato': return <Mouse size={16} />;
-    default: return null;
+  if (type.includes('cachorro') || type.includes('cão') || type.includes('dog')) {
+    return <Dog size={16} />;
+  } else if (type.includes('capivara') || type.includes('hydrochoerus')) {
+    return <Rat size={16} />;
+  } else {
+    return null;
   }
 };
 
 // Get color for animal type
 const getAnimalColor = (animalType: string) => {
   const type = animalType.toLowerCase();
-  return animalColors[type as keyof typeof animalColors] || animalColors.default;
+  if (type.includes('cachorro') || type.includes('cão') || type.includes('dog')) {
+    return animalColors.cachorro;
+  } else if (type.includes('capivara')) {
+    return animalColors.capivara;
+  } else {
+    return animalColors.default;
+  }
 };
 
 // Improved motion tracking parameters for better accuracy
-const TRACKING_PRECISION = 0.95;  // Higher precision for more accurate tracking
-const MOTION_SENSITIVITY = 0.75;  // Increased sensitivity to detect subtle movements
-const PATTERN_RECOGNITION = 3.0;  // Enhanced pattern recognition for better movement prediction
-const MOTION_THRESHOLD = 15;      // Lower threshold to detect more subtle movement changes
+const TRACKING_PRECISION = 0.95;
+const MOTION_SENSITIVITY = 0.75;
+const PATTERN_RECOGNITION = 3.0;
+const MOTION_THRESHOLD = 15;
 
 export default function GalleryItem({
   imageUrl,
@@ -115,15 +113,13 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo]);
 
-  // Show alert for invasive species
+  // Show alert for invasive species (capivaras)
   useEffect(() => {
-    // Check if there are any invasive species in the detected animals
     if (!isAnalyzing && animals.length > 0 && !invasiveAlertShownRef.current) {
       const invasiveSpecies = animals.filter(animal => {
         const isInvasive = 
           animal.category?.toLowerCase().includes('invasora') ||
-          animal.category?.toLowerCase().includes('invasor') ||
-          animal.name.toLowerCase().includes('javali');
+          animal.name.toLowerCase().includes('capivara');
         return isInvasive;
       });
       
@@ -132,7 +128,7 @@ export default function GalleryItem({
         invasiveSpecies.forEach(species => {
           toast({
             title: "⚠️ Espécie Invasora Detectada!",
-            description: `${species.name} foi identificado com ${Math.round(species.confidence * 100)}% de confiança.`,
+            description: `${species.name} foi identificada com ${Math.round(species.confidence * 100)}% de confiança.`,
             variant: "destructive",
             duration: 6000,
           });
@@ -171,58 +167,33 @@ export default function GalleryItem({
     
     // Enhanced maximum movement distance calculation based on animal type
     const getMaxMovementDistance = (animalType: string): number => {
-      // More accurate distance in pixels per frame based on animal type
       const lowerType = animalType.toLowerCase();
-      if (lowerType.includes('bird') || lowerType.includes('ave')) return 22; // Birds can move quickly
-      if (lowerType.includes('cat') || lowerType.includes('gato')) return 16;
-      if (lowerType.includes('dog') || lowerType.includes('cachorro') || lowerType.includes('cão')) return 19;
-      if (lowerType.includes('fish') || lowerType.includes('peixe')) return 13;
-      if (lowerType.includes('javali') || lowerType.includes('porco')) return 17; // Wild boars move at moderate speed
-      if (lowerType.includes('mouse') || lowerType.includes('rato')) return 11;
-      if (lowerType.includes('deer') || lowerType.includes('veado')) return 20; // Deer are fast
+      if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) return 19;
+      if (lowerType.includes('capivara')) return 14; // Capivaras move slower than dogs
       // Default movement distance
       return 16;
     };
     
     // Initialize animal regions with intelligent positioning based on animal type
     const initializeAnimalPositions = (width: number, height: number) => {
-      // For videos, place animals in more logical regions
-      // based on animal type and typical behavior
       animals.forEach(animal => {
         const type = animal.name.toLowerCase();
         
         // Different initial positions based on animal type for more accurate initial placement
         let initialX, initialY;
         
-        switch(type) {
-          case 'bird':
-            // Birds often appear in upper portions of videos
-            initialX = Math.random() * width * 0.8 + width * 0.1;
-            initialY = Math.random() * height * 0.3 + height * 0.1;
-            break;
-          case 'fish':
-            // Fish might be in water features (middle to lower regions)
-            initialX = Math.random() * width * 0.8 + width * 0.1;
-            initialY = Math.random() * height * 0.3 + height * 0.5;
-            break;
-          case 'mouse':
-          case 'rato':
-          case 'rat':
-            // Ground animals often at the bottom
-            initialX = Math.random() * width * 0.8 + width * 0.1;
-            initialY = Math.random() * height * 0.3 + height * 0.6;
-            break;
-          case 'javali':
-          case 'porco':
-          case 'porco-do-mato':
-            // Wild boars usually move in lower areas or mid-screen
-            initialX = Math.random() * width * 0.7 + width * 0.15;
-            initialY = Math.random() * height * 0.3 + height * 0.5;
-            break;
-          default:
-            // Others more evenly distributed but avoiding edges for better tracking
-            initialX = Math.random() * width * 0.7 + width * 0.15;
-            initialY = Math.random() * height * 0.7 + height * 0.15;
+        if (type.includes('cachorro') || type.includes('cão') || type.includes('dog')) {
+          // Dogs move more energetically across the screen
+          initialX = Math.random() * width * 0.7 + width * 0.15;
+          initialY = Math.random() * height * 0.7 + height * 0.15;
+        } else if (type.includes('capivara')) {
+          // Capivaras are often near water or lower portions of the screen
+          initialX = Math.random() * width * 0.8 + width * 0.1;
+          initialY = Math.random() * height * 0.3 + height * 0.6;
+        } else {
+          // Default positioning
+          initialX = Math.random() * width * 0.7 + width * 0.15;
+          initialY = Math.random() * height * 0.7 + height * 0.15;
         }
         
         // Store initial position
@@ -294,17 +265,11 @@ export default function GalleryItem({
         heatMapCtx.globalAlpha = 0.12; // Slightly increased opacity for better visibility
       }
       
-      // Enhanced maximum movement distance calculation based on animal type
+      // Enhanced animal speed calculation based on animal type
       const getAnimalSpeed = (animalType: string): number => {
-        // More accurate speed in pixels per frame
         const lowerType = animalType.toLowerCase();
-        if (lowerType.includes('bird') || lowerType.includes('ave')) return 3.2;
-        if (lowerType.includes('cat') || lowerType.includes('gato')) return 2.7;
-        if (lowerType.includes('dog') || lowerType.includes('cachorro') || lowerType.includes('cão')) return 3.0;
-        if (lowerType.includes('fish') || lowerType.includes('peixe')) return 2.2;
-        if (lowerType.includes('javali') || lowerType.includes('porco')) return 2.6; // Wild boars have moderate speed
-        if (lowerType.includes('mouse') || lowerType.includes('rato')) return 1.9;
-        if (lowerType.includes('deer') || lowerType.includes('veado')) return 3.3; // Deer are fast
+        if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) return 3.0;
+        if (lowerType.includes('capivara')) return 2.0; // Capivaras are slower
         // Default speed
         return 2.5;
       };
@@ -320,38 +285,15 @@ export default function GalleryItem({
         let patternDy = dy;
         const lowerType = animalType.toLowerCase();
         
-        // Apply type-specific movement patterns with improved realism
-        if (lowerType.includes('bird') || lowerType.includes('ave')) {
-          // Birds have more vertical and erratic movement
-          patternDx = dx * (1 + Math.sin(frameCount * 0.12) * 0.35);
-          patternDy = dy * (1 + Math.cos(frameCount * 0.12) * 0.35);
-        } else if (lowerType.includes('fish') || lowerType.includes('peixe')) {
-          // Fish move in flowing, wave-like patterns
-          patternDx = dx * (1 + Math.sin(frameCount * 0.09) * 0.45);
-          patternDy = dy * (1 + Math.sin(frameCount * 0.09 + Math.PI/2) * 0.45);
-        } else if (lowerType.includes('cat') || lowerType.includes('gato')) {
-          // Cats move deliberately with pauses and sudden bursts
-          const catPause = Math.sin(frameCount * 0.06) > 0.75;
-          patternDx = catPause ? dx * 0.15 : dx * 1.25;
-          patternDy = catPause ? dy * 0.15 : dy * 1.25;
-        } else if (lowerType.includes('dog') || lowerType.includes('cachorro') || lowerType.includes('cão')) {
+        if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) {
           // Dogs move more energetically with occasional direction changes
           patternDx = dx * (1 + Math.sin(frameCount * 0.17) * 0.3);
           patternDy = dy * (1 + Math.cos(frameCount * 0.17) * 0.3);
-        } else if (lowerType.includes('javali') || lowerType.includes('porco')) {
-          // Wild boars move more determinedly with occasional pauses
-          const boarPause = Math.sin(frameCount * 0.05) > 0.8;
-          patternDx = boarPause ? dx * 0.2 : dx * 1.1;
-          patternDy = boarPause ? dy * 0.2 : dy * 1.1;
-        } else if (lowerType.includes('deer') || lowerType.includes('veado')) {
-          // Deer have elegant but quick movements, sometimes freezing
-          const deerPause = Math.sin(frameCount * 0.04) > 0.85;
-          patternDx = deerPause ? dx * 0.05 : dx * 1.3;
-          patternDy = deerPause ? dy * 0.05 : dy * 1.3;
-        } else if (lowerType.includes('mouse') || lowerType.includes('rato')) {
-          // Small rodents have more erratic, quick movements
-          patternDx = dx * (1 + Math.sin(frameCount * 0.25) * 0.6);
-          patternDy = dy * (1 + Math.cos(frameCount * 0.25) * 0.6);
+        } else if (lowerType.includes('capivara')) {
+          // Capivaras move more deliberately with occasional pauses
+          const capybaraPause = Math.sin(frameCount * 0.05) > 0.8;
+          patternDx = capybaraPause ? dx * 0.1 : dx * 0.9;
+          patternDy = capybaraPause ? dy * 0.1 : dy * 0.9;
         } else {
           // Default pattern with slight randomness
           patternDx = dx * (1 + Math.sin(frameCount * 0.1) * 0.25);
@@ -361,7 +303,7 @@ export default function GalleryItem({
         return { patternDx, patternDy };
       };
       
-      // Improved motion detection between frames for more accurate animal tracking
+      // Improved motion detection between frames
       const detectMotion = () => {
         if (!motionCtx || !videoRef.current) return [];
         
@@ -380,18 +322,18 @@ export default function GalleryItem({
         const motionRegions = [];
         const blockSize = 15; // Smaller blocks for more precise detection
         
-        // Analyze video in blocks to detect motion with enhanced sensitivity
+        // Analyze video in blocks to detect motion
         for (let y = 0; y < motionCanvas.height; y += blockSize) {
           for (let x = 0; x < motionCanvas.width; x += blockSize) {
             let diffCount = 0;
             let totalDiff = 0;
             
-            // Check each pixel in the block with improved sensitivity
+            // Check each pixel in the block
             for (let blockY = 0; blockY < blockSize && y + blockY < motionCanvas.height; blockY++) {
               for (let blockX = 0; blockX < blockSize && x + blockX < motionCanvas.width; blockX++) {
                 const pixelPos = ((y + blockY) * motionCanvas.width + (x + blockX)) * 4;
                 
-                // Calculate difference between current and previous frame with enhanced precision
+                // Calculate difference between current and previous frame
                 const rDiff = Math.abs(currentFrameData.data[pixelPos] - previousFrameDataRef.current.data[pixelPos]);
                 const gDiff = Math.abs(currentFrameData.data[pixelPos + 1] - previousFrameDataRef.current.data[pixelPos + 1]);
                 const bDiff = Math.abs(currentFrameData.data[pixelPos + 2] - previousFrameDataRef.current.data[pixelPos + 2]);
@@ -427,7 +369,7 @@ export default function GalleryItem({
         return motionRegions;
       };
       
-      // Update animal positions based on detected motion with improved accuracy
+      // Update animal positions based on detected motion
       const updateAnimalPositions = (motionRegions: Array<{x: number, y: number, intensity: number}>) => {
         if (!motionRegions.length) return;
         
@@ -436,7 +378,7 @@ export default function GalleryItem({
         videoTimeRef.current = currentVideoTime;
         frameCountRef.current++;
         
-        // Update each animal's position with enhanced tracking
+        // Update each animal's position
         animals.forEach(animal => {
           const animalType = animal.name.toLowerCase();
           const animalConfidence = animal.confidence;
@@ -447,10 +389,10 @@ export default function GalleryItem({
           // Get current position
           const currentPos = animalPositionsRef.current[animal.name][animalPositionsRef.current[animal.name].length - 1];
           
-          // Parameters affecting movement with improved tracking
+          // Parameters affecting movement
           const confidenceWeight = animalConfidence * TRACKING_PRECISION;
           
-          // Find motion regions that could correspond to this animal with improved filtering
+          // Find motion regions that could correspond to this animal
           const relevantMotionRegions = motionRegions
             .filter(region => {
               // Calculate distance from current position
@@ -463,7 +405,7 @@ export default function GalleryItem({
               return distance < maxMovementDist;
             })
             .sort((a, b) => {
-              // Sort by intensity but also consider proximity for more accurate tracking
+              // Sort by intensity and proximity
               const distA = Math.sqrt(Math.pow(a.x - currentPos.x, 2) + Math.pow(a.y - currentPos.y, 2));
               const distB = Math.sqrt(Math.pow(b.x - currentPos.x, 2) + Math.pow(b.y - currentPos.y, 2));
               
@@ -476,11 +418,10 @@ export default function GalleryItem({
             });
           
           // If relevant regions found, move toward the most active one
-          // with influence from confidence level
           if (relevantMotionRegions.length > 0) {
             const targetRegion = relevantMotionRegions[0];
             
-            // Calculate vector toward motion with improved precision
+            // Calculate vector toward motion
             const dx = targetRegion.x - currentPos.x;
             const dy = targetRegion.y - currentPos.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -493,7 +434,7 @@ export default function GalleryItem({
             const normalizedDx = (dx / distance) * moveSpeed;
             const normalizedDy = (dy / distance) * moveSpeed;
             
-            // Apply some natural movement patterns based on animal type
+            // Apply natural movement patterns based on animal type
             const { patternDx, patternDy } = applyMovementPattern(animalType, normalizedDx, normalizedDy, frameCountRef.current);
             
             // New position with pattern influence
@@ -519,11 +460,11 @@ export default function GalleryItem({
             });
             
             // Limit position history for optimal performance
-            if (animalPositionsRef.current[animal.name].length > 40) { // Increased history for smoother trails
+            if (animalPositionsRef.current[animal.name].length > 40) {
               animalPositionsRef.current[animal.name].shift();
             }
           } else {
-            // No relevant motion - apply subtle random movement to prevent static appearance
+            // No relevant motion - apply subtle random movement
             const randomAngle = Math.random() * Math.PI * 2;
             const randomDistance = Math.random() * 1.8; // Small random movement
             
@@ -544,29 +485,28 @@ export default function GalleryItem({
         });
         
         // Limit total movement history
-        if (movementHistoryRef.current.length > 600) { // Increased for better heat map visualization
+        if (movementHistoryRef.current.length > 600) {
           movementHistoryRef.current.shift();
         }
       };
       
-      // Draw animal positions and movement trails with improved visualization
+      // Draw animal positions and movement trails
       const draw = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
         // Draw video frame
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Draw heat map if enabled with enhanced visualization
+        // Draw heat map if enabled
         if (heatMapEnabled) {
           // Fade out previous heat map slightly
           heatMapCtx.fillStyle = 'rgba(0, 0, 0, 0.12)';
           heatMapCtx.fillRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
           
-          // Draw heat points for each movement in history with improved gradient
+          // Draw heat points for each movement in history
           movementHistoryRef.current.forEach(point => {
             const color = getAnimalColor(point.animalName);
-            const isInvasive = point.animalName.toLowerCase().includes('javali') || 
-                               point.animalName.toLowerCase().includes('porco-do-mato');
+            const isInvasive = point.animalName.toLowerCase().includes('capivara');
             
             const gradient = heatMapCtx.createRadialGradient(
               point.x, point.y, 1,
@@ -574,7 +514,7 @@ export default function GalleryItem({
             );
             
             if (isInvasive) {
-              // Redder gradient for invasive species
+              // Redder gradient for invasive species (capivaras)
               gradient.addColorStop(0, `rgba(234, 56, 76, 0.7)`); // Brighter red
               gradient.addColorStop(0.6, `rgba(234, 56, 76, 0.3)`);
               gradient.addColorStop(1, 'transparent');
@@ -591,23 +531,23 @@ export default function GalleryItem({
           });
         }
         
-        // Draw each animal's tracking with improved visualization
+        // Draw each animal's tracking
         animals.forEach(animal => {
           const positions = animalPositionsRef.current[animal.name];
           if (!positions || positions.length <= 1) return;
           
-          const isInvasive = animal.name.toLowerCase().includes('javali') || 
+          const isInvasive = animal.name.toLowerCase().includes('capivara') || 
                             animal.category?.toLowerCase().includes('invasora');
           
           const color = isInvasive ? '#ea384c' : getAnimalColor(animal.name);
           
-          // Draw movement trail with improved opacity gradient
+          // Draw movement trail
           ctx.beginPath();
           ctx.moveTo(positions[0].x, positions[0].y);
           
           for (let i = 1; i < positions.length; i++) {
-            // Set varying opacity based on position age with improved gradient
-            const opacity = Math.pow(i / positions.length, 1.5); // More pronounced fade for older points
+            // Set varying opacity based on position age
+            const opacity = Math.pow(i / positions.length, 1.5);
             ctx.strokeStyle = color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
             ctx.lineWidth = isInvasive ? 2.5 : 2; // Thicker lines for invasive species
             
@@ -617,7 +557,7 @@ export default function GalleryItem({
             ctx.moveTo(positions[i].x, positions[i].y);
           }
           
-          // Draw current position indicator with improved visibility
+          // Draw current position indicator
           const current = positions[positions.length - 1];
             
           // Draw larger highlight circle
@@ -626,7 +566,7 @@ export default function GalleryItem({
           ctx.arc(current.x, current.y, isInvasive ? 35 : 30, 0, Math.PI * 2);
           ctx.fill();
           
-          // Draw middle highlight circle for improved visibility
+          // Draw middle highlight circle
           ctx.fillStyle = color + '66'; // Semi-transparent
           ctx.beginPath();
           ctx.arc(current.x, current.y, isInvasive ? 18 : 15, 0, Math.PI * 2);
@@ -638,7 +578,7 @@ export default function GalleryItem({
           ctx.arc(current.x, current.y, isInvasive ? 10 : 8, 0, Math.PI * 2);
           ctx.fill();
           
-          // Draw animal label with improved visibility
+          // Draw animal label
           ctx.fillStyle = 'white';
           ctx.strokeStyle = 'black';
           ctx.lineWidth = 3;
@@ -669,7 +609,7 @@ export default function GalleryItem({
       
       // Animation loop with motion detection
       const animate = () => {
-        // Detect motion in current frame with improved sensitivity
+        // Detect motion in current frame
         const motionRegions = detectMotion();
         
         // Update animal positions based on detected motion
@@ -761,7 +701,7 @@ export default function GalleryItem({
             {/* Invasive species indicator */}
             {!isAnalyzing && animals.some(animal => 
               animal.category?.toLowerCase().includes('invasora') || 
-              animal.name.toLowerCase().includes('javali')
+              animal.name.toLowerCase().includes('capivara')
             ) && (
               <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
                 <AlertTriangle size={16} className="text-red-500" />
@@ -787,7 +727,7 @@ export default function GalleryItem({
             <h4 className="text-sm font-medium mb-3">Espécies detectadas:</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {animals.map((animal, index) => {
-                const isInvasive = animal.name.toLowerCase().includes('javali') || 
+                const isInvasive = animal.name.toLowerCase().includes('capivara') || 
                                   animal.category?.toLowerCase().includes('invasora');
                 return (
                   <div 
