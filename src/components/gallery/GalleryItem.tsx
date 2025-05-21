@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Compass } from 'lucide-react';
@@ -64,7 +65,7 @@ const PATTERN_RECOGNITION = 3.0;
 const MOTION_THRESHOLD = 15;
 
 // Sensor types
-type SensorType = 'redSpot' | 'motionTrail';
+type SensorType = 'redSpotAbove' | 'motionTrail';
 
 export default function GalleryItem({
   imageUrl,
@@ -90,7 +91,7 @@ export default function GalleryItem({
   // Flag to track if invasive species alert has been shown
   const invasiveAlertShownRef = useRef<boolean>(false);
   // Tracking which sensor type is active
-  const [sensorType, setSensorType] = useState<SensorType>('redSpot');
+  const [sensorType, setSensorType] = useState<SensorType>('redSpotAbove');
   
   // Initialize video element
   useEffect(() => {
@@ -172,7 +173,7 @@ export default function GalleryItem({
 
   // Toggle sensor type
   const toggleSensorType = () => {
-    setSensorType(prev => prev === 'redSpot' ? 'motionTrail' : 'redSpot');
+    setSensorType(prev => prev === 'redSpotAbove' ? 'motionTrail' : 'redSpotAbove');
   };
 
   // Advanced motion detection and improved animal tracking
@@ -570,23 +571,30 @@ export default function GalleryItem({
           // Get current position
           const current = positions[positions.length - 1];
           
-          if (sensorType === 'redSpot') {
-            // Draw red spot (original sensor)
+          if (sensorType === 'redSpotAbove') {
+            // Draw larger red spot above the animal
             ctx.beginPath();
             
-            // Use a consistent red color for all animal types
+            // Use a bright red color for all animal types
             ctx.fillStyle = '#ea384c'; // Red color
             
+            // Calculate position for spot above the animal
+            const spotSize = isInvasive ? 24 : 18; // Larger spots as requested
+            const offsetY = isInvasive ? 28 : 22; // Position above the animal
+            
             // Draw a filled circle (red spot)
-            const spotSize = isInvasive ? 15 : 12; // Slightly larger for invasive species
             ctx.beginPath();
-            ctx.arc(current.x, current.y, spotSize, 0, Math.PI * 2);
+            ctx.arc(current.x, current.y - offsetY, spotSize, 0, Math.PI * 2);
             ctx.fill();
             
-            // Add a slightly lighter border to make it more visible
-            ctx.strokeStyle = '#ff6b6b'; // Lighter red for border
-            ctx.lineWidth = 2;
+            // Add a glow effect to make it more visible
+            ctx.shadowColor = '#ea384c';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 3;
             ctx.stroke();
+            ctx.shadowBlur = 0; // Reset shadow for other drawings
+            
           } else if (sensorType === 'motionTrail') {
             // Draw motion trail (new sensor)
             // First draw the current position indicator
@@ -749,7 +757,7 @@ export default function GalleryItem({
                 {/* Sensor type indicator */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Compass size={16} className={sensorType === 'motionTrail' ? "text-blue-500" : "text-red-500"} />
-                  <span>Sensor: {sensorType === 'redSpot' ? 'Pontos vermelhos' : 'Trilhas de movimento'}</span>
+                  <span>Sensor: {sensorType === 'redSpotAbove' ? 'Mancha vermelha' : 'Trilhas de movimento'}</span>
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -787,6 +795,7 @@ export default function GalleryItem({
           )}
         </div>
         
+        {/* Animal detection results section */}
         {!isAnalyzing && animals.length > 0 && (
           <div className="mt-6">
             <h4 className="text-sm font-medium mb-3">Espécies detectadas:</h4>
