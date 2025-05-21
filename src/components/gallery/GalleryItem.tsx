@@ -36,11 +36,16 @@ const animalColors = {
 const getAnimalIcon = (animalType: string) => {
   const type = animalType.toLowerCase();
   switch (type) {
-    case 'cat': return <Cat size={16} />;
-    case 'dog': return <Dog size={16} />;
-    case 'bird': return <Bird size={16} />;
-    case 'fish': return <Fish size={16} />;
-    case 'mouse': return <Mouse size={16} />;
+    case 'cat': 
+    case 'gato': return <Cat size={16} />;
+    case 'dog': 
+    case 'cachorro': return <Dog size={16} />;
+    case 'bird': 
+    case 'ave': return <Bird size={16} />;
+    case 'fish': 
+    case 'peixe': return <Fish size={16} />;
+    case 'mouse': 
+    case 'rato': return <Mouse size={16} />;
     default: return null;
   }
 };
