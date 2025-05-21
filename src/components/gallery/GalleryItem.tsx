@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Compass } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
@@ -63,6 +63,9 @@ const MOTION_SENSITIVITY = 0.75;
 const PATTERN_RECOGNITION = 3.0;
 const MOTION_THRESHOLD = 15;
 
+// Sensor types
+type SensorType = 'redSpot' | 'motionTrail';
+
 export default function GalleryItem({
   imageUrl,
   animals,
@@ -76,7 +79,7 @@ export default function GalleryItem({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heatMapCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
-  const movementHistoryRef = useRef<Array<{x: number, y: number, animalName: string}>>([]);
+  const movementHistoryRef = useRef<Array<{x: number, y: number, animalName: string, timestamp: number}>>([]);
   const previousFrameDataRef = useRef<ImageData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -86,6 +89,8 @@ export default function GalleryItem({
   const { toast } = useToast();
   // Flag to track if invasive species alert has been shown
   const invasiveAlertShownRef = useRef<boolean>(false);
+  // Tracking which sensor type is active
+  const [sensorType, setSensorType] = useState<SensorType>('redSpot');
   
   // Initialize video element
   useEffect(() => {
@@ -163,6 +168,11 @@ export default function GalleryItem({
     }
     
     setIsPlaying(!isPlaying);
+  };
+
+  // Toggle sensor type
+  const toggleSensorType = () => {
+    setSensorType(prev => prev === 'redSpot' ? 'motionTrail' : 'redSpot');
   };
 
   // Advanced motion detection and improved animal tracking
@@ -467,11 +477,12 @@ export default function GalleryItem({
               timestamp: Date.now()
             });
             
-            // Add to movement history for heat map
+            // Add to movement history for heat map and motion trail
             movementHistoryRef.current.push({
               x: boundedX,
               y: boundedY,
-              animalName: animal.name
+              animalName: animal.name,
+              timestamp: Date.now()
             });
             
             // Limit position history for optimal performance
@@ -547,7 +558,7 @@ export default function GalleryItem({
           });
         }
         
-        // Draw each animal's tracking - REPLACED THE COMPLEX BRACKETS WITH A SIMPLE RED SPOT
+        // Draw each animal's tracking based on selected sensor type
         animals.forEach(animal => {
           const positions = animalPositionsRef.current[animal.name];
           if (!positions || positions.length <= 1) return;
@@ -559,22 +570,86 @@ export default function GalleryItem({
           // Get current position
           const current = positions[positions.length - 1];
           
-          // Draw simple red spot - replacing the previous complex tracking indicators
-          ctx.beginPath();
-          
-          // Use a consistent red color for all animal types
-          ctx.fillStyle = '#ea384c'; // Red color
-          
-          // Draw a filled circle (red spot)
-          const spotSize = isInvasive ? 15 : 12; // Slightly larger for invasive species
-          ctx.beginPath();
-          ctx.arc(current.x, current.y, spotSize, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Add a slightly lighter border to make it more visible
-          ctx.strokeStyle = '#ff6b6b'; // Lighter red for border
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          if (sensorType === 'redSpot') {
+            // Draw red spot (original sensor)
+            ctx.beginPath();
+            
+            // Use a consistent red color for all animal types
+            ctx.fillStyle = '#ea384c'; // Red color
+            
+            // Draw a filled circle (red spot)
+            const spotSize = isInvasive ? 15 : 12; // Slightly larger for invasive species
+            ctx.beginPath();
+            ctx.arc(current.x, current.y, spotSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add a slightly lighter border to make it more visible
+            ctx.strokeStyle = '#ff6b6b'; // Lighter red for border
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          } else if (sensorType === 'motionTrail') {
+            // Draw motion trail (new sensor)
+            // First draw the current position indicator
+            const trailColor = isInvasive ? '#0EA5E9' : '#8B5CF6'; // Blue for invasive, purple for domestic
+            
+            // Draw main indicator at current position
+            ctx.beginPath();
+            ctx.arc(current.x, current.y, isInvasive ? 10 : 8, 0, Math.PI * 2);
+            ctx.fillStyle = trailColor;
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Now draw motion trail (last 10 positions)
+            if (positions.length > 2) {
+              ctx.beginPath();
+              ctx.moveTo(positions[positions.length - 1].x, positions[positions.length - 1].y);
+              
+              // Draw path for last 10 positions with decreasing opacity
+              const trailLength = Math.min(10, positions.length - 1);
+              for (let i = 2; i <= trailLength; i++) {
+                const pos = positions[positions.length - i];
+                ctx.lineTo(pos.x, pos.y);
+              }
+              
+              ctx.strokeStyle = `${trailColor}99`; // Semi-transparent
+              ctx.lineWidth = 3;
+              ctx.stroke();
+              
+              // Add direction arrows along the path
+              if (trailLength > 3) {
+                for (let i = 2; i < trailLength; i += 2) {
+                  if (i + 1 >= trailLength) continue;
+                  
+                  const pos1 = positions[positions.length - i];
+                  const pos2 = positions[positions.length - (i + 1)];
+                  
+                  // Calculate direction
+                  const dx = pos1.x - pos2.x;
+                  const dy = pos1.y - pos2.y;
+                  const angle = Math.atan2(dy, dx);
+                  
+                  // Draw arrow
+                  ctx.save();
+                  ctx.translate(pos1.x, pos1.y);
+                  ctx.rotate(angle);
+                  
+                  // Arrow body
+                  ctx.beginPath();
+                  ctx.moveTo(0, 0);
+                  ctx.lineTo(-6, -2);
+                  ctx.lineTo(-5, 0);
+                  ctx.lineTo(-6, 2);
+                  ctx.closePath();
+                  
+                  ctx.fillStyle = `${trailColor}CC`;
+                  ctx.fill();
+                  ctx.restore();
+                }
+              }
+            }
+          }
         });
       };
       
@@ -608,7 +683,7 @@ export default function GalleryItem({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled]);
+  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled, sensorType]);
 
   return (
     <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
@@ -662,10 +737,28 @@ export default function GalleryItem({
               )}
             </h3>
             
-            {isVideo && heatMapEnabled && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <ThermometerSun size={16} className="text-amber-500" />
-                <span>Mapa de calor ativado</span>
+            {isVideo && (
+              <div className="flex flex-col gap-1">
+                {heatMapEnabled && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <ThermometerSun size={16} className="text-amber-500" />
+                    <span>Mapa de calor ativado</span>
+                  </div>
+                )}
+                
+                {/* Sensor type indicator */}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Compass size={16} className={sensorType === 'motionTrail' ? "text-blue-500" : "text-red-500"} />
+                  <span>Sensor: {sensorType === 'redSpot' ? 'Pontos vermelhos' : 'Trilhas de movimento'}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 ml-1"
+                    onClick={toggleSensorType}
+                  >
+                    Alternar
+                  </Button>
+                </div>
               </div>
             )}
             
