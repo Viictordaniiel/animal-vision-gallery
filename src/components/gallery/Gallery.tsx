@@ -21,6 +21,7 @@ type GalleryItemType = {
   animals: Animal[];
   timestamp?: number;
   type: 'image' | 'video';
+  heatMapEnabled?: boolean;
 };
 
 export default function Gallery() {
@@ -50,7 +51,8 @@ export default function Gallery() {
       analyzed: false,
       animals: [],
       timestamp: Date.now(),
-      type: mediaType
+      type: mediaType,
+      heatMapEnabled: isVideo // Enable heat map automatically for videos
     };
     
     // Set current media
@@ -74,7 +76,7 @@ export default function Gallery() {
       if (type === 'video') {
         toast({
           title: "Processando vídeo",
-          description: "Analisando quadros para identificar espécies."
+          description: "Analisando quadros para identificar espécies e rastrear movimentos."
         });
       }
       
@@ -94,15 +96,15 @@ export default function Gallery() {
       
       toast({
         title: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}!`,
-        description: "Agora o sensor de movimento focará automaticamente nos animais detectados."
+        description: "O sensor de calor está agora rastreando movimentos dos animais detectados."
       });
       
       // If it's a video with animals detected, inform about the enhanced motion tracking
       if (type === 'video' && results.length > 0) {
         setTimeout(() => {
           toast({
-            title: "Sensor de movimento animal ativado",
-            description: "O sensor está otimizado para detectar os movimentos dos animais identificados."
+            title: "Sensor de calor ativado",
+            description: "O mapa de calor está rastreando os padrões de movimento dos animais identificados."
           });
         }, 1500);
       }
@@ -144,7 +146,7 @@ export default function Gallery() {
       if (currentMedia.type === 'video') {
         toast({
           title: "Processando vídeo",
-          description: "Reanalisando quadros do vídeo para melhor detecção de movimentos..."
+          description: "Reanalisando quadros e padrões de movimento..."
         });
       }
       
@@ -163,7 +165,7 @@ export default function Gallery() {
       
       toast({
         title: "Reanálise concluída",
-        description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}`
+        description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''} com mapa de calor atualizado.`
       });
       
     } catch (error) {
@@ -187,6 +189,29 @@ export default function Gallery() {
     }
   };
 
+  // Function to toggle heat map
+  const toggleHeatMap = () => {
+    if (!currentMedia || currentMedia.type !== 'video') return;
+    
+    setCurrentMedia(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        heatMapEnabled: !prev.heatMapEnabled
+      };
+    });
+    
+    // Show toast based on new state
+    setTimeout(() => {
+      toast({
+        title: currentMedia.heatMapEnabled ? "Mapa de calor desativado" : "Mapa de calor ativado",
+        description: currentMedia.heatMapEnabled ? 
+          "Visualização normal de vídeo restaurada." : 
+          "Rastreando movimentos dos animais com mapa de calor."
+      });
+    }, 100);
+  };
+
   // Function to show uploader again
   const handleNewUpload = () => {
     setShowUploader(true);
@@ -205,14 +230,25 @@ export default function Gallery() {
         <div className="flex flex-col items-center">
           <div className="mb-6 w-full flex justify-between items-center">
             <h2 className="text-xl">Análise de {currentMedia.type === 'video' ? 'Vídeo' : 'Imagem'}</h2>
-            <Button 
-              onClick={handleNewUpload} 
-              variant="outline" 
-              className="flex items-center gap-2"
-            >
-              <Upload size={16} />
-              <span>Nova Análise</span>
-            </Button>
+            <div className="flex gap-2">
+              {currentMedia.type === 'video' && (
+                <Button 
+                  onClick={toggleHeatMap} 
+                  variant={currentMedia.heatMapEnabled ? "default" : "outline"}
+                  className="flex items-center gap-2"
+                >
+                  {currentMedia.heatMapEnabled ? "Desativar" : "Ativar"} Mapa de Calor
+                </Button>
+              )}
+              <Button 
+                onClick={handleNewUpload} 
+                variant="outline" 
+                className="flex items-center gap-2"
+              >
+                <Upload size={16} />
+                <span>Nova Análise</span>
+              </Button>
+            </div>
           </div>
           
           <div className="w-full max-w-3xl">
@@ -223,6 +259,7 @@ export default function Gallery() {
               isAnalyzing={isAnalyzing || !currentMedia.analyzed}
               showReanalyze={currentMedia.analyzed}
               isVideo={currentMedia.type === 'video'}
+              heatMapEnabled={currentMedia.heatMapEnabled}
             />
           </div>
         </div>
