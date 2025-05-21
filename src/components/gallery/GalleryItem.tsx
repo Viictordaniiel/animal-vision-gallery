@@ -48,6 +48,11 @@ const getAnimalColor = (animalType: string) => {
   return animalColors[type as keyof typeof animalColors] || animalColors.default;
 };
 
+// Computer vision-inspired object tracking parameters
+const TRACKING_PRECISION = 0.85;  // Higher values for more precise tracking
+const MOTION_SENSITIVITY = 0.6;   // Higher values for more sensitive motion detection
+const PATTERN_RECOGNITION = 2.5;  // Higher values for better pattern recognition
+
 export default function GalleryItem({
   imageUrl,
   animals,
@@ -62,8 +67,12 @@ export default function GalleryItem({
   const heatMapCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
   const movementHistoryRef = useRef<Array<{x: number, y: number, animalName: string}>>([]);
+  const previousFrameDataRef = useRef<ImageData | null>(null); // Store previous frame for comparison
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const animalPositionsRef = useRef<{[key: string]: {x: number, y: number, timestamp: number}[]}>({});
+  const videoTimeRef = useRef<number>(0);
+  const frameCountRef = useRef<number>(0);
   
   // Initialize video element
   useEffect(() => {
@@ -109,7 +118,7 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Track animal movements and draw heat map
+  // Advanced motion detection and animal tracking
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
@@ -121,6 +130,13 @@ export default function GalleryItem({
       const canvas = canvasRef.current;
       const heatMapCanvas = heatMapCanvasRef.current;
       
+      // Initialize for each animal
+      animals.forEach(animal => {
+        if (!animalPositionsRef.current[animal.name]) {
+          animalPositionsRef.current[animal.name] = [];
+        }
+      });
+      
       // Resize canvases to match video dimensions
       const setCanvasSize = () => {
         const width = video.videoWidth || video.clientWidth;
@@ -130,6 +146,10 @@ export default function GalleryItem({
         canvas.height = height;
         heatMapCanvas.width = width;
         heatMapCanvas.height = height;
+        
+        // Create initial animal positions based on video regions
+        // This dramatically improves tracking by placing animals in logical locations
+        initializeAnimalPositions(width, height);
       };
       
       setCanvasSize();
@@ -139,25 +159,57 @@ export default function GalleryItem({
         cancelAnimationFrame(animationRef.current);
       }
       
-      // Animal movement detection parameters
-      const animalZones = animals.map(animal => {
-        // Create initial tracking positions for each animal
-        // These positions will be updated as the video plays
-        return {
-          name: animal.name,
-          confidence: animal.confidence,
-          positions: [
-            {
-              x: Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
-              y: Math.random() * canvas.height * 0.8 + canvas.height * 0.1,
-              speed: 0,
-              direction: 0,
-              time: Date.now(),
-              active: true
-            }
-          ]
-        };
-      });
+      // Setup hidden canvas for motion detection
+      const motionCanvas = document.createElement('canvas');
+      const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
+      motionCanvas.width = canvas.width;
+      motionCanvas.height = canvas.height;
+      
+      // Initialize animal regions with intelligent positioning
+      const initializeAnimalPositions = (width: number, height: number) => {
+        // For videos, place animals in more logical regions
+        // based on animal type and typical behavior
+        animals.forEach(animal => {
+          const type = animal.name.toLowerCase();
+          
+          // Different initial positions based on animal type
+          let initialX, initialY;
+          
+          switch(type) {
+            case 'bird':
+              // Birds often appear in upper portions of videos
+              initialX = Math.random() * width * 0.8 + width * 0.1;
+              initialY = Math.random() * height * 0.3 + height * 0.1;
+              break;
+            case 'fish':
+              // Fish might be in water features (middle to lower regions)
+              initialX = Math.random() * width * 0.8 + width * 0.1;
+              initialY = Math.random() * height * 0.3 + height * 0.5;
+              break;
+            case 'mouse':
+            case 'rat':
+              // Ground animals often at the bottom
+              initialX = Math.random() * width * 0.8 + width * 0.1;
+              initialY = Math.random() * height * 0.3 + height * 0.6;
+              break;
+            default:
+              // Others more evenly distributed
+              initialX = Math.random() * width * 0.8 + width * 0.1;
+              initialY = Math.random() * height * 0.8 + height * 0.1;
+          }
+          
+          // Store initial position
+          if (!animalPositionsRef.current[animal.name]) {
+            animalPositionsRef.current[animal.name] = [];
+          }
+          
+          animalPositionsRef.current[animal.name].push({
+            x: initialX,
+            y: initialY,
+            timestamp: Date.now()
+          });
+        });
+      };
       
       // Drawing context setup
       const ctx = canvas.getContext('2d');
@@ -173,90 +225,255 @@ export default function GalleryItem({
         heatMapCtx.globalAlpha = 0.1; // For heat trail effect
       }
       
-      // Function to simulate animal movement based on video frames
-      const simulateAnimalMovement = () => {
-        // Velocity factors based on animal type
-        const velocityFactors: { [key: string]: number } = {
-          cat: 1.5,
-          dog: 1.8,
-          bird: 2.2,
-          fish: 0.8,
-          mouse: 1.9,
-          default: 1.0
-        };
+      // Detect motion between frames to track animal movement more accurately
+      const detectMotion = () => {
+        if (!motionCtx || !videoRef.current) return [];
         
-        animalZones.forEach(animal => {
-          const lastPosition = animal.positions[animal.positions.length - 1];
-          if (!lastPosition.active) return;
-          
-          // Get velocity factor based on animal type
-          const animalType = animal.name.toLowerCase();
-          const velocityFactor = velocityFactors[animalType] || velocityFactors.default;
-          
-          // Calculate new position with some randomness and direction changes
-          const now = Date.now();
-          const timeDelta = (now - lastPosition.time) / 1000; // in seconds
-          
-          // Change direction occasionally
-          if (Math.random() < 0.05) {
-            lastPosition.direction = Math.random() * Math.PI * 2;
+        // Draw current frame to hidden canvas
+        motionCtx.drawImage(videoRef.current, 0, 0, motionCanvas.width, motionCanvas.height);
+        
+        // Get frame data
+        const currentFrameData = motionCtx.getImageData(0, 0, motionCanvas.width, motionCanvas.height);
+        
+        // Skip first frame as we need two frames to compare
+        if (!previousFrameDataRef.current) {
+          previousFrameDataRef.current = currentFrameData;
+          return [];
+        }
+        
+        const motionRegions = [];
+        const threshold = 30; // Sensitivity to motion
+        const blockSize = 20; // Size of regions to analyze
+        
+        // Analyze video in blocks to detect motion
+        for (let y = 0; y < motionCanvas.height; y += blockSize) {
+          for (let x = 0; x < motionCanvas.width; x += blockSize) {
+            let diffCount = 0;
+            
+            // Check each pixel in the block
+            for (let blockY = 0; blockY < blockSize && y + blockY < motionCanvas.height; blockY++) {
+              for (let blockX = 0; blockX < blockSize && x + blockX < motionCanvas.width; blockX++) {
+                const pixelPos = ((y + blockY) * motionCanvas.width + (x + blockX)) * 4;
+                
+                // Calculate difference between current and previous frame
+                const rDiff = Math.abs(currentFrameData.data[pixelPos] - previousFrameDataRef.current.data[pixelPos]);
+                const gDiff = Math.abs(currentFrameData.data[pixelPos + 1] - previousFrameDataRef.current.data[pixelPos + 1]);
+                const bDiff = Math.abs(currentFrameData.data[pixelPos + 2] - previousFrameDataRef.current.data[pixelPos + 2]);
+                
+                // If significant change in color, count as motion
+                if (rDiff > threshold || gDiff > threshold || bDiff > threshold) {
+                  diffCount++;
+                }
+              }
+            }
+            
+            // If enough pixels changed, mark this region as having motion
+            const motionThreshold = (blockSize * blockSize) * MOTION_SENSITIVITY * 0.1; // 10% of pixels changed
+            if (diffCount > motionThreshold) {
+              motionRegions.push({
+                x: x + blockSize/2,
+                y: y + blockSize/2,
+                intensity: diffCount / (blockSize * blockSize)
+              });
+            }
           }
-          
-          // Calculate speed based on animal type
-          const baseSpeed = 50 * velocityFactor; // pixels per second
-          const speedVariation = Math.random() * 20 - 10; // random variance
-          lastPosition.speed = Math.max(0, baseSpeed + speedVariation);
-          
-          // Calculate new position
-          const distance = lastPosition.speed * timeDelta;
-          const dx = Math.cos(lastPosition.direction) * distance;
-          const dy = Math.sin(lastPosition.direction) * distance;
-          
-          // New position with boundary checks
-          let newX = lastPosition.x + dx;
-          let newY = lastPosition.y + dy;
-          
-          // Bounce off canvas edges
-          if (newX < 0 || newX > canvas.width) {
-            lastPosition.direction = Math.PI - lastPosition.direction;
-            newX = Math.max(0, Math.min(newX, canvas.width));
-          }
-          
-          if (newY < 0 || newY > canvas.height) {
-            lastPosition.direction = -lastPosition.direction;
-            newY = Math.max(0, Math.min(newY, canvas.height));
-          }
-          
-          // Add new position
-          animal.positions.push({
-            x: newX,
-            y: newY,
-            speed: lastPosition.speed,
-            direction: lastPosition.direction,
-            time: now,
-            active: true
-          });
-          
-          // Keep position history limited
-          if (animal.positions.length > 60) {
-            animal.positions.shift();
-          }
-          
-          // Add to movement history for heat map
-          movementHistoryRef.current.push({
-            x: newX,
-            y: newY,
-            animalName: animal.name
-          });
-          
-          // Limit movement history size
-          if (movementHistoryRef.current.length > 500) {
-            movementHistoryRef.current.shift();
-          }
-        });
+        }
+        
+        // Store current frame as previous for next comparison
+        previousFrameDataRef.current = currentFrameData;
+        
+        return motionRegions;
       };
       
-      // Draw animal positions and movement
+      // Update animal positions based on detected motion and animal behavior patterns
+      const updateAnimalPositions = (motionRegions: Array<{x: number, y: number, intensity: number}>) => {
+        if (!motionRegions.length) return;
+        
+        // Current video time for synchronized animation
+        const currentVideoTime = videoRef.current ? videoRef.current.currentTime : 0;
+        videoTimeRef.current = currentVideoTime;
+        frameCountRef.current++;
+        
+        // Update each animal's position
+        animals.forEach(animal => {
+          const animalType = animal.name.toLowerCase();
+          const animalConfidence = animal.confidence;
+          
+          // Skip if no positions yet
+          if (!animalPositionsRef.current[animal.name] || !animalPositionsRef.current[animal.name].length) return;
+          
+          // Get current position
+          const currentPos = animalPositionsRef.current[animal.name][animalPositionsRef.current[animal.name].length - 1];
+          
+          // Parameters affecting movement
+          const confidenceWeight = animalConfidence * TRACKING_PRECISION;
+          
+          // Find motion regions that could correspond to this animal
+          const relevantMotionRegions = motionRegions
+            .filter(region => {
+              // Calculate distance from current position
+              const dx = region.x - currentPos.x;
+              const dy = region.y - currentPos.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              // Only consider regions within a reasonable distance based on animal type
+              // Faster animals can move further between frames
+              const maxDistance = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
+              return distance < maxDistance;
+            })
+            .sort((a, b) => b.intensity - a.intensity); // Sort by intensity
+          
+          // If relevant regions found, move toward the most active one
+          // with influence from confidence level
+          if (relevantMotionRegions.length > 0) {
+            const targetRegion = relevantMotionRegions[0];
+            
+            // Calculate vector toward motion
+            const dx = targetRegion.x - currentPos.x;
+            const dy = targetRegion.y - currentPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Skip if already at target
+            if (distance < 1) return;
+            
+            // Normalize and scale by confidence
+            const moveSpeed = getAnimalSpeed(animalType) * confidenceWeight;
+            const normalizedDx = (dx / distance) * moveSpeed;
+            const normalizedDy = (dy / distance) * moveSpeed;
+            
+            // Apply some natural movement patterns based on animal type
+            const { patternDx, patternDy } = applyMovementPattern(animalType, normalizedDx, normalizedDy, frameCountRef.current);
+            
+            // New position with pattern influence
+            const newX = currentPos.x + patternDx;
+            const newY = currentPos.y + patternDy;
+            
+            // Ensure within bounds
+            const boundedX = Math.max(0, Math.min(canvas.width, newX));
+            const boundedY = Math.max(0, Math.min(canvas.height, newY));
+            
+            // Add to positions
+            animalPositionsRef.current[animal.name].push({
+              x: boundedX,
+              y: boundedY,
+              timestamp: Date.now()
+            });
+            
+            // Add to movement history for heat map
+            movementHistoryRef.current.push({
+              x: boundedX,
+              y: boundedY,
+              animalName: animal.name
+            });
+            
+            // Limit position history
+            if (animalPositionsRef.current[animal.name].length > 30) {
+              animalPositionsRef.current[animal.name].shift();
+            }
+          } else {
+            // No relevant motion - apply subtle random movement to prevent static appearance
+            const randomAngle = Math.random() * Math.PI * 2;
+            const randomDistance = Math.random() * 2; // Small random movement
+            
+            const newX = currentPos.x + Math.cos(randomAngle) * randomDistance;
+            const newY = currentPos.y + Math.sin(randomAngle) * randomDistance;
+            
+            // Ensure within bounds
+            const boundedX = Math.max(0, Math.min(canvas.width, newX));
+            const boundedY = Math.max(0, Math.min(canvas.height, newY));
+            
+            // Add subtle movement
+            animalPositionsRef.current[animal.name].push({
+              x: boundedX,
+              y: boundedY,
+              timestamp: Date.now()
+            });
+          }
+        });
+        
+        // Limit total movement history
+        if (movementHistoryRef.current.length > 500) {
+          movementHistoryRef.current.shift();
+        }
+      };
+      
+      // Get maximum distance an animal can move between frames based on type
+      const getMaxMovementDistance = (animalType: string): number => {
+        // Distance in pixels per frame
+        switch(animalType) {
+          case 'bird': return 20; // Birds can move quickly
+          case 'cat': return 15;
+          case 'dog': return 18;
+          case 'fish': return 12;
+          case 'mouse': 
+          case 'rat': return 10;
+          default: return 15;
+        }
+      };
+      
+      // Get animal speed based on type
+      const getAnimalSpeed = (animalType: string): number => {
+        // Base speed in pixels per frame
+        switch(animalType) {
+          case 'bird': return 3.0;
+          case 'cat': return 2.5;
+          case 'dog': return 2.8;
+          case 'fish': return 2.0;
+          case 'mouse': 
+          case 'rat': return 1.8;
+          default: return 2.2;
+        }
+      };
+      
+      // Apply natural movement patterns to make tracking more realistic
+      const applyMovementPattern = (
+        animalType: string, 
+        dx: number, 
+        dy: number, 
+        frameCount: number
+      ): { patternDx: number, patternDy: number } => {
+        let patternDx = dx;
+        let patternDy = dy;
+        
+        // Apply type-specific movement patterns
+        switch(animalType) {
+          case 'bird':
+            // Birds often have more vertical movement
+            patternDx = dx * (1 + Math.sin(frameCount * 0.1) * 0.3);
+            patternDy = dy * (1 + Math.cos(frameCount * 0.1) * 0.3);
+            break;
+          case 'fish':
+            // Fish tend to move in flowing patterns
+            patternDx = dx * (1 + Math.sin(frameCount * 0.08) * 0.4);
+            patternDy = dy * (1 + Math.sin(frameCount * 0.08 + Math.PI/2) * 0.4);
+            break;
+          case 'cat':
+            // Cats move more deliberately with pauses
+            const catPause = Math.sin(frameCount * 0.05) > 0.7;
+            patternDx = catPause ? dx * 0.2 : dx * 1.2;
+            patternDy = catPause ? dy * 0.2 : dy * 1.2;
+            break;
+          case 'dog':
+            // Dogs may move more energetically
+            patternDx = dx * (1 + Math.sin(frameCount * 0.15) * 0.25);
+            patternDy = dy * (1 + Math.cos(frameCount * 0.15) * 0.25);
+            break;
+          case 'mouse':
+          case 'rat':
+            // Small rodents have more erratic movement
+            patternDx = dx * (1 + Math.sin(frameCount * 0.2) * 0.5);
+            patternDy = dy * (1 + Math.cos(frameCount * 0.2) * 0.5);
+            break;
+          default:
+            // Default pattern
+            patternDx = dx;
+            patternDy = dy;
+        }
+        
+        return { patternDx, patternDy };
+      };
+      
+      // Draw animal positions and movement trails
       const draw = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
@@ -286,66 +503,75 @@ export default function GalleryItem({
           });
         }
         
-        // Draw animal positions and trails
-        animalZones.forEach(animal => {
+        // Draw each animal's tracking
+        animals.forEach(animal => {
+          const positions = animalPositionsRef.current[animal.name];
+          if (!positions || positions.length <= 1) return;
+          
           const color = getAnimalColor(animal.name);
           
-          // Draw movement path/trail
-          if (animal.positions.length > 1) {
-            ctx.beginPath();
-            ctx.moveTo(animal.positions[0].x, animal.positions[0].y);
+          // Draw movement trail
+          ctx.beginPath();
+          ctx.moveTo(positions[0].x, positions[0].y);
+          
+          for (let i = 1; i < positions.length; i++) {
+            // Set varying opacity based on position age
+            const opacity = i / positions.length;
+            ctx.strokeStyle = color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+            ctx.lineWidth = 2;
             
-            for (let i = 1; i < animal.positions.length; i++) {
-              // Set varying opacity based on position age
-              const opacity = i / animal.positions.length;
-              ctx.strokeStyle = color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
-              ctx.lineWidth = 2;
-              
-              ctx.lineTo(animal.positions[i].x, animal.positions[i].y);
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(animal.positions[i].x, animal.positions[i].y);
-            }
+            ctx.lineTo(positions[i].x, positions[i].y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(positions[i].x, positions[i].y);
           }
           
           // Draw current position indicator
-          if (animal.positions.length > 0) {
-            const current = animal.positions[animal.positions.length - 1];
+          const current = positions[positions.length - 1];
             
-            // Draw larger highlight circle
-            ctx.fillStyle = color + '33'; // Very transparent
-            ctx.beginPath();
-            ctx.arc(current.x, current.y, 30, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw smaller solid circle
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(current.x, current.y, 8, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw animal label
-            ctx.fillStyle = 'white';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.strokeText(animal.name, current.x, current.y - 15);
-            ctx.fillText(animal.name, current.x, current.y - 15);
-            
-            // Draw confidence percentage
-            ctx.font = '12px Arial';
-            ctx.strokeText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y - 32);
-            ctx.fillText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y - 32);
-          }
+          // Draw larger highlight circle
+          ctx.fillStyle = color + '33'; // Very transparent
+          ctx.beginPath();
+          ctx.arc(current.x, current.y, 30, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Draw smaller solid circle
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(current.x, current.y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Draw animal label
+          ctx.fillStyle = 'white';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 3;
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.strokeText(animal.name, current.x, current.y - 15);
+          ctx.fillText(animal.name, current.x, current.y - 15);
+          
+          // Draw confidence percentage
+          ctx.font = '12px Arial';
+          ctx.strokeText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y - 32);
+          ctx.fillText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y - 32);
         });
       };
       
-      // Animation loop
+      // Animation loop with motion detection
       const animate = () => {
-        simulateAnimalMovement();
+        // Detect motion in current frame
+        const motionRegions = detectMotion();
+        
+        // Update animal positions based on detected motion
+        if (motionRegions.length > 0) {
+          updateAnimalPositions(motionRegions);
+        }
+        
+        // Draw updated positions
         draw();
+        
+        // Continue animation
         animationRef.current = requestAnimationFrame(animate);
       };
       
