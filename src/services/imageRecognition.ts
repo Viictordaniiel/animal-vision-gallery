@@ -33,11 +33,11 @@ const animalDatabase: Record<string, Animal[]> = {
     { name: 'Papagaio', confidence: 0.88, description: 'Ave colorida conhecida por sua capacidade de imitar sons.', scientificName: 'Amazona aestiva', category: 'ave' }
   ],
   'wild_pigs': [
-    { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
-    { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'mamífero invasor' },
-    { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'mamífero invasor' },
+    { name: 'Javali', confidence: 0.95, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'espécie invasora' },
+    { name: 'Javali Filhote', confidence: 0.92, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'espécie invasora' },
+    { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'espécie invasora' },
     { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.', scientificName: 'Pecari tajacu', category: 'mamífero' },
-    { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.', scientificName: 'Sus scrofa scrofa', category: 'mamífero invasor' }
+    { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.', scientificName: 'Sus scrofa scrofa', category: 'espécie invasora' }
   ],
   'birds': [
     { name: 'Gavião', confidence: 0.88, description: 'Ave de rapina com excelente visão e garras afiadas.', scientificName: 'Rupornis magnirostris', category: 'ave' },
@@ -91,14 +91,14 @@ const animalDatabase: Record<string, Animal[]> = {
 
 // Banco de dados específico para javalis e porcos selvagens - com informações taxonômicas mais detalhadas
 const wildPigsDatabase: Animal[] = [
-  { name: 'Javali', confidence: 0.98, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
-  { name: 'Javali Filhote', confidence: 0.97, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'mamífero invasor' },
-  { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'mamífero invasor' },
+  { name: 'Javali', confidence: 0.98, description: 'Sus scrofa, mamífero selvagem da família Suidae, causador de danos em plantações.', scientificName: 'Sus scrofa', category: 'espécie invasora' },
+  { name: 'Javali Filhote', confidence: 0.97, description: 'Filhote de javali, reconhecível pelas listras no corpo quando jovem.', scientificName: 'Sus scrofa (juvenil)', category: 'espécie invasora' },
+  { name: 'Grupo de Javalis', confidence: 0.89, description: 'Vara de javalis, grupo familiar que pode causar grandes danos em áreas agrícolas.', scientificName: 'Sus scrofa (grupo)', category: 'espécie invasora' },
   { name: 'Porco-do-mato', confidence: 0.87, description: 'Espécie de suíno selvagem comum em regiões florestais e agrícolas do Brasil.', scientificName: 'Pecari tajacu', category: 'mamífero' },
-  { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.', scientificName: 'Sus scrofa scrofa', category: 'mamífero invasor' },
-  { name: 'Javali adulto', confidence: 0.94, description: 'Espécime adulto de Sus scrofa, conhecido por seu focinho alongado e comportamento destrutivo.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
-  { name: 'Porco-monteiro', confidence: 0.93, description: 'Variação de porco selvagem comum no Pantanal brasileiro, descendente de porcos domésticos.', scientificName: 'Sus scrofa domesticus (ferais)', category: 'mamífero invasor' },
-  { name: 'Javali em área agrícola', confidence: 0.92, description: 'Javali encontrado próximo a plantações, onde costuma causar danos significativos.', scientificName: 'Sus scrofa', category: 'mamífero invasor' },
+  { name: 'Javali Europeu', confidence: 0.86, description: 'Subespécie de javali originária da Europa, introduzida em várias regiões do mundo.', scientificName: 'Sus scrofa scrofa', category: 'espécie invasora' },
+  { name: 'Javali adulto', confidence: 0.94, description: 'Espécime adulto de Sus scrofa, conhecido por seu focinho alongado e comportamento destrutivo.', scientificName: 'Sus scrofa', category: 'espécie invasora' },
+  { name: 'Porco-monteiro', confidence: 0.93, description: 'Variação de porco selvagem comum no Pantanal brasileiro, descendente de porcos domésticos.', scientificName: 'Sus scrofa domesticus (ferais)', category: 'espécie invasora' },
+  { name: 'Javali em área agrícola', confidence: 0.92, description: 'Javali encontrado próximo a plantações, onde costuma causar danos significativos.', scientificName: 'Sus scrofa', category: 'espécie invasora' },
   { name: 'Cateto', confidence: 0.91, description: 'Porco selvagem menor (Pecari tajacu), nativo das Américas, às vezes confundido com javalis.', scientificName: 'Pecari tajacu', category: 'mamífero nativo' },
   { name: 'Queixada', confidence: 0.90, description: 'Porco selvagem social (Tayassu pecari) que forma grandes grupos nas florestas da América do Sul.', scientificName: 'Tayassu pecari', category: 'mamífero nativo' }
 ];
@@ -221,7 +221,8 @@ const analyzeImageCharacteristics = (imageUrl: string): string[] => {
   }
   
   // Adicionar característica para cães
-  if (lowerUrl.includes('dog') || lowerUrl.includes('cachorro') || lowerUrl.includes('cao') || 
+  if (lowerUrl.includes('dog') || lowerUrl.includes('cachorro') || 
+      lowerUrl.includes('pet') || lowerUrl.includes('cao') || 
       lowerUrl.includes('cão') || lowerUrl.includes('pet')) {
     characteristics.push('focinho', 'orelhas eretas ou caídas', 'pelagem variada', 'cauda', 'olhar atento');
   }
@@ -542,7 +543,7 @@ export function classifyAnimalType(animalName: string): string {
   const lowerName = animalName.toLowerCase();
   
   if (lowerName.includes('javali') || lowerName.includes('sus scrofa')) {
-    return 'Mamífero Invasor';
+    return 'Espécie Invasora';
   } else if (lowerName.includes('cachorro') || lowerName.includes('cão') || 
              lowerName.includes('canis familiaris') || lowerName.includes('dog')) {
     return 'Mamífero Doméstico';

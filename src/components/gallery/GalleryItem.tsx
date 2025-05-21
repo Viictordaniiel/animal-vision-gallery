@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Cat, Dog, Bird, Fish, Mouse } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
+import { classifyAnimalType } from '@/services/imageRecognition';
 
 type Animal = {
   name: string;
   confidence: number;
   description?: string;
+  category?: string;
 };
 
 type GalleryItemProps = {
@@ -680,9 +682,18 @@ export default function GalleryItem({
                   </div>
                   <div>
                     <p className="font-medium">{animal.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Confiança: {Math.round(animal.confidence * 100)}%
-                    </p>
+                    <div className="text-xs text-muted-foreground">
+                      <p>Confiança: {Math.round(animal.confidence * 100)}%</p>
+                      {animal.category ? (
+                        <p className={`font-medium ${animal.category?.includes('invas') ? 'text-red-500' : ''}`}>
+                          {animal.category}
+                        </p>
+                      ) : (
+                        <p className={`font-medium ${animal.name.toLowerCase().includes('javali') ? 'text-red-500' : ''}`}>
+                          {animal.name.toLowerCase().includes('javali') ? 'Espécie invasora' : classifyAnimalType(animal.name)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
