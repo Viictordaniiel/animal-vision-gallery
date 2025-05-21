@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Image as ImageIcon } from 'lucide-react';
 import ImageUploader from './ImageUploader';
 import GalleryItem from './GalleryItem';
@@ -56,10 +55,10 @@ const sampleImages: GalleryItemType[] = [
 ];
 
 export default function Gallery() {
-  const [activeTab, setActiveTab] = useState('gallery');
   const [currentImage, setCurrentImage] = useState<{url: string, file?: File, type: 'image' | 'video'} | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [galleryItems, setGalleryItems] = useState<GalleryItemType[]>([]);
+  const [showUploader, setShowUploader] = useState(true);
   
   // Load and persist gallery images
   useEffect(() => {
@@ -106,8 +105,8 @@ export default function Gallery() {
       });
     }
 
-    // Automatically switch to gallery tab
-    setActiveTab('gallery');
+    // Hide uploader after successful upload
+    setShowUploader(false);
 
     // Automatically analyze the uploaded media
     analyzeMedia(imageUrl, file, mediaType);
@@ -229,55 +228,60 @@ export default function Gallery() {
     }
   };
 
+  // Function to show uploader again
+  const handleNewUpload = () => {
+    setShowUploader(true);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Reconhecimento de Animais</h1>
       
-      <Tabs 
-        defaultValue="gallery" 
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value)}
-        className="w-full"
-      >
-        <TabsList className="grid grid-cols-2 mb-8">
-          <TabsTrigger value="upload" className="flex items-center gap-2">
+      {showUploader ? (
+        <div className="w-full max-w-2xl mx-auto mb-8">
+          <ImageUploader onImageUpload={handleImageUpload} />
+        </div>
+      ) : (
+        <div className="mb-6 flex justify-between items-center">
+          <h2 className="text-xl">Resultados da Análise</h2>
+          <Button 
+            onClick={handleNewUpload} 
+            variant="outline" 
+            className="flex items-center gap-2"
+          >
             <Upload size={16} />
-            <span>Upload</span>
-          </TabsTrigger>
-          <TabsTrigger value="gallery" className="flex items-center gap-2">
-            <ImageIcon size={16} />
-            <span>Galeria</span>
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="upload" className="space-y-6">
-          <div className="w-full max-w-2xl mx-auto">
-            <ImageUploader onImageUpload={handleImageUpload} />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="gallery">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {galleryItems.map((item, index) => (
-              <GalleryItem
-                key={`${item.url}-${item.timestamp || index}`}
-                imageUrl={item.url}
-                animals={item.animals}
-                onAnalyze={() => reanalyzeGalleryImage(index)}
-                isAnalyzing={!item.analyzed}
-                showReanalyze={item.analyzed}
-                isVideo={item.type === 'video'}
-              />
-            ))}
-            
-            {galleryItems.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <p className="text-gray-500">Sua galeria está vazia. Faça upload de imagens para começar.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+            <span>Nova Análise</span>
+          </Button>
+        </div>
+      )}
+      
+      {!showUploader && galleryItems.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {galleryItems.map((item, index) => (
+            <GalleryItem
+              key={`${item.url}-${item.timestamp || index}`}
+              imageUrl={item.url}
+              animals={item.animals}
+              onAnalyze={() => reanalyzeGalleryImage(index)}
+              isAnalyzing={!item.analyzed}
+              showReanalyze={item.analyzed}
+              isVideo={item.type === 'video'}
+            />
+          ))}
+        </div>
+      )}
+      
+      {!showUploader && galleryItems.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">Sua galeria está vazia. Faça upload de imagens para começar.</p>
+          <Button 
+            onClick={handleNewUpload}
+            className="mt-4"
+          >
+            Adicionar Mídia
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
