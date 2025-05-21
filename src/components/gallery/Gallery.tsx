@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, Upload, Image as ImageIcon, Video, RotateCw } from 'lucide-react';
+import { Upload, Image as ImageIcon } from 'lucide-react';
 import ImageUploader from './ImageUploader';
 import GalleryItem from './GalleryItem';
 import { recognizeAnimal } from '@/services/imageRecognition';
@@ -56,9 +56,8 @@ const sampleImages: GalleryItemType[] = [
 ];
 
 export default function Gallery() {
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('gallery');
   const [currentImage, setCurrentImage] = useState<{url: string, file?: File, type: 'image' | 'video'} | null>(null);
-  const [uploadedAnimals, setUploadedAnimals] = useState<Animal[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [galleryItems, setGalleryItems] = useState<GalleryItemType[]>([]);
   
@@ -98,7 +97,6 @@ export default function Gallery() {
     
     // Update state with new media
     setCurrentImage({ url: imageUrl, file, type: mediaType });
-    setUploadedAnimals([]);
 
     // Show appropriate toast message
     if (isVideo) {
@@ -107,51 +105,47 @@ export default function Gallery() {
         description: "Pronto para análise de invasores em modo vídeo."
       });
     }
+
+    // Automatically switch to gallery tab
+    setActiveTab('gallery');
+
+    // Automatically analyze the uploaded media
+    analyzeMedia(imageUrl, file, mediaType);
   };
   
-  const handleCameraCapture = () => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A captura de câmera estará disponível em breve."
-    });
-  };
-  
-  const analyzeImage = async () => {
-    if (!currentImage) return;
-    
+  const analyzeMedia = async (url: string, file: File, type: 'image' | 'video') => {
     setIsAnalyzing(true);
     
     try {
       // Add timestamp to avoid browser cache and ensure uniqueness
       const timestamp = Date.now();
-      const imageUrlWithTimestamp = currentImage.url.includes('?') 
-        ? `${currentImage.url}&t=${timestamp}` 
-        : `${currentImage.url}?t=${timestamp}`;
+      const imageUrlWithTimestamp = url.includes('?') 
+        ? `${url}&t=${timestamp}` 
+        : `${url}?t=${timestamp}`;
       
       // For videos, notify that we're processing frames
-      if (currentImage.type === 'video') {
+      if (type === 'video') {
         toast({
           title: "Processando vídeo",
           description: "Analisando quadros para identificar espécies invasoras."
         });
       }
       
-      console.log(`Analisando ${currentImage.type} com sistema aprimorado: ${imageUrlWithTimestamp}`);
+      console.log(`Analisando ${type} com sistema aprimorado: ${imageUrlWithTimestamp}`);
       
       const results = await recognizeAnimal(imageUrlWithTimestamp);
-      setUploadedAnimals(results);
       
       // Add to gallery after successful analysis
       const newItem: GalleryItemType = {
-        url: currentImage.url,
+        url: url,
         analyzed: true,
         animals: results,
         timestamp: timestamp,
-        type: currentImage.type
+        type: type
       };
       
       // Check if the media already exists in the gallery and replace it
-      const exists = galleryItems.findIndex(item => item.url === currentImage.url);
+      const exists = galleryItems.findIndex(item => item.url === url);
       if (exists >= 0) {
         const updatedItems = [...galleryItems];
         updatedItems[exists] = newItem;
@@ -169,7 +163,7 @@ export default function Gallery() {
       console.error('Erro ao analisar mídia:', error);
       toast({
         variant: "destructive",
-        title: `Erro ao analisar ${currentImage.type === 'video' ? 'vídeo' : 'imagem'}`,
+        title: `Erro ao analisar ${type === 'video' ? 'vídeo' : 'imagem'}`,
         description: "Não foi possível processar o reconhecimento."
       });
     } finally {
@@ -240,7 +234,7 @@ export default function Gallery() {
       <h1 className="text-2xl font-bold mb-6">Reconhecimento de Animais</h1>
       
       <Tabs 
-        defaultValue="upload" 
+        defaultValue="gallery" 
         value={activeTab}
         onValueChange={(value) => setActiveTab(value)}
         className="w-full"
@@ -257,41 +251,8 @@ export default function Gallery() {
         </TabsList>
         
         <TabsContent value="upload" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <ImageUploader onImageUpload={handleImageUpload} />
-              
-              <div className="flex gap-3 mb-6">
-                <Button
-                  onClick={analyzeImage}
-                  className="flex-1 bg-agrotech-blue hover:bg-agrotech-darkblue"
-                  disabled={!currentImage || isAnalyzing}
-                >
-                  {isAnalyzing ? 'Analisando...' : `Reconhecer ${currentImage?.type === 'video' ? 'Vídeo' : 'Imagem'}`}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  onClick={handleCameraCapture}
-                  className="gap-2"
-                >
-                  <Camera size={16} />
-                  <span className="md:inline hidden">Câmera</span>
-                </Button>
-              </div>
-            </div>
-            
-            {currentImage && (
-              <div>
-                <GalleryItem 
-                  imageUrl={currentImage.url}
-                  animals={uploadedAnimals}
-                  onAnalyze={analyzeImage}
-                  isAnalyzing={isAnalyzing}
-                  isVideo={currentImage.type === 'video'}
-                />
-              </div>
-            )}
+          <div className="w-full max-w-2xl mx-auto">
+            <ImageUploader onImageUpload={handleImageUpload} />
           </div>
         </TabsContent>
         
