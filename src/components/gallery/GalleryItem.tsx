@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
@@ -531,7 +530,7 @@ export default function GalleryItem({
           });
         }
         
-        // Draw each animal's tracking
+        // Draw each animal's tracking WITH RED SENSOR (modified part)
         animals.forEach(animal => {
           const positions = animalPositionsRef.current[animal.name];
           if (!positions || positions.length <= 1) return;
@@ -539,16 +538,14 @@ export default function GalleryItem({
           const isInvasive = animal.name.toLowerCase().includes('capivara') || 
                             animal.category?.toLowerCase().includes('invasora');
           
-          const color = isInvasive ? '#ea384c' : getAnimalColor(animal.name);
-          
-          // Draw movement trail
+          // Draw movement trail (keep this for visual tracking)
           ctx.beginPath();
           ctx.moveTo(positions[0].x, positions[0].y);
           
           for (let i = 1; i < positions.length; i++) {
             // Set varying opacity based on position age
             const opacity = Math.pow(i / positions.length, 1.5);
-            ctx.strokeStyle = color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+            ctx.strokeStyle = getAnimalColor(animal.name) + Math.floor(opacity * 255).toString(16).padStart(2, '0');
             ctx.lineWidth = isInvasive ? 2.5 : 2; // Thicker lines for invasive species
             
             ctx.lineTo(positions[i].x, positions[i].y);
@@ -557,53 +554,31 @@ export default function GalleryItem({
             ctx.moveTo(positions[i].x, positions[i].y);
           }
           
-          // Draw current position indicator
+          // Draw current position with red sensor instead of name/label
           const current = positions[positions.length - 1];
-            
-          // Draw larger highlight circle
-          ctx.fillStyle = color + '33'; // Very transparent
+          
+          // Draw red sensor circle
+          const sensorSize = isInvasive ? 12 : 10;
+          
+          // Outer red glow
+          ctx.fillStyle = '#ea384c33'; // Semi-transparent red
           ctx.beginPath();
-          ctx.arc(current.x, current.y, isInvasive ? 35 : 30, 0, Math.PI * 2);
+          ctx.arc(current.x, current.y - 10, sensorSize + 8, 0, Math.PI * 2);
           ctx.fill();
           
-          // Draw middle highlight circle
-          ctx.fillStyle = color + '66'; // Semi-transparent
+          // Inner red circle
+          ctx.fillStyle = '#ea384c'; // Solid red
           ctx.beginPath();
-          ctx.arc(current.x, current.y, isInvasive ? 18 : 15, 0, Math.PI * 2);
+          ctx.arc(current.x, current.y - 10, sensorSize, 0, Math.PI * 2);
           ctx.fill();
           
-          // Draw smaller solid circle
-          ctx.fillStyle = color;
+          // Add pulsing effect
+          const pulseSize = (Math.sin(frameCountRef.current * 0.1) + 1) * 5 + sensorSize;
+          ctx.strokeStyle = '#ea384c66'; // Semi-transparent red
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(current.x, current.y, isInvasive ? 10 : 8, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Draw animal label
-          ctx.fillStyle = 'white';
-          ctx.strokeStyle = 'black';
-          ctx.lineWidth = 3;
-          ctx.font = isInvasive ? 'bold 15px Arial' : '14px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.strokeText(animal.name, current.x, current.y - 15);
-          ctx.fillText(animal.name, current.x, current.y - 15);
-          
-          // Draw confidence percentage
-          ctx.font = isInvasive ? 'bold 13px Arial' : '12px Arial';
-          ctx.strokeText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y - 32);
-          ctx.fillText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y - 32);
-          
-          // Add warning icon for invasive species
-          if (isInvasive) {
-            ctx.fillStyle = '#ea384c';
-            ctx.beginPath();
-            ctx.arc(current.x - 35, current.y - 25, 10, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 14px Arial';
-            ctx.fillText("!", current.x - 35, current.y - 21);
-          }
+          ctx.arc(current.x, current.y - 10, pulseSize, 0, Math.PI * 2);
+          ctx.stroke();
         });
       };
       
