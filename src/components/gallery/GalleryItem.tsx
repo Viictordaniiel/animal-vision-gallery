@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle } from 'lucide-react';
@@ -423,7 +422,7 @@ export default function GalleryItem({
             .sort((a, b) => {
               // Sort by intensity and proximity
               const distA = Math.sqrt(Math.pow(a.x - currentPos.x, 2) + Math.pow(a.y - currentPos.y, 2));
-              const distB = Math.sqrt(Math.pow(b.x - currentPos.x, 2) + Math.pow(b.y - currentPos.y, 2));
+              const distB = Math.sqrt(Math.pow(b.x - currentPos.x, 2) + Math.pow(a.y - currentPos.y, 2));
               
               // Blend intensity and proximity factors
               const maxMovementDist = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
@@ -548,7 +547,7 @@ export default function GalleryItem({
           });
         }
         
-        // Draw each animal's tracking with advanced indicator
+        // Draw each animal's tracking - REPLACED THE COMPLEX BRACKETS WITH A SIMPLE RED SPOT
         animals.forEach(animal => {
           const positions = animalPositionsRef.current[animal.name];
           if (!positions || positions.length <= 1) return;
@@ -557,100 +556,25 @@ export default function GalleryItem({
                             animal.name.toLowerCase().includes('javali') || 
                             animal.category?.toLowerCase().includes('invasora');
           
-          // Draw movement trail (keep this for visual tracking)
-          ctx.beginPath();
-          ctx.moveTo(positions[0].x, positions[0].y);
-          
-          for (let i = 1; i < positions.length; i++) {
-            // Set varying opacity based on position age
-            const opacity = Math.pow(i / positions.length, 1.5);
-            ctx.strokeStyle = getAnimalColor(animal.name) + Math.floor(opacity * 255).toString(16).padStart(2, '0');
-            ctx.lineWidth = isInvasive ? 2.5 : 2; // Thicker lines for invasive species
-            
-            ctx.lineTo(positions[i].x, positions[i].y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(positions[i].x, positions[i].y);
-          }
-          
-          // Draw the advanced tracking indicator that follows the animal
+          // Get current position
           const current = positions[positions.length - 1];
-          const animalColor = getAnimalColor(animal.name);
           
-          // Create a tracking indicator that follows the animal
-          const baseColor = isInvasive ? '#ea384c' : animalColor;
-          const pulseFreq = isInvasive ? 0.15 : 0.08;
-          const pulseSize = (Math.sin(frameCountRef.current * pulseFreq) + 1) * 3 + 8;
-          
-          // Draw tracking bracket indicator
-          ctx.strokeStyle = baseColor;
-          ctx.lineWidth = 2;
-          
-          // Top bracket with animated width
-          const bracketWidth = 20 + pulseSize;
-          const bracketHeight = 14;
-          
-          // Top bracket
+          // Draw simple red spot - replacing the previous complex tracking indicators
           ctx.beginPath();
-          ctx.moveTo(current.x - bracketWidth/2, current.y - bracketHeight);
-          ctx.lineTo(current.x - bracketWidth/2, current.y - bracketHeight + 6);
-          ctx.moveTo(current.x - bracketWidth/2, current.y - bracketHeight);
-          ctx.lineTo(current.x + bracketWidth/2, current.y - bracketHeight);
-          ctx.moveTo(current.x + bracketWidth/2, current.y - bracketHeight);
-          ctx.lineTo(current.x + bracketWidth/2, current.y - bracketHeight + 6);
-          ctx.stroke();
           
-          // Bottom bracket
-          ctx.beginPath();
-          ctx.moveTo(current.x - bracketWidth/2, current.y + bracketHeight);
-          ctx.lineTo(current.x - bracketWidth/2, current.y + bracketHeight - 6);
-          ctx.moveTo(current.x - bracketWidth/2, current.y + bracketHeight);
-          ctx.lineTo(current.x + bracketWidth/2, current.y + bracketHeight);
-          ctx.moveTo(current.x + bracketWidth/2, current.y + bracketHeight);
-          ctx.lineTo(current.x + bracketWidth/2, current.y + bracketHeight - 6);
-          ctx.stroke();
+          // Use a consistent red color for all animal types
+          ctx.fillStyle = '#ea384c'; // Red color
           
-          // Left bracket
+          // Draw a filled circle (red spot)
+          const spotSize = isInvasive ? 15 : 12; // Slightly larger for invasive species
           ctx.beginPath();
-          ctx.moveTo(current.x - bracketWidth/2, current.y - bracketHeight/2);
-          ctx.lineTo(current.x - bracketWidth/2 + 6, current.y - bracketHeight/2);
-          ctx.moveTo(current.x - bracketWidth/2, current.y - bracketHeight/2);
-          ctx.lineTo(current.x - bracketWidth/2, current.y + bracketHeight/2);
-          ctx.moveTo(current.x - bracketWidth/2, current.y + bracketHeight/2);
-          ctx.lineTo(current.x - bracketWidth/2 + 6, current.y + bracketHeight/2);
-          ctx.stroke();
-          
-          // Right bracket
-          ctx.beginPath();
-          ctx.moveTo(current.x + bracketWidth/2, current.y - bracketHeight/2);
-          ctx.lineTo(current.x + bracketWidth/2 - 6, current.y - bracketHeight/2);
-          ctx.moveTo(current.x + bracketWidth/2, current.y - bracketHeight/2);
-          ctx.lineTo(current.x + bracketWidth/2, current.y + bracketHeight/2);
-          ctx.moveTo(current.x + bracketWidth/2, current.y + bracketHeight/2);
-          ctx.lineTo(current.x + bracketWidth/2 - 6, current.y + bracketHeight/2);
-          ctx.stroke();
-          
-          // Center targeting reticle
-          ctx.beginPath();
-          ctx.arc(current.x, current.y, 2, 0, Math.PI * 2);
-          ctx.fillStyle = baseColor;
+          ctx.arc(current.x, current.y, spotSize, 0, Math.PI * 2);
           ctx.fill();
           
-          // Draw pulsing circle
-          ctx.beginPath();
-          ctx.arc(current.x, current.y, pulseSize, 0, Math.PI * 2);
-          ctx.strokeStyle = baseColor + '80'; // Semi-transparent
-          ctx.lineWidth = 1.5;
+          // Add a slightly lighter border to make it more visible
+          ctx.strokeStyle = '#ff6b6b'; // Lighter red for border
+          ctx.lineWidth = 2;
           ctx.stroke();
-          
-          // Add animal type indicator with tiny icon
-          const animalLabel = isInvasive ? '⚠️' : '•';
-          
-          // Draw animal indicator
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillStyle = baseColor;
-          ctx.fillText(animalLabel, current.x, current.y - bracketHeight - 5);
         });
       };
       
@@ -819,4 +743,3 @@ export default function GalleryItem({
     </div>
   );
 }
-
