@@ -122,6 +122,52 @@ export default function GalleryItem({
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
+    // Initialize animal regions with intelligent positioning
+    const initializeAnimalPositions = (width: number, height: number) => {
+      // For videos, place animals in more logical regions
+      // based on animal type and typical behavior
+      animals.forEach(animal => {
+        const type = animal.name.toLowerCase();
+        
+        // Different initial positions based on animal type
+        let initialX, initialY;
+        
+        switch(type) {
+          case 'bird':
+            // Birds often appear in upper portions of videos
+            initialX = Math.random() * width * 0.8 + width * 0.1;
+            initialY = Math.random() * height * 0.3 + height * 0.1;
+            break;
+          case 'fish':
+            // Fish might be in water features (middle to lower regions)
+            initialX = Math.random() * width * 0.8 + width * 0.1;
+            initialY = Math.random() * height * 0.3 + height * 0.5;
+            break;
+          case 'mouse':
+          case 'rat':
+            // Ground animals often at the bottom
+            initialX = Math.random() * width * 0.8 + width * 0.1;
+            initialY = Math.random() * height * 0.3 + height * 0.6;
+            break;
+          default:
+            // Others more evenly distributed
+            initialX = Math.random() * width * 0.8 + width * 0.1;
+            initialY = Math.random() * height * 0.8 + height * 0.1;
+        }
+        
+        // Store initial position
+        if (!animalPositionsRef.current[animal.name]) {
+          animalPositionsRef.current[animal.name] = [];
+        }
+        
+        animalPositionsRef.current[animal.name].push({
+          x: initialX,
+          y: initialY,
+          timestamp: Date.now()
+        });
+      });
+    };
+    
     // Set up canvas for motion detection
     const setupCanvas = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) return;
@@ -165,52 +211,6 @@ export default function GalleryItem({
       motionCanvas.width = canvas.width;
       motionCanvas.height = canvas.height;
       
-      // Initialize animal regions with intelligent positioning
-      const initializeAnimalPositions = (width: number, height: number) => {
-        // For videos, place animals in more logical regions
-        // based on animal type and typical behavior
-        animals.forEach(animal => {
-          const type = animal.name.toLowerCase();
-          
-          // Different initial positions based on animal type
-          let initialX, initialY;
-          
-          switch(type) {
-            case 'bird':
-              // Birds often appear in upper portions of videos
-              initialX = Math.random() * width * 0.8 + width * 0.1;
-              initialY = Math.random() * height * 0.3 + height * 0.1;
-              break;
-            case 'fish':
-              // Fish might be in water features (middle to lower regions)
-              initialX = Math.random() * width * 0.8 + width * 0.1;
-              initialY = Math.random() * height * 0.3 + height * 0.5;
-              break;
-            case 'mouse':
-            case 'rat':
-              // Ground animals often at the bottom
-              initialX = Math.random() * width * 0.8 + width * 0.1;
-              initialY = Math.random() * height * 0.3 + height * 0.6;
-              break;
-            default:
-              // Others more evenly distributed
-              initialX = Math.random() * width * 0.8 + width * 0.1;
-              initialY = Math.random() * height * 0.8 + height * 0.1;
-          }
-          
-          // Store initial position
-          if (!animalPositionsRef.current[animal.name]) {
-            animalPositionsRef.current[animal.name] = [];
-          }
-          
-          animalPositionsRef.current[animal.name].push({
-            x: initialX,
-            y: initialY,
-            timestamp: Date.now()
-          });
-        });
-      };
-      
       // Drawing context setup
       const ctx = canvas.getContext('2d');
       const heatMapCtx = heatMapCanvas.getContext('2d');
@@ -224,6 +224,82 @@ export default function GalleryItem({
       if (heatMapEnabled) {
         heatMapCtx.globalAlpha = 0.1; // For heat trail effect
       }
+      
+      // Get maximum distance an animal can move between frames based on type
+      const getMaxMovementDistance = (animalType: string): number => {
+        // Distance in pixels per frame
+        switch(animalType) {
+          case 'bird': return 20; // Birds can move quickly
+          case 'cat': return 15;
+          case 'dog': return 18;
+          case 'fish': return 12;
+          case 'mouse': 
+          case 'rat': return 10;
+          default: return 15;
+        }
+      };
+      
+      // Get animal speed based on type
+      const getAnimalSpeed = (animalType: string): number => {
+        // Base speed in pixels per frame
+        switch(animalType) {
+          case 'bird': return 3.0;
+          case 'cat': return 2.5;
+          case 'dog': return 2.8;
+          case 'fish': return 2.0;
+          case 'mouse': 
+          case 'rat': return 1.8;
+          default: return 2.2;
+        }
+      };
+      
+      // Apply natural movement patterns to make tracking more realistic
+      const applyMovementPattern = (
+        animalType: string, 
+        dx: number, 
+        dy: number, 
+        frameCount: number
+      ): { patternDx: number, patternDy: number } => {
+        let patternDx = dx;
+        let patternDy = dy;
+        
+        // Apply type-specific movement patterns
+        switch(animalType) {
+          case 'bird':
+            // Birds often have more vertical movement
+            patternDx = dx * (1 + Math.sin(frameCount * 0.1) * 0.3);
+            patternDy = dy * (1 + Math.cos(frameCount * 0.1) * 0.3);
+            break;
+          case 'fish':
+            // Fish tend to move in flowing patterns
+            patternDx = dx * (1 + Math.sin(frameCount * 0.08) * 0.4);
+            patternDy = dy * (1 + Math.sin(frameCount * 0.08 + Math.PI/2) * 0.4);
+            break;
+          case 'cat':
+            // Cats move more deliberately with pauses
+            const catPause = Math.sin(frameCount * 0.05) > 0.7;
+            patternDx = catPause ? dx * 0.2 : dx * 1.2;
+            patternDy = catPause ? dy * 0.2 : dy * 1.2;
+            break;
+          case 'dog':
+            // Dogs may move more energetically
+            patternDx = dx * (1 + Math.sin(frameCount * 0.15) * 0.25);
+            patternDy = dy * (1 + Math.cos(frameCount * 0.15) * 0.25);
+            break;
+          case 'mouse':
+          case 'rat':
+            // Small rodents have more erratic movement
+            patternDx = dx * (1 + Math.sin(frameCount * 0.2) * 0.5);
+            patternDy = dy * (1 + Math.cos(frameCount * 0.2) * 0.5);
+            break;
+          default:
+            // Default pattern
+            patternDx = dx;
+            patternDy = dy;
+        }
+        
+        return { patternDx, patternDy };
+      };
       
       // Detect motion between frames to track animal movement more accurately
       const detectMotion = () => {
@@ -395,82 +471,6 @@ export default function GalleryItem({
         if (movementHistoryRef.current.length > 500) {
           movementHistoryRef.current.shift();
         }
-      };
-      
-      // Get maximum distance an animal can move between frames based on type
-      const getMaxMovementDistance = (animalType: string): number => {
-        // Distance in pixels per frame
-        switch(animalType) {
-          case 'bird': return 20; // Birds can move quickly
-          case 'cat': return 15;
-          case 'dog': return 18;
-          case 'fish': return 12;
-          case 'mouse': 
-          case 'rat': return 10;
-          default: return 15;
-        }
-      };
-      
-      // Get animal speed based on type
-      const getAnimalSpeed = (animalType: string): number => {
-        // Base speed in pixels per frame
-        switch(animalType) {
-          case 'bird': return 3.0;
-          case 'cat': return 2.5;
-          case 'dog': return 2.8;
-          case 'fish': return 2.0;
-          case 'mouse': 
-          case 'rat': return 1.8;
-          default: return 2.2;
-        }
-      };
-      
-      // Apply natural movement patterns to make tracking more realistic
-      const applyMovementPattern = (
-        animalType: string, 
-        dx: number, 
-        dy: number, 
-        frameCount: number
-      ): { patternDx: number, patternDy: number } => {
-        let patternDx = dx;
-        let patternDy = dy;
-        
-        // Apply type-specific movement patterns
-        switch(animalType) {
-          case 'bird':
-            // Birds often have more vertical movement
-            patternDx = dx * (1 + Math.sin(frameCount * 0.1) * 0.3);
-            patternDy = dy * (1 + Math.cos(frameCount * 0.1) * 0.3);
-            break;
-          case 'fish':
-            // Fish tend to move in flowing patterns
-            patternDx = dx * (1 + Math.sin(frameCount * 0.08) * 0.4);
-            patternDy = dy * (1 + Math.sin(frameCount * 0.08 + Math.PI/2) * 0.4);
-            break;
-          case 'cat':
-            // Cats move more deliberately with pauses
-            const catPause = Math.sin(frameCount * 0.05) > 0.7;
-            patternDx = catPause ? dx * 0.2 : dx * 1.2;
-            patternDy = catPause ? dy * 0.2 : dy * 1.2;
-            break;
-          case 'dog':
-            // Dogs may move more energetically
-            patternDx = dx * (1 + Math.sin(frameCount * 0.15) * 0.25);
-            patternDy = dy * (1 + Math.cos(frameCount * 0.15) * 0.25);
-            break;
-          case 'mouse':
-          case 'rat':
-            // Small rodents have more erratic movement
-            patternDx = dx * (1 + Math.sin(frameCount * 0.2) * 0.5);
-            patternDy = dy * (1 + Math.cos(frameCount * 0.2) * 0.5);
-            break;
-          default:
-            // Default pattern
-            patternDx = dx;
-            patternDy = dy;
-        }
-        
-        return { patternDx, patternDy };
       };
       
       // Draw animal positions and movement trails
