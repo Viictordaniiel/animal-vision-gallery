@@ -41,7 +41,7 @@ export default function GalleryItem({
   const [videoProgress, setVideoProgress] = useState(0);
   const [motionDetection, setMotionDetection] = useState(false);
   const [droneCompensation, setDroneCompensation] = useState(false);
-  const [motionPoints, setMotionPoints] = useState<{x: number, y: number, strength: number}[]>([]);
+  const [motionPoints, setMotionPoints] = useState<{x: number, y: number, strength: number, animalType?: string}[]>([]);
   const lastFrameRef = useRef<ImageData | null>(null);
   const animationRef = useRef<number | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -50,8 +50,9 @@ export default function GalleryItem({
   const lastReferencePointsRef = useRef<{x: number, y: number}[]>([]);
   const frameCountRef = useRef<number>(0);
   const isFirstFrameRef = useRef<boolean>(true);
-  const motionHistoryRef = useRef<{x: number, y: number, strength: number, time: number}[]>([]);
-  const animalDetectionZonesRef = useRef<{x1: number, y1: number, x2: number, y2: number}[]>([]);
+  const motionHistoryRef = useRef<{x: number, y: number, strength: number, time: number, animalType?: string}[]>([]);
+  const animalDetectionZonesRef = useRef<{x1: number, y1: number, x2: number, y2: number, animalType: string}[]>([]);
+  const detectedMotionRegionsRef = useRef<{x1: number, y1: number, x2: number, y2: number, confidence: number, animalType: string}[]>([]);
   
   // Advanced function to identify potential predator species
   const isPredator = (animalName: string): boolean => {
@@ -143,45 +144,138 @@ export default function GalleryItem({
           .sort((a, b) => b.confidence - a.confidence)[0]
     : null;
 
-  // Calculate animal detection zones based on detected species
+  // Get the primary animal for motion targeting
+  const getPrimaryAnimalForTracking = (): Animal | null => {
+    if (animals.length === 0) return null;
+    
+    // Prioritize invasive species if present
+    if (primaryInvasiveAnimal) return primaryInvasiveAnimal;
+    
+    // Otherwise, use the animal with highest confidence
+    return animals.sort((a, b) => b.confidence - a.confidence)[0];
+  };
+
+  // Calculate animal detection zones based on detected species - IMPROVED
   useEffect(() => {
     if (animals.length > 0 && canvasRef.current) {
       const width = canvasRef.current.width;
       const height = canvasRef.current.height;
       
       // Create detection zones based on animal types to focus motion tracking
-      const zones: {x1: number, y1: number, x2: number, y2: number}[] = [];
+      const zones: {x1: number, y1: number, x2: number, y2: number, animalType: string}[] = [];
       
-      // Create zones based on animal types
-      if (hasInvasiveSpecies) {
-        // For invasive species like wild boars, focus on bottom half of video (ground level)
-        zones.push({
-          x1: 0,
-          y1: height * 0.4,
-          x2: width,
-          y2: height
-        });
-      }
-      
-      if (animals.some(animal => isPredator(animal.name))) {
-        // For predators, monitor the entire frame
-        zones.push({
-          x1: 0,
-          y1: 0,
-          x2: width,
-          y2: height
-        });
-      }
-      
-      if (animals.some(animal => isHerbivore(animal.name))) {
-        // For herbivores, focus on middle to lower areas of the frame
-        zones.push({
-          x1: 0,
-          y1: height * 0.3,
-          x2: width,
-          y2: height * 0.9
-        });
-      }
+      // Enhanced zone targeting with more granular animal-specific zones
+      animals.forEach(animal => {
+        const animalClass = getAnimalClassification(animal.name);
+        const confidence = animal.confidence;
+        
+        // Scale the zone based on detection confidence
+        // Higher confidence = larger zones focused on animal characteristics
+        const confidenceScaling = 0.5 + (confidence * 0.5); // Scale from 50% to 100% based on confidence
+        
+        if (animalClass === 'invasive') {
+          // For invasive species like wild boars, focus heavily on bottom half (ground level)
+          // but also add a smaller focus area in the middle (for when they stand up)
+          
+          // Main ground-level detection zone
+          zones.push({
+            x1: 0,
+            y1: height * (0.5 - (0.1 * confidenceScaling)), // Top edge moves up with higher confidence
+            x2: width,
+            y2: height,
+            animalType: 'invasive'
+          });
+          
+          // Secondary mid-frame detection zone (smaller)
+          zones.push({
+            x1: width * 0.2,
+            y1: height * 0.3,
+            x2: width * 0.8,
+            y2: height * 0.6,
+            animalType: 'invasive'
+          });
+        } 
+        else if (animalClass === 'predator') {
+          // For predators, create multiple overlapping detection zones
+          // covering different heights since they can move at various levels
+          
+          // Full frame detection (lower priority)
+          zones.push({
+            x1: 0,
+            y1: 0,
+            x2: width,
+            y2: height,
+            animalType: 'predator'
+          });
+          
+          // Mid-level focus area (higher priority)
+          zones.push({
+            x1: width * 0.1,
+            y1: height * 0.2,
+            x2: width * 0.9,
+            y2: height * 0.8,
+            animalType: 'predator-mid'
+          });
+          
+          // Ground-level focus (higher priority for most predators)
+          zones.push({
+            x1: width * 0.1,
+            y1: height * 0.4,
+            x2: width * 0.9,
+            y2: height,
+            animalType: 'predator-ground'
+          });
+        } 
+        else if (animalClass === 'herbivore') {
+          // For herbivores, focus primarily on middle to lower areas
+          // Wide horizontally to catch grazing movement
+          zones.push({
+            x1: 0,
+            y1: height * 0.3,
+            x2: width,
+            y2: height * 0.9,
+            animalType: 'herbivore'
+          });
+          
+          // Add second zone for head level movements
+          zones.push({
+            x1: width * 0.2,
+            y1: height * 0.2,
+            x2: width * 0.8,
+            y2: height * 0.5,
+            animalType: 'herbivore-head'
+          });
+        }
+        else if (animalClass === 'domestic') {
+          // For domestic animals like dogs, create zones based on typical movement patterns
+          zones.push({
+            x1: 0,
+            y1: height * 0.4,
+            x2: width,
+            y2: height,
+            animalType: 'domestic-body'
+          });
+          
+          // Head/tail movement zone
+          zones.push({
+            x1: width * 0.1,
+            y1: height * 0.2,
+            x2: width * 0.9,
+            y2: height * 0.6,
+            animalType: 'domestic-head'
+          });
+        }
+        else {
+          // For unclassified animals, use a generic detection zone
+          zones.push({
+            x1: 0,
+            y1: 0,
+            x2: width,
+            y2: height,
+            animalType: 'generic'
+          });
+        }
+      });
       
       // If no specific zones defined, monitor the whole frame
       if (zones.length === 0) {
@@ -189,11 +283,15 @@ export default function GalleryItem({
           x1: 0,
           y1: 0,
           x2: width,
-          y2: height
+          y2: height,
+          animalType: 'generic'
         });
       }
       
       animalDetectionZonesRef.current = zones;
+      
+      // Initialize empty detection regions
+      detectedMotionRegionsRef.current = [];
     }
   }, [animals, hasInvasiveSpecies]);
   
@@ -367,21 +465,33 @@ export default function GalleryItem({
     });
   };
 
-  // Function to detect animal-like movement patterns
-  const isAnimalMovement = (motionHistory: {x: number, y: number, strength: number, time: number}[], newPoint: {x: number, y: number, strength: number}) => {
+  // IMPROVED: Function to detect animal-like movement patterns
+  const isAnimalMovement = (
+    motionHistory: {x: number, y: number, strength: number, time: number, animalType?: string}[], 
+    newPoint: {x: number, y: number, strength: number},
+    animalType?: string
+  ): boolean => {
     // If we don't have enough history yet, consider all movement as potential animal movement
     if (motionHistory.length < 5) return true;
     
-    // Get recent motion points from the last 1 second (assuming 30fps)
-    const recentMotion = motionHistory.slice(-30);
+    // Get the primary detected animal for targeted tracking
+    const primaryAnimal = getPrimaryAnimalForTracking();
+    const primaryAnimalClass = primaryAnimal ? getAnimalClassification(primaryAnimal.name) : 'generic';
+    
+    // Enhanced movement pattern detection based on animal type
+    let isAnimalPattern = false;
     
     // Check if the motion is within any detection zone
     const isInDetectionZone = animalDetectionZonesRef.current.some(zone => 
       newPoint.x >= zone.x1 && newPoint.x <= zone.x2 && 
-      newPoint.y >= zone.y1 && newPoint.y <= zone.y2
+      newPoint.y >= zone.y1 && newPoint.y <= zone.y2 &&
+      (!animalType || zone.animalType.includes(animalType))
     );
     
     if (!isInDetectionZone) return false;
+    
+    // Get recent motion points from the last 1 second (assuming 30fps)
+    const recentMotion = motionHistory.slice(-30);
     
     // Calculate motion statistics
     const avgStrength = recentMotion.reduce((sum, p) => sum + p.strength, 0) / recentMotion.length;
@@ -422,43 +532,219 @@ export default function GalleryItem({
     const yVariance = yValues.reduce((sum, y) => sum + Math.pow(y - yMean, 2), 0) / yValues.length;
     const spatialVariance = Math.sqrt(xVariance + yVariance);
     
-    // Adaptive thresholds based on detected species
+    // ENHANCED: Dynamic thresholds based on the specific animal detected
     let directionChangeThreshold = 3; // Default threshold
     let consistencyThreshold = 5;
     let strengthThreshold = 0.3;
+    let spatialVarianceMin = 5;
+    let spatialVarianceMax = 200;
     
-    if (hasInvasiveSpecies) {
-      // Wild boars tend to move with more consistency and strength
+    // Adaptive thresholds based on animal types
+    if (primaryAnimalClass === 'invasive') {
+      // Wild boars move with more consistency, strength, and sometimes in groups
       directionChangeThreshold = 2;
       consistencyThreshold = 7;
       strengthThreshold = 0.35;
+      spatialVarianceMin = 8;
+      spatialVarianceMax = 250; // Allow for group movement
     }
-    
-    if (animals.some(animal => isPredator(animal.name))) {
-      // Predators may have more varied movement patterns
+    else if (primaryAnimalClass === 'predator') {
+      // Predators may move strategically with pauses and direction changes
       directionChangeThreshold = 4;
       consistencyThreshold = 4;
       strengthThreshold = 0.25;
+      spatialVarianceMin = 4;
+      spatialVarianceMax = 180;
+    }
+    else if (primaryAnimalClass === 'herbivore') {
+      // Herbivores like deer may be more jittery with quick movements
+      directionChangeThreshold = 5;
+      consistencyThreshold = 3;
+      strengthThreshold = 0.28;
+      spatialVarianceMin = 6;
+      spatialVarianceMax = 220;
+    }
+    else if (primaryAnimalClass === 'domestic') {
+      // Domestic animals like dogs have varied, playful movements
+      directionChangeThreshold = 6;
+      consistencyThreshold = 4;
+      strengthThreshold = 0.25;
+      spatialVarianceMin = 8;
+      spatialVarianceMax = 250;
     }
     
     // Check if the movement matches animal patterns
     const hasAnimalStrength = newPoint.strength > strengthThreshold;
     const hasAnimalDirectionChanges = directionChanges >= directionChangeThreshold;
     const hasAnimalConsistency = consistentDirection >= consistencyThreshold;
-    const hasAppropriateVariance = spatialVariance > 5 && spatialVariance < 200;
+    const hasAppropriateVariance = spatialVariance > spatialVarianceMin && spatialVariance < spatialVarianceMax;
     
     // Different animal classes have different movement patterns
-    if (hasInvasiveSpecies) {
-      // Invasive species like wild boars often move in consistent directions
-      return hasAnimalStrength && hasAnimalConsistency && hasAppropriateVariance;
-    } else if (animals.some(animal => isPredator(animal.name))) {
+    if (primaryAnimalClass === 'invasive') {
+      // Invasive species like wild boars often move in consistent directions with strength
+      isAnimalPattern = hasAnimalStrength && hasAnimalConsistency && hasAppropriateVariance;
+    } 
+    else if (primaryAnimalClass === 'predator') {
       // Predators may have more direction changes and deliberate movements
-      return hasAnimalStrength && hasAnimalDirectionChanges && hasAppropriateVariance;
-    } else {
-      // General animal detection
-      return (hasAnimalStrength && hasAnimalDirectionChanges) || 
-             (hasAnimalStrength && hasAnimalConsistency && hasAppropriateVariance);
+      isAnimalPattern = hasAnimalStrength && hasAnimalDirectionChanges && hasAppropriateVariance;
+    } 
+    else if (primaryAnimalClass === 'herbivore') {
+      // Herbivores may have quick, jittery movements with less consistency
+      isAnimalPattern = hasAnimalStrength && (hasAnimalDirectionChanges || hasAppropriateVariance);
     }
+    else if (primaryAnimalClass === 'domestic') {
+      // Domestic animals like dogs have playful, varied movements
+      isAnimalPattern = hasAnimalStrength && (hasAnimalDirectionChanges || hasAnimalConsistency);
+    }
+    else {
+      // Generic animal detection
+      isAnimalPattern = (hasAnimalStrength && hasAnimalDirectionChanges) || 
+                        (hasAnimalStrength && hasAnimalConsistency && hasAppropriateVariance);
+    }
+    
+    return isAnimalPattern;
+  };
+
+  // IMPROVED: Dynamic region detection to focus on areas with consistent animal-like movement
+  const updateDetectedRegions = (newMotionPoint: {x: number, y: number, strength: number, animalType?: string}) => {
+    // Only update regions if we have adequate motion history
+    if (motionHistoryRef.current.length < 15) return;
+    
+    const recentHistory = motionHistoryRef.current.slice(-30);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Group motion points by proximity to identify potential animal regions
+    const cellSize = 50; // Size of grid cells for clustering
+    const motionHeatmap: { [key: string]: { count: number, avgStrength: number, points: {x: number, y: number}[] } } = {};
+    
+    // Create a density heatmap of recent motion
+    recentHistory.forEach(point => {
+      // Quantize point to grid cell
+      const cellX = Math.floor(point.x / cellSize);
+      const cellY = Math.floor(point.y / cellSize);
+      const cellKey = `${cellX},${cellY}`;
+      
+      if (!motionHeatmap[cellKey]) {
+        motionHeatmap[cellKey] = { count: 0, avgStrength: 0, points: [] };
+      }
+      
+      motionHeatmap[cellKey].count++;
+      motionHeatmap[cellKey].avgStrength = 
+        (motionHeatmap[cellKey].avgStrength * (motionHeatmap[cellKey].count - 1) + point.strength) / 
+        motionHeatmap[cellKey].count;
+      motionHeatmap[cellKey].points.push({x: point.x, y: point.y});
+    });
+    
+    // Convert heatmap to regions by finding cells with sufficient activity
+    const newRegions: {x1: number, y1: number, x2: number, y2: number, confidence: number, animalType: string}[] = [];
+    
+    Object.entries(motionHeatmap).forEach(([cellKey, data]) => {
+      // Only consider cells with enough motion points
+      if (data.count >= 5 && data.avgStrength > 0.3) {
+        // Calculate region boundaries from all points in this cell
+        const xValues = data.points.map(p => p.x);
+        const yValues = data.points.map(p => p.y);
+        
+        const minX = Math.max(0, Math.min(...xValues) - cellSize/2);
+        const minY = Math.max(0, Math.min(...yValues) - cellSize/2);
+        const maxX = Math.min(width, Math.max(...xValues) + cellSize/2);
+        const maxY = Math.min(height, Math.max(...yValues) + cellSize/2);
+        
+        // Calculate confidence based on point count and average strength
+        const confidence = Math.min(1, (data.count / 30) * data.avgStrength * 2);
+        
+        // Get the primary animal for this region
+        const primaryAnimal = getPrimaryAnimalForTracking();
+        const animalType = primaryAnimal 
+          ? getAnimalClassification(primaryAnimal.name) 
+          : 'generic';
+        
+        // Create the detection region
+        newRegions.push({
+          x1: minX,
+          y1: minY,
+          x2: maxX,
+          y2: maxY,
+          confidence,
+          animalType
+        });
+      }
+    });
+    
+    // Merge overlapping regions
+    const mergedRegions = mergeOverlappingRegions(newRegions);
+    
+    // Update the detection regions
+    detectedMotionRegionsRef.current = mergedRegions;
+  };
+  
+  // Helper to merge overlapping detection regions
+  const mergeOverlappingRegions = (regions: {x1: number, y1: number, x2: number, y2: number, confidence: number, animalType: string}[]) => {
+    if (regions.length <= 1) return regions;
+    
+    const merged: {x1: number, y1: number, x2: number, y2: number, confidence: number, animalType: string}[] = [];
+    
+    // Sort regions by size (area)
+    const sortedRegions = [...regions].sort((a, b) => {
+      const areaA = (a.x2 - a.x1) * (a.y2 - a.y1);
+      const areaB = (b.x2 - b.x1) * (b.y2 - b.y1);
+      return areaB - areaA; // Largest first
+    });
+    
+    // Start with the largest region
+    merged.push(sortedRegions[0]);
+    
+    // Try to merge remaining regions
+    for (let i = 1; i < sortedRegions.length; i++) {
+      const region = sortedRegions[i];
+      let wasMerged = false;
+      
+      // Try to merge with existing merged regions
+      for (let j = 0; j < merged.length; j++) {
+        const mergedRegion = merged[j];
+        
+        // Check if regions overlap
+        const overlaps = !(
+          region.x2 < mergedRegion.x1 ||
+          region.x1 > mergedRegion.x2 ||
+          region.y2 < mergedRegion.y1 ||
+          region.y1 > mergedRegion.y2
+        );
+        
+        if (overlaps) {
+          // Merge by taking the union of both regions
+          merged[j] = {
+            x1: Math.min(region.x1, mergedRegion.x1),
+            y1: Math.min(region.y1, mergedRegion.y1),
+            x2: Math.max(region.x2, mergedRegion.x2),
+            y2: Math.max(region.y2, mergedRegion.y2),
+            // Take higher confidence
+            confidence: Math.max(region.confidence, mergedRegion.confidence),
+            // Keep the animal type of the higher confidence region
+            animalType: mergedRegion.confidence > region.confidence 
+              ? mergedRegion.animalType 
+              : region.animalType
+          };
+          
+          wasMerged = true;
+          break;
+        }
+      }
+      
+      // If region couldn't be merged with any existing region, add it as new
+      if (!wasMerged) {
+        merged.push(region);
+      }
+    }
+    
+    // Limit to top 3 regions by confidence
+    return merged
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 3);
   };
   
   // Toggle motion detection with drone movement compensation
@@ -471,6 +757,7 @@ export default function GalleryItem({
         isFirstFrameRef.current = true;
         frameCountRef.current = 0;
         motionHistoryRef.current = [];
+        detectedMotionRegionsRef.current = [];
       }
       
       // Start motion detection with or without drone compensation
@@ -584,91 +871,290 @@ export default function GalleryItem({
             lastReferencePointsRef.current = [...referencePointsRef.current];
           }
           
-          // Compare with last frame to detect motion (compensating for drone movement)
+          // IMPROVED: Compare with last frame to detect motion (compensating for drone movement)
+          // Focus on detected animal regions for better targeting
           if (lastFrameRef.current) {
             const lastFrame = lastFrameRef.current;
             const motionData = [];
-            const blockSize = 12; // Smaller block size for more detailed motion detection
-            const threshold = droneCompensation ? 30 : 25; // Lower threshold for better sensitivity
+            const blockSize = 8; // Smaller block size for more detailed detection - IMPROVED
+            const threshold = droneCompensation ? 28 : 22; // Lower threshold for better sensitivity - IMPROVED
             
-            // Analyze blocks of pixels for changes
-            for (let y = 0; y < canvas.height; y += blockSize) {
-              for (let x = 0; x < canvas.width; x += blockSize) {
-                let diffCount = 0;
-                let totalDiff = 0;
-                
-                // Check a sampling of pixels in this block
-                for (let by = 0; by < blockSize && y + by < canvas.height; by += 3) {
-                  for (let bx = 0; bx < blockSize && x + bx < canvas.width; bx += 3) {
-                    // Calculate adjusted position based on global motion
-                    let prevX = x + bx - globalOffsetX;
-                    let prevY = y + by - globalOffsetY;
-                    
-                    // Check if the adjusted position is within frame boundaries
-                    if (prevX >= 0 && prevX < canvas.width && prevY >= 0 && prevY < canvas.height) {
-                      const currPos = ((y + by) * canvas.width + (x + bx)) * 4;
-                      const prevPos = Math.floor(prevY * canvas.width + prevX) * 4;
+            // Get the primary animal for targeting
+            const primaryAnimal = getPrimaryAnimalForTracking();
+            const animalClass = primaryAnimal ? getAnimalClassification(primaryAnimal.name) : 'generic';
+            
+            // IMPROVED: Adapt sampling density based on animal type
+            // More precise sampling for smaller/faster animals
+            let samplingDensity = 2; // Check every 2nd pixel by default
+            
+            if (animalClass === 'invasive' || animalClass === 'predator') {
+              samplingDensity = 2; // More precise for invasive species / predators
+            } else if (animalClass === 'herbivore') {
+              samplingDensity = 3; // Medium precision for herbivores
+            } else {
+              samplingDensity = 3; // Default for others
+            }
+            
+            // First, check if we have active detection regions from previous frames
+            const detectionRegions = detectedMotionRegionsRef.current;
+            const hasActiveRegions = detectionRegions.length > 0;
+            
+            // Priority areas to check first (either from previous detection or animal zones)
+            let priorityAreas: {x1: number, y1: number, x2: number, y2: number, priority: number}[] = [];
+            
+            // If we have active regions, prioritize them
+            if (hasActiveRegions) {
+              priorityAreas = detectionRegions.map(region => ({
+                x1: region.x1,
+                y1: region.y1,
+                x2: region.x2,
+                y2: region.y2,
+                priority: region.confidence * 100 // Higher confidence = higher priority
+              }));
+            }
+            
+            // Add animal detection zones as secondary priority areas
+            animalDetectionZonesRef.current.forEach(zone => {
+              // Calculate priority based on zone type and animal confidence
+              let zonePriority = 50; // Base priority
+              
+              // Adjust priority based on zone type
+              if (zone.animalType.includes(animalClass)) {
+                zonePriority += 30; // Boost priority if zone matches detected animal
+              }
+              
+              // Add zone to priority areas
+              priorityAreas.push({
+                x1: zone.x1,
+                y1: zone.y1,
+                x2: zone.x2,
+                y2: zone.y2,
+                priority: zonePriority
+              });
+            });
+            
+            // Sort priority areas by priority (highest first)
+            priorityAreas.sort((a, b) => b.priority - a.priority);
+            
+            // IMPROVED: Two-pass detection strategy
+            // First pass: scan priority areas with high precision
+            for (const area of priorityAreas) {
+              // Skip if area is invalid
+              if (area.x2 <= area.x1 || area.y2 <= area.y1) continue;
+              
+              // Higher precision in priority areas
+              const areaSamplingDensity = Math.max(1, samplingDensity - 1);
+              
+              // Analyze blocks of pixels for changes in this area
+              for (let y = area.y1; y < area.y2; y += blockSize) {
+                for (let x = area.x1; x < area.x2; x += blockSize) {
+                  let diffCount = 0;
+                  let totalDiff = 0;
+                  
+                  // Check a sampling of pixels in this block
+                  for (let by = 0; by < blockSize && y + by < canvas.height; by += areaSamplingDensity) {
+                    for (let bx = 0; bx < blockSize && x + bx < canvas.width; bx += areaSamplingDensity) {
+                      // Calculate adjusted position based on global motion
+                      let prevX = x + bx - globalOffsetX;
+                      let prevY = y + by - globalOffsetY;
                       
-                      if (prevPos >= 0 && prevPos < lastFrame.data.length - 4) {
-                        // Calculate difference between frames for this pixel
-                        const rDiff = Math.abs(currentFrame.data[currPos] - lastFrame.data[prevPos]);
-                        const gDiff = Math.abs(currentFrame.data[currPos + 1] - lastFrame.data[prevPos + 1]);
-                        const bDiff = Math.abs(currentFrame.data[currPos + 2] - lastFrame.data[prevPos + 2]);
+                      // Check if the adjusted position is within frame boundaries
+                      if (prevX >= 0 && prevX < canvas.width && prevY >= 0 && prevY < canvas.height) {
+                        const currPos = ((y + by) * canvas.width + (x + bx)) * 4;
+                        const prevPos = Math.floor(prevY * canvas.width + prevX) * 4;
                         
-                        const diff = (rDiff + gDiff + bDiff) / 3;
-                        if (diff > threshold) {
-                          diffCount++;
-                          totalDiff += diff;
+                        if (prevPos >= 0 && prevPos < lastFrame.data.length - 4) {
+                          // Calculate difference between frames for this pixel
+                          const rDiff = Math.abs(currentFrame.data[currPos] - lastFrame.data[prevPos]);
+                          const gDiff = Math.abs(currentFrame.data[currPos + 1] - lastFrame.data[prevPos + 1]);
+                          const bDiff = Math.abs(currentFrame.data[currPos + 2] - lastFrame.data[prevPos + 2]);
+                          
+                          const diff = (rDiff + gDiff + bDiff) / 3;
+                          
+                          // Lower threshold in priority areas
+                          const areaThreshold = threshold * 0.9;
+                          
+                          if (diff > areaThreshold) {
+                            diffCount++;
+                            totalDiff += diff;
+                          }
                         }
                       }
                     }
                   }
-                }
-                
-                // If enough pixels changed, mark this as a motion point
-                // More strict threshold when drone compensation is on
-                const minDiffCount = droneCompensation ? 4 : 3;
-                if (diffCount > minDiffCount) {
-                  const motionPoint = {
-                    x: x + blockSize / 2, 
-                    y: y + blockSize / 2,
-                    strength: Math.min(1, totalDiff / (255 * diffCount))
-                  };
                   
-                  // Add timestamp to motion point for tracking
-                  const timestamp = Date.now();
-                  motionHistoryRef.current.push({
-                    ...motionPoint,
-                    time: timestamp
-                  });
+                  // IMPROVED: Adaptive threshold based on area priority
+                  // Higher priority areas need fewer changed pixels to be considered motion
+                  const minDiffCount = Math.max(3, 6 - Math.floor(area.priority / 20));
                   
-                  // Limit history size to prevent memory issues
-                  if (motionHistoryRef.current.length > 120) { // 4 seconds at 30fps
-                    motionHistoryRef.current = motionHistoryRef.current.slice(-120);
-                  }
-                  
-                  // Only keep points that match animal movement patterns
-                  if (isAnimalMovement(motionHistoryRef.current, motionPoint)) {
-                    motionData.push(motionPoint);
+                  if (diffCount > minDiffCount) {
+                    // Create a motion point with animal type info
+                    const motionPoint = {
+                      x: x + blockSize / 2, 
+                      y: y + blockSize / 2,
+                      strength: Math.min(1, totalDiff / (255 * diffCount)),
+                      animalType: animalClass
+                    };
+                    
+                    // Add timestamp to motion point for tracking
+                    const timestamp = Date.now();
+                    
+                    // IMPROVED: Only add points that match animal movement patterns
+                    if (isAnimalMovement(motionHistoryRef.current, motionPoint, animalClass)) {
+                      motionHistoryRef.current.push({
+                        ...motionPoint,
+                        time: timestamp
+                      });
+                      
+                      motionData.push(motionPoint);
+                    }
                   }
                 }
               }
             }
             
+            // Second pass: quick scan of the rest of the frame at lower resolution
+            if (motionData.length < 5) { // Only if we didn't find much in priority areas
+              // Scan the whole frame at lower resolution
+              for (let y = 0; y < canvas.height; y += blockSize * 2) {
+                for (let x = 0; x < canvas.width; x += blockSize * 2) {
+                  // Skip areas we've already processed in priority pass
+                  if (priorityAreas.some(area => 
+                    x >= area.x1 && x <= area.x2 && y >= area.y1 && y <= area.y2
+                  )) {
+                    continue;
+                  }
+                  
+                  let diffCount = 0;
+                  let totalDiff = 0;
+                  
+                  // Scan at lower resolution
+                  for (let by = 0; by < blockSize * 2 && y + by < canvas.height; by += samplingDensity * 2) {
+                    for (let bx = 0; bx < blockSize * 2 && x + bx < canvas.width; bx += samplingDensity * 2) {
+                      // Calculate adjusted position based on global motion
+                      let prevX = x + bx - globalOffsetX;
+                      let prevY = y + by - globalOffsetY;
+                      
+                      // Check if the adjusted position is within frame boundaries
+                      if (prevX >= 0 && prevX < canvas.width && prevY >= 0 && prevY < canvas.height) {
+                        const currPos = ((y + by) * canvas.width + (x + bx)) * 4;
+                        const prevPos = Math.floor(prevY * canvas.width + prevX) * 4;
+                        
+                        if (prevPos >= 0 && prevPos < lastFrame.data.length - 4) {
+                          // Calculate difference between frames for this pixel
+                          const rDiff = Math.abs(currentFrame.data[currPos] - lastFrame.data[prevPos]);
+                          const gDiff = Math.abs(currentFrame.data[currPos + 1] - lastFrame.data[prevPos + 1]);
+                          const bDiff = Math.abs(currentFrame.data[currPos + 2] - lastFrame.data[prevPos + 2]);
+                          
+                          const diff = (rDiff + gDiff + bDiff) / 3;
+                          if (diff > threshold) {
+                            diffCount++;
+                            totalDiff += diff;
+                          }
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Higher threshold for non-priority areas
+                  const minDiffCount = droneCompensation ? 5 : 4;
+                  
+                  if (diffCount > minDiffCount) {
+                    const motionPoint = {
+                      x: x + blockSize, 
+                      y: y + blockSize,
+                      strength: Math.min(1, totalDiff / (255 * diffCount))
+                    };
+                    
+                    // Add timestamp to motion point
+                    const timestamp = Date.now();
+                    
+                    // Only add points that match animal movement patterns
+                    if (isAnimalMovement(motionHistoryRef.current, motionPoint)) {
+                      motionHistoryRef.current.push({
+                        ...motionPoint,
+                        time: timestamp
+                      });
+                      
+                      motionData.push(motionPoint);
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Limit motion history size
+            if (motionHistoryRef.current.length > 120) {
+              motionHistoryRef.current = motionHistoryRef.current.slice(-120);
+            }
+            
             // Update motion points
             setMotionPoints(motionData);
             
-            // Draw detection zones on overlay for debugging
-            if (frameCountRef.current % 30 === 0) { // Update once per second at 30fps
-              overlayContext.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-              overlayContext.lineWidth = 2;
+            // Update detected motion regions (every 5 frames)
+            if (frameCountRef.current % 5 === 0 && motionData.length > 0) {
+              // Use the most confident motion point to update regions
+              const strongestPoint = [...motionData].sort((a, b) => b.strength - a.strength)[0];
+              updateDetectedRegions(strongestPoint);
+            }
+            
+            // IMPROVED: Visualization of detection regions and animal zones
+            // Draw detection zones on overlay with labels
+            overlayContext.lineWidth = 2;
+            
+            // Draw active motion regions
+            detectedMotionRegionsRef.current.forEach(region => {
+              // Color based on confidence (green to red gradient)
+              const intensity = Math.min(255, Math.round(region.confidence * 255));
+              const r = intensity;
+              const g = 255 - intensity;
+              const b = 0;
+              
+              overlayContext.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.7)`;
+              overlayContext.strokeRect(
+                region.x1, 
+                region.y1, 
+                region.x2 - region.x1, 
+                region.y2 - region.y1
+              );
+              
+              // Label for the region
+              overlayContext.fillStyle = 'rgba(0, 0, 0, 0.7)';
+              overlayContext.fillRect(region.x1, region.y1 - 20, 100, 20);
+              overlayContext.font = '12px Arial';
+              overlayContext.fillStyle = 'white';
+              overlayContext.fillText(
+                `${region.animalType.charAt(0).toUpperCase() + region.animalType.slice(1)} ${(region.confidence * 100).toFixed(0)}%`, 
+                region.x1 + 5, 
+                region.y1 - 5
+              );
+            });
+            
+            // Every 30 frames, draw the animal detection zones (less frequently to reduce visual clutter)
+            if (frameCountRef.current % 30 === 0) {
               animalDetectionZonesRef.current.forEach(zone => {
+                // Different colors for different animal types
+                let zoneColor = 'rgba(0, 255, 0, 0.3)'; // Default
+                
+                if (zone.animalType.includes('invasive')) {
+                  zoneColor = 'rgba(255, 0, 0, 0.3)';
+                } else if (zone.animalType.includes('predator')) {
+                  zoneColor = 'rgba(255, 165, 0, 0.3)';
+                } else if (zone.animalType.includes('herbivore')) {
+                  zoneColor = 'rgba(0, 128, 0, 0.3)';
+                } else if (zone.animalType.includes('domestic')) {
+                  zoneColor = 'rgba(0, 0, 255, 0.3)';
+                }
+                
+                overlayContext.strokeStyle = zoneColor;
+                overlayContext.setLineDash([5, 5]); // Dashed lines for zones
                 overlayContext.strokeRect(
                   zone.x1, 
                   zone.y1, 
                   zone.x2 - zone.x1, 
                   zone.y2 - zone.y1
                 );
+                overlayContext.setLineDash([]); // Reset to solid lines
               });
             }
           }
@@ -684,6 +1170,16 @@ export default function GalleryItem({
       
       // Start the detection loop
       detectMotion();
+      
+      // Automatically activate the detection after a small delay to let the video initialize
+      setTimeout(() => {
+        if (videoRef.current && !videoRef.current.paused) {
+          toast({
+            title: "Sensor de movimento ativado",
+            description: "O algoritmo aprimorado está monitorando os animais em tempo real.",
+          });
+        }
+      }, 500);
       
       return () => {
         if (animationRef.current !== null) {
@@ -763,6 +1259,14 @@ export default function GalleryItem({
     isFirstFrameRef.current = true;
   };
   
+  // Autostart motion detection for videos
+  useEffect(() => {
+    if (isVideo && !motionDetection && animals.length > 0 && !isAnalyzing) {
+      // Auto-activate motion detection after video analysis
+      setMotionDetection(true);
+    }
+  }, [isVideo, animals, isAnalyzing, motionDetection]);
+  
   return (
     <Card className="overflow-hidden w-full max-w-md">
       <CardContent className="p-0">
@@ -777,6 +1281,7 @@ export default function GalleryItem({
                   console.error("Error loading video:", e);
                   e.currentTarget.poster = 'https://images.unsplash.com/photo-1501286353178-1ec871214838?auto=format&fit=crop&w=500';
                 }}
+                autoPlay
               />
               <canvas
                 ref={canvasRef}
@@ -787,27 +1292,62 @@ export default function GalleryItem({
                 className="absolute top-0 left-0 w-full h-64 pointer-events-none"
                 style={{ opacity: motionDetection ? 0.9 : 0 }}
               />
-              {motionDetection && motionPoints.map((point, i) => (
-                <div
-                  key={i}
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: `${(point.x / (canvasRef.current?.width || 1)) * 100}%`,
-                    top: `${(point.y / (canvasRef.current?.height || 1)) * 100}%`,
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 10
-                  }}
-                >
-                  <div 
-                    className="animate-ping rounded-full bg-red-500"
+              {motionDetection && motionPoints.map((point, i) => {
+                // IMPROVED: Color and size based on animal type and confidence
+                let pointColor = 'rgba(255, 0, 0, 0.8)'; // Default red
+                let baseSize = 12;
+                
+                // Determine size and color based on animal type
+                if (point.animalType) {
+                  switch (point.animalType) {
+                    case 'invasive':
+                      pointColor = 'rgba(255, 0, 0, 0.8)'; // Red for invasive
+                      baseSize = 14;
+                      break;
+                    case 'predator':
+                      pointColor = 'rgba(255, 140, 0, 0.8)'; // Orange for predators
+                      baseSize = 13;
+                      break;
+                    case 'herbivore':
+                      pointColor = 'rgba(0, 180, 0, 0.8)'; // Green for herbivores
+                      baseSize = 12;
+                      break;
+                    case 'domestic':
+                      pointColor = 'rgba(30, 144, 255, 0.8)'; // Blue for domestic
+                      baseSize = 12;
+                      break;
+                    default:
+                      pointColor = 'rgba(255, 0, 100, 0.8)'; // Pink for others
+                      baseSize = 10;
+                  }
+                }
+                
+                // Calculate size based on motion strength
+                const size = baseSize + point.strength * 20;
+                
+                return (
+                  <div
+                    key={i}
+                    className="absolute pointer-events-none"
                     style={{
-                      width: `${12 + point.strength * 16}px`,
-                      height: `${12 + point.strength * 16}px`,
-                      opacity: 0.5 + point.strength * 0.3
+                      left: `${(point.x / (canvasRef.current?.width || 1)) * 100}%`,
+                      top: `${(point.y / (canvasRef.current?.height || 1)) * 100}%`,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 10
                     }}
-                  />
-                </div>
-              ))}
+                  >
+                    <div 
+                      className="animate-ping rounded-full"
+                      style={{
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        backgroundColor: pointColor,
+                        opacity: 0.6 + point.strength * 0.4
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </>
           ) : (
             <img 
