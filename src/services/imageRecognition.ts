@@ -1,4 +1,3 @@
-
 // Simulação de um serviço avançado de reconhecimento de imagens de animais
 // Em uma implementação real, isso seria integrado com um serviço de IA como Google Cloud Vision ou Hugging Face
 
@@ -170,95 +169,30 @@ const shouldShowInvasiveSpecies = (imageUrl: string): boolean => {
 const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals: Animal[] } => {
   const lowerUrl = imageUrl?.toLowerCase() || '';
   
-  // Melhor detecção de cachorro
-  const isLikelyDog = lowerUrl.includes('dog') || lowerUrl.includes('cachorro') || 
-                     lowerUrl.includes('pet') || lowerUrl.includes('cao') || 
-                     lowerUrl.includes('cão') || Math.random() < 0.4;
-  
-  // Determinar quantos animais serão detectados (1-3)
-  const numberOfAnimals = Math.floor(Math.random() * 2) + 1;
-  const animalTypes: Animal[] = [];
-  
-  // Chance de incluir espécies invasoras (capivara ou javali)
-  const includeInvasiveSpecies = !isLikelyDog && (Math.random() < 0.6);
-  
-  // Tipo de espécie invasora a ser incluída (capivara ou javali)
-  const invasiveType = Math.random() > 0.5 ? 'capivara' : 'javali';
-  
-  // Chance de incluir cachorro
-  const includeDog = isLikelyDog || Math.random() < 0.4;
-  
-  // Adicionar um cachorro se sugerido
-  if (includeDog) {
-    const confidence = Math.min(0.99, Math.max(0.88, 0.97 + (Math.random() * 0.05 - 0.02)));
-    animalTypes.push({
+  // Sempre adiciona um cachorro e um javali para garantir que ambas as espécies sejam detectadas
+  const animals: Animal[] = [
+    // Cachorro
+    {
       name: 'Cachorro',
-      confidence: confidence,
+      confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
       description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
       scientificName: 'Canis familiaris',
       category: 'mamífero doméstico'
-    });
-  }
-  
-  // Adicionar espécie invasora se determinado
-  if (includeInvasiveSpecies && animalTypes.length < numberOfAnimals) {
-    if (invasiveType === 'capivara') {
-      // Adicionar capivara
-      const shuffledCapivaras = [...capivaraDatabase].sort(() => 0.5 - Math.random());
-      animalTypes.push({
-        ...shuffledCapivaras[0],
-        confidence: Math.min(0.99, Math.max(0.85, shuffledCapivaras[0].confidence + (Math.random() * 0.06 - 0.03)))
-      });
-    } else {
-      // Adicionar javali
-      const shuffledJavalis = [...javaliDatabase].sort(() => 0.5 - Math.random());
-      animalTypes.push({
-        ...shuffledJavalis[0],
-        confidence: Math.min(0.99, Math.max(0.85, shuffledJavalis[0].confidence + (Math.random() * 0.06 - 0.03)))
-      });
+    },
+    // Javali (sempre como espécie invasora)
+    {
+      name: 'Javali',
+      confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
+      description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
+      scientificName: 'Sus scrofa',
+      category: 'espécie invasora'
     }
-  }
+  ];
   
-  // Se ainda não temos animais suficientes, adicionar um aleatoriamente
-  if (animalTypes.length === 0) {
-    // Se não detectamos nenhum animal, adicionar cachorro ou espécie invasora aleatoriamente
-    const randomChoice = Math.random();
-    if (randomChoice < 0.4) {
-      // Adicionar cachorro
-      animalTypes.push({
-        name: 'Cachorro',
-        confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
-        description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
-        scientificName: 'Canis familiaris',
-        category: 'mamífero doméstico'
-      });
-    } else if (randomChoice < 0.7) {
-      // Adicionar capivara
-      animalTypes.push({
-        name: 'Capivara',
-        confidence: Math.min(0.99, Math.max(0.85, 0.91 + (Math.random() * 0.06 - 0.03))),
-        description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.',
-        scientificName: 'Hydrochoerus hydrochaeris',
-        category: 'espécie invasora'
-      });
-    } else {
-      // Adicionar javali
-      animalTypes.push({
-        name: 'Javali',
-        confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
-        description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
-        scientificName: 'Sus scrofa',
-        category: 'espécie invasora'
-      });
-    }
-  }
-  
-  // Ordenar por confiança
-  const sortedAnimals = animalTypes.sort((a, b) => b.confidence - a.confidence);
-  
+  // Determinar o tipo de categoria
   return { 
-    category: includeInvasiveSpecies ? 'invasive' : 'dogs',
-    animals: sortedAnimals
+    category: 'both', // Nova categoria que representa ambas as espécies
+    animals: animals
   };
 };
 
@@ -351,34 +285,30 @@ export async function recognizeAnimal(imageUrl: string): Promise<Animal[]> {
     return predetectedAnimals;
   }
   
-  // Caso contrário, obter resultados do banco de dados da categoria
-  const baseResults = [...animalDatabase[category]];
-  
-  // Modificar resultados para adicionar variabilidade
-  const fingerprintHash = Array.from(fingerprint).reduce(
-    (hash, char) => char.charCodeAt(0) + ((hash << 5) - hash), 0
-  );
-  
-  // Usar o hash para determinação consistente
-  const shuffleAmount = Math.abs(fingerprintHash % 10) / 10;
-  
-  const results = baseResults
-    .map(animal => ({
-      ...animal,
-      confidence: Math.min(0.99, Math.max(0.60, 
-        animal.confidence + (shuffleAmount * 0.1 - 0.05)
-      ))
-    }))
-    .sort((a, b) => {
-      const randomFactor = ((fingerprintHash % 1000) / 1000) * 0.2;
-      return (b.confidence + randomFactor) - (a.confidence + randomFactor);
-    })
-    .slice(0, 1 + (fingerprintHash % 2));
+  // Para outras imagens, garantir que sempre retorne ambos os animais
+  const baseResults = [
+    // Cachorro
+    {
+      name: 'Cachorro',
+      confidence: 0.97 + (Math.random() * 0.02),
+      description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
+      scientificName: 'Canis familiaris',
+      category: 'mamífero doméstico'
+    },
+    // Javali (sempre como espécie invasora)
+    {
+      name: 'Javali',
+      confidence: 0.89 + (Math.random() * 0.04),
+      description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
+      scientificName: 'Sus scrofa',
+      category: 'espécie invasora'
+    }
+  ];
   
   // Armazenar em cache
-  resultCache.set(fingerprint, results);
+  resultCache.set(fingerprint, baseResults);
   
-  return results;
+  return baseResults;
 }
 
 // Função para buscar informações sobre animal específico
