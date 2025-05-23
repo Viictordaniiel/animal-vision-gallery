@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Compass, Square } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Square } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
@@ -63,9 +63,6 @@ const MOTION_SENSITIVITY = 0.75;
 const PATTERN_RECOGNITION = 3.0;
 const MOTION_THRESHOLD = 15;
 
-// Sensor types
-type SensorType = 'redSpotAbove' | 'motionTrail' | 'rectangleTracker';
-
 export default function GalleryItem({
   imageUrl,
   animals,
@@ -89,8 +86,6 @@ export default function GalleryItem({
   const { toast } = useToast();
   // Flag to track if invasive species alert has been shown
   const invasiveAlertShownRef = useRef<boolean>(false);
-  // Tracking which sensor type is active
-  const [sensorType, setSensorType] = useState<SensorType>('redSpotAbove');
   
   // Initialize video element
   useEffect(() => {
@@ -170,28 +165,9 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Toggle sensor type - cycle through all three types
-  const toggleSensorType = () => {
-    setSensorType(prev => {
-      if (prev === 'redSpotAbove') return 'motionTrail';
-      if (prev === 'motionTrail') return 'rectangleTracker';
-      return 'redSpotAbove';
-    });
-  };
-
   // Advanced motion detection and improved animal tracking
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
-    
-    // Enhanced maximum movement distance calculation based on animal type
-    const getMaxMovementDistance = (animalType: string): number => {
-      const lowerType = animalType.toLowerCase();
-      if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) return 19;
-      if (lowerType.includes('capivara')) return 14; // Capivaras move slower than dogs
-      if (lowerType.includes('javali')) return 16; // Javalis move at moderate speed
-      // Default movement distance
-      return 16;
-    };
     
     // Initialize animal regions with intelligent positioning based on animal type
     const initializeAnimalPositions = (width: number, height: number) => {
@@ -287,16 +263,6 @@ export default function GalleryItem({
       if (heatMapEnabled) {
         heatMapCtx.globalAlpha = 0.12; // Slightly increased opacity for better visibility
       }
-      
-      // Enhanced animal speed calculation based on animal type
-      const getAnimalSpeed = (animalType: string): number => {
-        const lowerType = animalType.toLowerCase();
-        if (lowerType.includes('cachorro') || lowerType.includes('cão') || lowerType.includes('dog')) return 3.0;
-        if (lowerType.includes('capivara')) return 2.0; // Capivaras are slower
-        if (lowerType.includes('javali')) return 2.3; // Javalis move at moderate speed
-        // Default speed
-        return 2.5;
-      };
       
       // Enhanced natural movement patterns to make tracking more realistic
       const applyMovementPattern = (
@@ -418,9 +384,6 @@ export default function GalleryItem({
           // Get current position
           const currentPos = animalPositionsRef.current[animal.name][animalPositionsRef.current[animal.name].length - 1];
           
-          // Parameters affecting movement
-          const confidenceWeight = animalConfidence * TRACKING_PRECISION;
-          
           // Find motion regions that could correspond to this animal
           const relevantMotionRegions = motionRegions
             .filter(region => {
@@ -430,7 +393,7 @@ export default function GalleryItem({
               const distance = Math.sqrt(dx * dx + dy * dy);
               
               // Only consider regions within a reasonable distance based on animal type
-              const maxMovementDist = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
+              const maxMovementDist = 16 * PATTERN_RECOGNITION; // Default movement distance
               return distance < maxMovementDist;
             })
             .sort((a, b) => {
@@ -439,9 +402,8 @@ export default function GalleryItem({
               const distB = Math.sqrt(Math.pow(b.x - currentPos.x, 2) + Math.pow(a.y - currentPos.y, 2));
               
               // Blend intensity and proximity factors
-              const maxMovementDist = getMaxMovementDistance(animalType) * PATTERN_RECOGNITION;
-              const scoreA = (a.intensity * 0.7) + ((1 - distA/maxMovementDist) * 0.3);
-              const scoreB = (b.intensity * 0.7) + ((1 - distB/maxMovementDist) * 0.3);
+              const scoreA = (a.intensity * 0.7) + ((1 - distA/16) * 0.3);
+              const scoreB = (b.intensity * 0.7) + ((1 - distB/16) * 0.3);
               
               return scoreB - scoreA;
             });
@@ -459,7 +421,7 @@ export default function GalleryItem({
             if (distance < 1) return;
             
             // Normalize and scale by confidence
-            const moveSpeed = getAnimalSpeed(animalType) * confidenceWeight * targetRegion.intensity;
+            const moveSpeed = 2.5 * animalConfidence * TRACKING_PRECISION * targetRegion.intensity; // Default speed
             const normalizedDx = (dx / distance) * moveSpeed;
             const normalizedDy = (dy / distance) * moveSpeed;
             
@@ -562,7 +524,7 @@ export default function GalleryItem({
           });
         }
         
-        // Draw each animal's tracking based on selected sensor type
+        // Draw rectangle tracker for each animal
         animals.forEach(animal => {
           const positions = animalPositionsRef.current[animal.name];
           if (!positions || positions.length <= 1) return;
@@ -573,158 +535,68 @@ export default function GalleryItem({
           
           // Get current position
           const current = positions[positions.length - 1];
+          const rectColor = getAnimalColor(animal.name);
           
-          if (sensorType === 'redSpotAbove') {
-            // Draw larger red spot above the animal
-            ctx.beginPath();
-            
-            // Use a bright red color for all animal types
-            ctx.fillStyle = '#ea384c'; // Red color
-            
-            // Calculate position for spot above the animal
-            const spotSize = isInvasive ? 24 : 18; // Larger spots as requested
-            const offsetY = isInvasive ? 28 : 22; // Position above the animal
-            
-            // Draw a filled circle (red spot)
-            ctx.beginPath();
-            ctx.arc(current.x, current.y - offsetY, spotSize, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Add a glow effect to make it more visible
-            ctx.shadowColor = '#ea384c';
-            ctx.shadowBlur = 10;
-            ctx.strokeStyle = '#ff6b6b';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            ctx.shadowBlur = 0; // Reset shadow for other drawings
-            
-          } else if (sensorType === 'motionTrail') {
-            // Draw motion trail (new sensor)
-            // First draw the current position indicator
-            const trailColor = isInvasive ? '#0EA5E9' : '#8B5CF6'; // Blue for invasive, purple for domestic
-            
-            // Draw main indicator at current position
-            ctx.beginPath();
-            ctx.arc(current.x, current.y, isInvasive ? 10 : 8, 0, Math.PI * 2);
-            ctx.fillStyle = trailColor;
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Now draw motion trail (last 10 positions)
-            if (positions.length > 2) {
-              ctx.beginPath();
-              ctx.moveTo(positions[positions.length - 1].x, positions[positions.length - 1].y);
-              
-              // Draw path for last 10 positions with decreasing opacity
-              const trailLength = Math.min(10, positions.length - 1);
-              for (let i = 2; i <= trailLength; i++) {
-                const pos = positions[positions.length - i];
-                ctx.lineTo(pos.x, pos.y);
-              }
-              
-              ctx.strokeStyle = `${trailColor}99`; // Semi-transparent
-              ctx.lineWidth = 3;
-              ctx.stroke();
-              
-              // Add direction arrows along the path
-              if (trailLength > 3) {
-                for (let i = 2; i < trailLength; i += 2) {
-                  if (i + 1 >= trailLength) continue;
-                  
-                  const pos1 = positions[positions.length - i];
-                  const pos2 = positions[positions.length - (i + 1)];
-                  
-                  // Calculate direction
-                  const dx = pos1.x - pos2.x;
-                  const dy = pos1.y - pos2.y;
-                  const angle = Math.atan2(dy, dx);
-                  
-                  // Draw arrow
-                  ctx.save();
-                  ctx.translate(pos1.x, pos1.y);
-                  ctx.rotate(angle);
-                  
-                  // Arrow body
-                  ctx.beginPath();
-                  ctx.moveTo(0, 0);
-                  ctx.lineTo(-6, -2);
-                  ctx.lineTo(-5, 0);
-                  ctx.lineTo(-6, 2);
-                  ctx.closePath();
-                  
-                  ctx.fillStyle = `${trailColor}CC`;
-                  ctx.fill();
-                  ctx.restore();
-                }
-              }
-            }
-          } else if (sensorType === 'rectangleTracker') {
-            // Draw rectangle tracker (new sensor)
-            const rectColor = getAnimalColor(animal.name);
-            
-            // Calculate rectangle dimensions based on animal type and invasive status
-            const rectWidth = isInvasive ? 80 : 60;
-            const rectHeight = isInvasive ? 60 : 45;
-            
-            // Draw rectangle centered on animal position
-            const rectX = current.x - rectWidth / 2;
-            const rectY = current.y - rectHeight / 2;
-            
-            // Draw filled rectangle with transparency
-            ctx.fillStyle = `${rectColor}40`; // Semi-transparent fill
-            ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-            
-            // Draw rectangle border
-            ctx.strokeStyle = rectColor;
-            ctx.lineWidth = isInvasive ? 3 : 2;
-            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-            
-            // Add animal name label inside rectangle
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            // Add background for text for better readability
-            const textMetrics = ctx.measureText(animal.name);
-            const textWidth = textMetrics.width + 8;
-            const textHeight = 16;
-            const textX = current.x - textWidth / 2;
-            const textY = current.y - textHeight / 2;
-            
-            ctx.fillStyle = `${rectColor}CC`;
-            ctx.fillRect(textX, textY, textWidth, textHeight);
-            
-            // Draw text
-            ctx.fillStyle = 'white';
-            ctx.fillText(animal.name, current.x, current.y);
-            
-            // Add confidence percentage below name
-            ctx.font = '10px Arial';
-            ctx.fillText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y + 15);
-            
-            // Add corner indicators for better visibility
-            const cornerSize = 8;
-            ctx.fillStyle = rectColor;
-            
-            // Top-left corner
-            ctx.fillRect(rectX, rectY, cornerSize, 2);
-            ctx.fillRect(rectX, rectY, 2, cornerSize);
-            
-            // Top-right corner
-            ctx.fillRect(rectX + rectWidth - cornerSize, rectY, cornerSize, 2);
-            ctx.fillRect(rectX + rectWidth - 2, rectY, 2, cornerSize);
-            
-            // Bottom-left corner
-            ctx.fillRect(rectX, rectY + rectHeight - 2, cornerSize, 2);
-            ctx.fillRect(rectX, rectY + rectHeight - cornerSize, 2, cornerSize);
-            
-            // Bottom-right corner
-            ctx.fillRect(rectX + rectWidth - cornerSize, rectY + rectHeight - 2, cornerSize, 2);
-            ctx.fillRect(rectX + rectWidth - 2, rectY + rectHeight - cornerSize, 2, cornerSize);
-          }
+          // Calculate rectangle dimensions based on animal type and invasive status
+          const rectWidth = isInvasive ? 80 : 60;
+          const rectHeight = isInvasive ? 60 : 45;
+          
+          // Draw rectangle centered on animal position
+          const rectX = current.x - rectWidth / 2;
+          const rectY = current.y - rectHeight / 2;
+          
+          // Draw filled rectangle with transparency
+          ctx.fillStyle = `${rectColor}40`;
+          ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+          
+          // Draw rectangle border
+          ctx.strokeStyle = rectColor;
+          ctx.lineWidth = isInvasive ? 3 : 2;
+          ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+          
+          // Add animal name label inside rectangle
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 12px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          // Add background for text for better readability
+          const textMetrics = ctx.measureText(animal.name);
+          const textWidth = textMetrics.width + 8;
+          const textHeight = 16;
+          const textX = current.x - textWidth / 2;
+          const textY = current.y - textHeight / 2;
+          
+          ctx.fillStyle = `${rectColor}CC`;
+          ctx.fillRect(textX, textY, textWidth, textHeight);
+          
+          // Draw text
+          ctx.fillStyle = 'white';
+          ctx.fillText(animal.name, current.x, current.y);
+          
+          // Add confidence percentage below name
+          ctx.font = '10px Arial';
+          ctx.fillText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y + 15);
+          
+          // Add corner indicators for better visibility
+          const cornerSize = 8;
+          ctx.fillStyle = rectColor;
+          
+          // Top-left corner
+          ctx.fillRect(rectX, rectY, cornerSize, 2);
+          ctx.fillRect(rectX, rectY, 2, cornerSize);
+          
+          // Top-right corner
+          ctx.fillRect(rectX + rectWidth - cornerSize, rectY, cornerSize, 2);
+          ctx.fillRect(rectX + rectWidth - 2, rectY, 2, cornerSize);
+          
+          // Bottom-left corner
+          ctx.fillRect(rectX, rectY + rectHeight - 2, cornerSize, 2);
+          ctx.fillRect(rectX, rectY + rectHeight - cornerSize, 2, cornerSize);
+          
+          // Bottom-right corner
+          ctx.fillRect(rectX + rectWidth - cornerSize, rectY + rectHeight - 2, cornerSize, 2);
+          ctx.fillRect(rectX + rectWidth - 2, rectY + rectHeight - cornerSize, 2, cornerSize);
         });
       };
       
@@ -758,7 +630,7 @@ export default function GalleryItem({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled, sensorType]);
+  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled]);
 
   return (
     <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
@@ -821,26 +693,10 @@ export default function GalleryItem({
                   </div>
                 )}
                 
-                {/* Sensor type indicator */}
+                {/* Rectangle tracker indicator */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  {sensorType === 'rectangleTracker' ? (
-                    <Square size={16} className="text-green-500" />
-                  ) : (
-                    <Compass size={16} className={sensorType === 'motionTrail' ? "text-blue-500" : "text-red-500"} />
-                  )}
-                  <span>Sensor: {
-                    sensorType === 'redSpotAbove' ? 'Mancha vermelha' : 
-                    sensorType === 'motionTrail' ? 'Trilhas de movimento' : 
-                    'Rastreador retangular'
-                  }</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 px-2 ml-1"
-                    onClick={toggleSensorType}
-                  >
-                    Alternar
-                  </Button>
+                  <Square size={16} className="text-green-500" />
+                  <span>Sensor: Rastreador retangular</span>
                 </div>
               </div>
             )}
