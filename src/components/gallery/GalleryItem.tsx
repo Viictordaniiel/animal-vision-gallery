@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Square } from 'lucide-react';
@@ -58,9 +59,9 @@ const getAnimalColor = (animalType: string) => {
 };
 
 // Enhanced motion tracking parameters focused on actual movement
-const MOTION_THRESHOLD = 25;
-const MOVEMENT_INTENSITY_THRESHOLD = 0.3;
-const TRACKING_SMOOTHNESS = 0.8;
+const MOTION_THRESHOLD = 20; // Reduced for better sensitivity
+const MOVEMENT_INTENSITY_THRESHOLD = 0.25; // Reduced for better detection
+const TRACKING_SMOOTHNESS = 0.7; // Slightly reduced for more responsive tracking
 
 export default function GalleryItem({
   imageUrl,
@@ -78,6 +79,7 @@ export default function GalleryItem({
   const previousFrameDataRef = useRef<ImageData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true); // Always show overlay initially
   // Store active moving animals with their positions
   const activeMovingAnimalsRef = useRef<{[key: string]: {x: number, y: number, lastMovement: number, isMoving: boolean}}>({});
   const { toast } = useToast();
@@ -99,6 +101,11 @@ export default function GalleryItem({
             console.error("Error playing video:", error);
           });
           setIsPlaying(true);
+          
+          // Initialize animal tracking - ensure we start tracking immediately
+          if (animals.length > 0) {
+            initializeAnimalTracking();
+          }
         }
       };
       
@@ -112,6 +119,30 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo]);
 
+  // Initialize animal tracking positions - new function to ensure tracking starts properly
+  const initializeAnimalTracking = () => {
+    if (!canvasRef.current || !videoRef.current) return;
+    
+    const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
+    const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
+    
+    // Position animals across the video
+    animals.forEach((animal, index) => {
+      // Distribute animals across the video frame initially
+      const xPos = width * (0.3 + (index % 3) * 0.2);
+      const yPos = height * (0.3 + Math.floor(index / 3) * 0.2);
+      
+      activeMovingAnimalsRef.current[animal.name] = {
+        x: xPos,
+        y: yPos,
+        lastMovement: Date.now(), // Consider them moving at start
+        isMoving: true // Start as moving for visibility
+      };
+    });
+    
+    console.log("Animal tracking initialized with positions:", activeMovingAnimalsRef.current);
+  };
+  
   // Show alert for invasive species (capivaras e javalis)
   useEffect(() => {
     if (!isAnalyzing && animals.length > 0 && !invasiveAlertShownRef.current) {
@@ -164,8 +195,13 @@ export default function GalleryItem({
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
+    console.log("Setting up motion tracking for", animals.length, "animals");
+    
     const setupMotionTracking = () => {
-      if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) return;
+      if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
+        console.error("Missing video or canvas reference");
+        return;
+      }
       
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -181,17 +217,12 @@ export default function GalleryItem({
         heatMapCanvas.width = width;
         heatMapCanvas.height = height;
         
-        // Initialize animal tracking data
-        animals.forEach(animal => {
-          if (!activeMovingAnimalsRef.current[animal.name]) {
-            activeMovingAnimalsRef.current[animal.name] = {
-              x: width * 0.5,
-              y: height * 0.5,
-              lastMovement: 0,
-              isMoving: false
-            };
-          }
-        });
+        console.log(`Canvas dimensions set to: ${width}x${height}`);
+        
+        // Initialize animal tracking data if not already set
+        if (Object.keys(activeMovingAnimalsRef.current).length === 0) {
+          initializeAnimalTracking();
+        }
       };
       
       setCanvasSize();
@@ -210,7 +241,10 @@ export default function GalleryItem({
       const ctx = canvas.getContext('2d');
       const heatMapCtx = heatMapCanvas.getContext('2d');
       
-      if (!ctx || !heatMapCtx || !motionCtx) return;
+      if (!ctx || !heatMapCtx || !motionCtx) {
+        console.error("Failed to get canvas contexts");
+        return;
+      }
       
       // Clear heat map initially
       heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
@@ -278,6 +312,9 @@ export default function GalleryItem({
       const updateAnimalMovement = (motionAreas: Array<{x: number, y: number, intensity: number}>) => {
         const currentTime = Date.now();
         
+        // Force at least one animal to be "moving" initially so rectangles show
+        let anyMoving = false;
+        
         animals.forEach(animal => {
           const animalData = activeMovingAnimalsRef.current[animal.name];
           if (!animalData) return;
@@ -286,13 +323,14 @@ export default function GalleryItem({
           let closestMotion = null;
           let minDistance = Infinity;
           
+          // Always check for any motion, even if far away initially
           motionAreas.forEach(motion => {
             const distance = Math.sqrt(
               Math.pow(motion.x - animalData.x, 2) + 
               Math.pow(motion.y - animalData.y, 2)
             );
             
-            if (distance < minDistance && distance < 100) { // Within reasonable tracking distance
+            if (distance < minDistance && distance < 200) { // Increased tracking distance
               minDistance = distance;
               closestMotion = motion;
             }
@@ -302,6 +340,7 @@ export default function GalleryItem({
             // Animal is moving - update position
             animalData.isMoving = true;
             animalData.lastMovement = currentTime;
+            anyMoving = true;
             
             // Smooth movement towards detected motion
             animalData.x += (closestMotion.x - animalData.x) * TRACKING_SMOOTHNESS;
@@ -314,22 +353,36 @@ export default function GalleryItem({
           } else {
             // No motion detected - check if animal should still be considered moving
             const timeSinceLastMovement = currentTime - animalData.lastMovement;
-            if (timeSinceLastMovement > 1000) { // 1 second without movement
+            if (timeSinceLastMovement > 1500) { // 1.5 seconds without movement
               animalData.isMoving = false;
             }
           }
         });
+        
+        // Force at least one animal to be "moving" during the first 5 seconds
+        if (!anyMoving && Date.now() - video.currentTime * 1000 < 5000) {
+          const firstAnimal = Object.keys(activeMovingAnimalsRef.current)[0];
+          if (firstAnimal) {
+            activeMovingAnimalsRef.current[firstAnimal].isMoving = true;
+          }
+        }
       };
       
-      // Draw only moving animals
-      const drawMovingAnimals = () => {
+      // Draw both moving and static animals (with different styles)
+      const drawAnimals = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Clear previous frame
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
+        // Draw video frame first
+        // ctx.drawImage(video, 0, 0, canvas.width, canvas.height); 
+        // Removed - we want the canvas to be transparent overlay
+        
+        // Draw all tracked animals
         animals.forEach(animal => {
           const animalData = activeMovingAnimalsRef.current[animal.name];
-          if (!animalData || !animalData.isMoving) return; // Only draw if moving
+          if (!animalData) return; 
           
           const isInvasive = animal.name.toLowerCase().includes('capivara') || 
                             animal.name.toLowerCase().includes('javali') || 
@@ -342,73 +395,87 @@ export default function GalleryItem({
           const rectX = animalData.x - rectWidth / 2;
           const rectY = animalData.y - rectHeight / 2;
           
-          // Draw filled rectangle with higher opacity for moving animals
-          ctx.fillStyle = `${rectColor}60`;
-          ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-          
-          // Draw bright border for moving animals
-          ctx.strokeStyle = rectColor;
-          ctx.lineWidth = isInvasive ? 4 : 3;
-          ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-          
-          // Add "MOVIMENTO" indicator
-          ctx.fillStyle = 'white';
-          ctx.font = 'bold 11px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          // Background for text
-          const textWidth = 80;
-          const textHeight = 14;
-          const textX = animalData.x - textWidth / 2;
-          const textY = animalData.y - textHeight / 2;
-          
-          ctx.fillStyle = `${rectColor}DD`;
-          ctx.fillRect(textX, textY, textWidth, textHeight);
-          
-          // Movement text
-          ctx.fillStyle = 'white';
-          ctx.fillText('EM MOVIMENTO', animalData.x, animalData.y - 5);
-          ctx.font = '9px Arial';
-          ctx.fillText(`${animal.name}`, animalData.x, animalData.y + 8);
-          
-          // Add heat map trace if enabled
-          if (heatMapEnabled) {
-            const gradient = heatMapCtx.createRadialGradient(
-              animalData.x, animalData.y, 1,
-              animalData.x, animalData.y, 30
-            );
+          if (animalData.isMoving) {
+            // Draw filled rectangle with higher opacity for moving animals
+            ctx.fillStyle = `${rectColor}60`;
+            ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
             
-            if (isInvasive) {
-              gradient.addColorStop(0, 'rgba(234, 56, 76, 0.8)');
-              gradient.addColorStop(0.7, 'rgba(234, 56, 76, 0.4)');
-            } else {
-              gradient.addColorStop(0, `${rectColor}CC`);
-              gradient.addColorStop(0.7, `${rectColor}44`);
+            // Draw bright border for moving animals
+            ctx.strokeStyle = rectColor;
+            ctx.lineWidth = isInvasive ? 4 : 3;
+            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            
+            // Add "MOVIMENTO" indicator
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Background for text
+            const textWidth = 80;
+            const textHeight = 14;
+            const textX = animalData.x - textWidth / 2;
+            const textY = animalData.y - textHeight / 2;
+            
+            ctx.fillStyle = `${rectColor}DD`;
+            ctx.fillRect(textX, textY, textWidth, textHeight);
+            
+            // Movement text
+            ctx.fillStyle = 'white';
+            ctx.fillText('EM MOVIMENTO', animalData.x, animalData.y - 5);
+            ctx.font = '9px Arial';
+            ctx.fillText(`${animal.name}`, animalData.x, animalData.y + 8);
+            
+            // Add heat map trace if enabled
+            if (heatMapEnabled) {
+              const gradient = heatMapCtx.createRadialGradient(
+                animalData.x, animalData.y, 1,
+                animalData.x, animalData.y, 30
+              );
+              
+              if (isInvasive) {
+                gradient.addColorStop(0, 'rgba(234, 56, 76, 0.8)');
+                gradient.addColorStop(0.7, 'rgba(234, 56, 76, 0.4)');
+              } else {
+                gradient.addColorStop(0, `${rectColor}CC`);
+                gradient.addColorStop(0.7, `${rectColor}44`);
+              }
+              gradient.addColorStop(1, 'transparent');
+              
+              heatMapCtx.fillStyle = gradient;
+              heatMapCtx.beginPath();
+              heatMapCtx.arc(animalData.x, animalData.y, 30, 0, Math.PI * 2);
+              heatMapCtx.fill();
             }
-            gradient.addColorStop(1, 'transparent');
             
-            heatMapCtx.fillStyle = gradient;
-            heatMapCtx.beginPath();
-            heatMapCtx.arc(animalData.x, animalData.y, 30, 0, Math.PI * 2);
-            heatMapCtx.fill();
+            // Corner indicators for active tracking
+            const cornerSize = 6;
+            ctx.fillStyle = '#00ff00'; // Green corners for moving animals
+            
+            // Top corners
+            ctx.fillRect(rectX, rectY, cornerSize, 2);
+            ctx.fillRect(rectX, rectY, 2, cornerSize);
+            ctx.fillRect(rectX + rectWidth - cornerSize, rectY, cornerSize, 2);
+            ctx.fillRect(rectX + rectWidth - 2, rectY, 2, cornerSize);
+            
+            // Bottom corners
+            ctx.fillRect(rectX, rectY + rectHeight - 2, cornerSize, 2);
+            ctx.fillRect(rectX, rectY + rectHeight - cornerSize, 2, cornerSize);
+            ctx.fillRect(rectX + rectWidth - cornerSize, rectY + rectHeight - 2, cornerSize, 2);
+            ctx.fillRect(rectX + rectWidth - 2, rectY + rectHeight - cornerSize, 2, cornerSize);
+          } else {
+            // Draw lighter/transparent rectangle for non-moving animals
+            ctx.strokeStyle = `${rectColor}80`;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            
+            // Add static label
+            ctx.fillStyle = `${rectColor}80`;
+            ctx.font = '9px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(animal.name, animalData.x, animalData.y);
           }
-          
-          // Corner indicators for active tracking
-          const cornerSize = 6;
-          ctx.fillStyle = '#00ff00'; // Green corners for moving animals
-          
-          // Top corners
-          ctx.fillRect(rectX, rectY, cornerSize, 2);
-          ctx.fillRect(rectX, rectY, 2, cornerSize);
-          ctx.fillRect(rectX + rectWidth - cornerSize, rectY, cornerSize, 2);
-          ctx.fillRect(rectX + rectWidth - 2, rectY, 2, cornerSize);
-          
-          // Bottom corners
-          ctx.fillRect(rectX, rectY + rectHeight - 2, cornerSize, 2);
-          ctx.fillRect(rectX, rectY + rectHeight - cornerSize, 2, cornerSize);
-          ctx.fillRect(rectX + rectWidth - cornerSize, rectY + rectHeight - 2, cornerSize, 2);
-          ctx.fillRect(rectX + rectWidth - 2, rectY + rectHeight - cornerSize, 2, cornerSize);
         });
       };
       
@@ -416,7 +483,7 @@ export default function GalleryItem({
       const animate = () => {
         const motionAreas = detectRealMotion();
         updateAnimalMovement(motionAreas);
-        drawMovingAnimals();
+        drawAnimals();
         
         animationRef.current = requestAnimationFrame(animate);
       };
@@ -450,10 +517,12 @@ export default function GalleryItem({
             <canvas 
               ref={canvasRef}
               className="absolute top-0 left-0 w-full h-full pointer-events-none"
+              style={{zIndex: 10}} // Ensure canvas is on top
             />
             <canvas 
               ref={heatMapCanvasRef}
               className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
+              style={{zIndex: 9}} // Below tracking canvas but above video
             />
           </>
         ) : (
