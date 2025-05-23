@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Compass } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Compass, Square } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
@@ -65,7 +64,7 @@ const PATTERN_RECOGNITION = 3.0;
 const MOTION_THRESHOLD = 15;
 
 // Sensor types
-type SensorType = 'redSpotAbove' | 'motionTrail';
+type SensorType = 'redSpotAbove' | 'motionTrail' | 'rectangleTracker';
 
 export default function GalleryItem({
   imageUrl,
@@ -171,9 +170,13 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Toggle sensor type
+  // Toggle sensor type - cycle through all three types
   const toggleSensorType = () => {
-    setSensorType(prev => prev === 'redSpotAbove' ? 'motionTrail' : 'redSpotAbove');
+    setSensorType(prev => {
+      if (prev === 'redSpotAbove') return 'motionTrail';
+      if (prev === 'motionTrail') return 'rectangleTracker';
+      return 'redSpotAbove';
+    });
   };
 
   // Advanced motion detection and improved animal tracking
@@ -657,6 +660,70 @@ export default function GalleryItem({
                 }
               }
             }
+          } else if (sensorType === 'rectangleTracker') {
+            // Draw rectangle tracker (new sensor)
+            const rectColor = getAnimalColor(animal.name);
+            
+            // Calculate rectangle dimensions based on animal type and invasive status
+            const rectWidth = isInvasive ? 80 : 60;
+            const rectHeight = isInvasive ? 60 : 45;
+            
+            // Draw rectangle centered on animal position
+            const rectX = current.x - rectWidth / 2;
+            const rectY = current.y - rectHeight / 2;
+            
+            // Draw filled rectangle with transparency
+            ctx.fillStyle = `${rectColor}40`; // Semi-transparent fill
+            ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+            
+            // Draw rectangle border
+            ctx.strokeStyle = rectColor;
+            ctx.lineWidth = isInvasive ? 3 : 2;
+            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            
+            // Add animal name label inside rectangle
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Add background for text for better readability
+            const textMetrics = ctx.measureText(animal.name);
+            const textWidth = textMetrics.width + 8;
+            const textHeight = 16;
+            const textX = current.x - textWidth / 2;
+            const textY = current.y - textHeight / 2;
+            
+            ctx.fillStyle = `${rectColor}CC`;
+            ctx.fillRect(textX, textY, textWidth, textHeight);
+            
+            // Draw text
+            ctx.fillStyle = 'white';
+            ctx.fillText(animal.name, current.x, current.y);
+            
+            // Add confidence percentage below name
+            ctx.font = '10px Arial';
+            ctx.fillText(`${Math.round(animal.confidence * 100)}%`, current.x, current.y + 15);
+            
+            // Add corner indicators for better visibility
+            const cornerSize = 8;
+            ctx.fillStyle = rectColor;
+            
+            // Top-left corner
+            ctx.fillRect(rectX, rectY, cornerSize, 2);
+            ctx.fillRect(rectX, rectY, 2, cornerSize);
+            
+            // Top-right corner
+            ctx.fillRect(rectX + rectWidth - cornerSize, rectY, cornerSize, 2);
+            ctx.fillRect(rectX + rectWidth - 2, rectY, 2, cornerSize);
+            
+            // Bottom-left corner
+            ctx.fillRect(rectX, rectY + rectHeight - 2, cornerSize, 2);
+            ctx.fillRect(rectX, rectY + rectHeight - cornerSize, 2, cornerSize);
+            
+            // Bottom-right corner
+            ctx.fillRect(rectX + rectWidth - cornerSize, rectY + rectHeight - 2, cornerSize, 2);
+            ctx.fillRect(rectX + rectWidth - 2, rectY + rectHeight - cornerSize, 2, cornerSize);
           }
         });
       };
@@ -756,8 +823,16 @@ export default function GalleryItem({
                 
                 {/* Sensor type indicator */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Compass size={16} className={sensorType === 'motionTrail' ? "text-blue-500" : "text-red-500"} />
-                  <span>Sensor: {sensorType === 'redSpotAbove' ? 'Mancha vermelha' : 'Trilhas de movimento'}</span>
+                  {sensorType === 'rectangleTracker' ? (
+                    <Square size={16} className="text-green-500" />
+                  ) : (
+                    <Compass size={16} className={sensorType === 'motionTrail' ? "text-blue-500" : "text-red-500"} />
+                  )}
+                  <span>Sensor: {
+                    sensorType === 'redSpotAbove' ? 'Mancha vermelha' : 
+                    sensorType === 'motionTrail' ? 'Trilhas de movimento' : 
+                    'Rastreador retangular'
+                  }</span>
                   <Button 
                     variant="ghost" 
                     size="sm" 
