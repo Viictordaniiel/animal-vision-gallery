@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, Play } from 'lucide-react';
@@ -90,6 +89,18 @@ export default function Gallery() {
       
       const results = await recognizeAnimal(imageUrlWithTimestamp);
       
+      // Add dramatic delay before showing results
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      
+      // Show dramatic recognition message
+      toast({
+        title: "🔍 Processamento concluído!",
+        description: "Revelando espécies identificadas..."
+      });
+      
+      // Another shorter delay for dramatic effect
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       // Update current media with results
       setCurrentMedia(prev => {
         if (!prev) return null;
@@ -128,14 +139,14 @@ export default function Gallery() {
   };
 
   // Function to start analysis manually
-  const handleStartAnalysis = () => {
+  function handleStartAnalysis() {
     if (!currentMedia || !pendingFile) return;
     
     analyzeMedia(currentMedia.url, pendingFile, currentMedia.type);
-  };
+  }
 
   // Function to reanalyze
-  const reanalyzeCurrentMedia = async () => {
+  async function reanalyzeCurrentMedia() {
     if (!currentMedia || !pendingFile) return;
     
     setCurrentMedia(prev => {
@@ -147,10 +158,10 @@ export default function Gallery() {
     });
     
     analyzeMedia(currentMedia.url, pendingFile, currentMedia.type);
-  };
+  }
 
   // Function to toggle heat map
-  const toggleHeatMap = () => {
+  function toggleHeatMap() {
     if (!currentMedia || currentMedia.type !== 'video') return;
     
     setCurrentMedia(prev => {
@@ -170,14 +181,14 @@ export default function Gallery() {
           "Rastreando movimentos dos animais com mapa de calor."
       });
     }, 100);
-  };
+  }
 
   // Function to show uploader again
-  const handleNewUpload = () => {
+  function handleNewUpload() {
     setShowUploader(true);
     setCurrentMedia(null);
     setPendingFile(null);
-  };
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
