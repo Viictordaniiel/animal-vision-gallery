@@ -60,7 +60,7 @@ export default function Gallery() {
       animals: [],
       timestamp: Date.now(),
       type: mediaType,
-      heatMapEnabled: isVideo // Enable heat map automatically for videos
+      heatMapEnabled: false // Start with heat map disabled
     };
     
     // Set current media
@@ -120,8 +120,8 @@ export default function Gallery() {
       if (type === 'video' && results.length > 0) {
         setTimeout(() => {
           toast({
-            title: "Sensor de calor ativado",
-            description: "O mapa de calor está rastreando os padrões de movimento dos animais identificados."
+            title: "Sensores de presença ativados",
+            description: "Use o botão 'Ativar Mapa de Calor' para visualizar os padrões de movimento."
           });
         }, 1500);
       }
