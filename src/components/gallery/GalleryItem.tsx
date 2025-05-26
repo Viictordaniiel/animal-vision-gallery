@@ -57,11 +57,12 @@ const getAnimalColor = (animalType: string) => {
   }
 };
 
-// Enhanced motion tracking parameters for presence sensors
-const MOTION_THRESHOLD = 15; // Reduced for better sensitivity
-const MOVEMENT_INTENSITY_THRESHOLD = 0.2; // More sensitive detection
-const TRACKING_SMOOTHNESS = 0.8; // Smoother movement
-const PRESENCE_RADIUS = 35; // Radius for presence sensors
+// Enhanced motion tracking parameters for better animal tracking
+const MOTION_THRESHOLD = 8; // Lower threshold for better sensitivity
+const MOVEMENT_INTENSITY_THRESHOLD = 0.15; // More sensitive detection
+const TRACKING_SMOOTHNESS = 0.6; // Balanced movement tracking
+const PRESENCE_RADIUS = 40; // Larger radius for better visibility
+const INACTIVITY_TIMEOUT = 3000; // Time before sensor becomes inactive
 
 export default function GalleryItem({
   imageUrl,
@@ -79,15 +80,23 @@ export default function GalleryItem({
   const previousFrameDataRef = useRef<ImageData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  // Store active presence sensors with their positions
-  const activePresenceSensorsRef = useRef<{[key: string]: {x: number, y: number, lastMovement: number, isActive: boolean, pulsePhase: number}}>({});
+  // Enhanced presence sensors tracking
+  const activePresenceSensorsRef = useRef<{[key: string]: {
+    x: number, 
+    y: number, 
+    lastMovement: number, 
+    isActive: boolean, 
+    pulsePhase: number,
+    velocity: {x: number, y: number},
+    confidence: number
+  }}>({});
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
   
   // Initialize video element
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Setting up video playback with src: ${imageUrl}`);
+      console.log(`Configurando reprodução de vídeo: ${imageUrl}`);
       videoRef.current.src = imageUrl;
       
       setVideoLoaded(false);
@@ -96,7 +105,7 @@ export default function GalleryItem({
         setVideoLoaded(true);
         if (videoRef.current) {
           videoRef.current.play().catch(error => {
-            console.error("Error playing video:", error);
+            console.error("Erro ao reproduzir vídeo:", error);
           });
           setIsPlaying(true);
           
@@ -116,28 +125,37 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo]);
 
-  // Initialize presence sensors positions
+  // Initialize presence sensors with improved positioning
   const initializePresenceSensors = () => {
     if (!canvasRef.current || !videoRef.current) return;
     
     const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
-    // Position sensors across the video
+    console.log(`Inicializando sensores para ${animals.length} animais em área ${width}x${height}`);
+    
+    // Position sensors strategically across the video area
     animals.forEach((animal, index) => {
-      const xPos = width * (0.2 + (index % 4) * 0.2);
-      const yPos = height * (0.3 + Math.floor(index / 4) * 0.3);
+      // Distribute sensors more naturally across the frame
+      const cols = Math.ceil(Math.sqrt(animals.length));
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      
+      const xPos = width * (0.15 + (col * 0.7) / Math.max(1, cols - 1));
+      const yPos = height * (0.2 + (row * 0.6) / Math.max(1, Math.ceil(animals.length / cols) - 1));
       
       activePresenceSensorsRef.current[animal.name] = {
         x: xPos,
         y: yPos,
         lastMovement: Date.now(),
         isActive: true,
-        pulsePhase: 0
+        pulsePhase: Math.random() * Math.PI * 2, // Random initial phase
+        velocity: {x: 0, y: 0},
+        confidence: animal.confidence
       };
     });
     
-    console.log("Presence sensors initialized:", activePresenceSensorsRef.current);
+    console.log("Sensores de presença inicializados:", activePresenceSensorsRef.current);
   };
   
   // Show alert for invasive species
@@ -180,22 +198,22 @@ export default function GalleryItem({
       videoRef.current.pause();
     } else {
       videoRef.current.play().catch(error => {
-        console.error("Error playing video:", error);
+        console.error("Erro ao reproduzir vídeo:", error);
       });
     }
     
     setIsPlaying(!isPlaying);
   };
 
-  // Enhanced presence sensor tracking system
+  // Enhanced animal tracking system
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
-    console.log("Setting up presence sensor tracking for", animals.length, "animals");
+    console.log("Iniciando sistema de rastreamento aprimorado para", animals.length, "animais");
     
-    const setupPresenceTracking = () => {
+    const setupAnimalTracking = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
-        console.error("Missing video or canvas reference");
+        console.error("Referências de vídeo ou canvas ausentes");
         return;
       }
       
@@ -212,7 +230,7 @@ export default function GalleryItem({
         heatMapCanvas.width = width;
         heatMapCanvas.height = height;
         
-        console.log(`Canvas dimensions set to: ${width}x${height}`);
+        console.log(`Dimensões do canvas configuradas: ${width}x${height}`);
         
         if (Object.keys(activePresenceSensorsRef.current).length === 0) {
           initializePresenceSensors();
@@ -234,17 +252,17 @@ export default function GalleryItem({
       const heatMapCtx = heatMapCanvas.getContext('2d');
       
       if (!ctx || !heatMapCtx || !motionCtx) {
-        console.error("Failed to get canvas contexts");
+        console.error("Falha ao obter contextos do canvas");
         return;
       }
       
       heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
       if (heatMapEnabled) {
-        heatMapCtx.globalAlpha = 0.15;
+        heatMapCtx.globalAlpha = 0.2;
       }
       
-      // Detect motion between frames for presence sensors
-      const detectPresence = () => {
+      // Enhanced motion detection for animal tracking
+      const detectAnimalMovement = () => {
         if (!motionCtx || !videoRef.current) return [];
         
         motionCtx.drawImage(videoRef.current, 0, 0, motionCanvas.width, motionCanvas.height);
@@ -255,8 +273,8 @@ export default function GalleryItem({
           return [];
         }
         
-        const presenceAreas = [];
-        const blockSize = 16; // Smaller blocks for better precision
+        const movementAreas = [];
+        const blockSize = 12; // Smaller blocks for better precision
         
         for (let y = 0; y < motionCanvas.height; y += blockSize) {
           for (let x = 0; x < motionCanvas.width; x += blockSize) {
@@ -283,67 +301,87 @@ export default function GalleryItem({
             const intensity = pixelCount > 0 ? totalDifference / (blockSize * blockSize) / 255 : 0;
             
             if (intensity > MOVEMENT_INTENSITY_THRESHOLD) {
-              presenceAreas.push({
+              movementAreas.push({
                 x: x + blockSize / 2,
                 y: y + blockSize / 2,
-                intensity: Math.min(1.0, intensity)
+                intensity: Math.min(1.0, intensity * 2), // Amplify intensity for better tracking
+                area: pixelCount
               });
             }
           }
         }
         
         previousFrameDataRef.current = currentFrameData;
-        return presenceAreas;
+        return movementAreas;
       };
       
-      // Update presence sensor positions based on detected motion
-      const updatePresenceSensors = (presenceAreas: Array<{x: number, y: number, intensity: number}>) => {
+      // Update sensor positions based on animal movement
+      const updateAnimalSensors = (movementAreas: Array<{x: number, y: number, intensity: number, area: number}>) => {
         const currentTime = Date.now();
         
         animals.forEach(animal => {
           const sensorData = activePresenceSensorsRef.current[animal.name];
           if (!sensorData) return;
           
-          // Update pulse phase for animation
-          sensorData.pulsePhase += 0.1;
+          // Update pulse phase for smooth animation
+          sensorData.pulsePhase += 0.08;
           
-          let closestPresence = null;
-          let minDistance = Infinity;
+          // Find the most significant movement near this sensor
+          let bestMovement = null;
+          let maxScore = 0;
           
-          presenceAreas.forEach(presence => {
+          movementAreas.forEach(movement => {
             const distance = Math.sqrt(
-              Math.pow(presence.x - sensorData.x, 2) + 
-              Math.pow(presence.y - sensorData.y, 2)
+              Math.pow(movement.x - sensorData.x, 2) + 
+              Math.pow(movement.y - sensorData.y, 2)
             );
             
-            if (distance < minDistance && distance < 150) {
-              minDistance = distance;
-              closestPresence = presence;
+            // Score based on distance, intensity, and area
+            const distanceScore = Math.max(0, 1 - distance / 200);
+            const score = movement.intensity * movement.area * distanceScore;
+            
+            if (score > maxScore && distance < 180) {
+              maxScore = score;
+              bestMovement = movement;
             }
           });
           
-          if (closestPresence) {
+          if (bestMovement) {
             sensorData.isActive = true;
             sensorData.lastMovement = currentTime;
             
-            // Smooth movement towards detected presence
-            sensorData.x += (closestPresence.x - sensorData.x) * TRACKING_SMOOTHNESS;
-            sensorData.y += (closestPresence.y - sensorData.y) * TRACKING_SMOOTHNESS;
+            // Calculate velocity for smoother tracking
+            const deltaX = bestMovement.x - sensorData.x;
+            const deltaY = bestMovement.y - sensorData.y;
             
-            // Keep within bounds
+            sensorData.velocity.x = deltaX * TRACKING_SMOOTHNESS;
+            sensorData.velocity.y = deltaY * TRACKING_SMOOTHNESS;
+            
+            // Update position with velocity
+            sensorData.x += sensorData.velocity.x;
+            sensorData.y += sensorData.velocity.y;
+            
+            // Keep sensors within bounds
             sensorData.x = Math.max(PRESENCE_RADIUS, Math.min(canvas.width - PRESENCE_RADIUS, sensorData.x));
             sensorData.y = Math.max(PRESENCE_RADIUS, Math.min(canvas.height - PRESENCE_RADIUS, sensorData.y));
+            
+            console.log(`Sensor ${animal.name} rastreando movimento em (${Math.round(sensorData.x)}, ${Math.round(sensorData.y)})`);
           } else {
+            // Gradual velocity decay when no movement detected
+            sensorData.velocity.x *= 0.95;
+            sensorData.velocity.y *= 0.95;
+            
+            // Check for inactivity
             const timeSinceLastMovement = currentTime - sensorData.lastMovement;
-            if (timeSinceLastMovement > 2000) {
+            if (timeSinceLastMovement > INACTIVITY_TIMEOUT) {
               sensorData.isActive = false;
             }
           }
         });
       };
       
-      // Draw presence sensors
-      const drawPresenceSensors = () => {
+      // Enhanced sensor rendering
+      const drawAnimalSensors = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -357,27 +395,29 @@ export default function GalleryItem({
                             animal.category?.toLowerCase().includes('invasora');
           
           const sensorColor = getAnimalColor(animal.name);
-          const radius = isInvasive ? PRESENCE_RADIUS + 10 : PRESENCE_RADIUS;
+          const radius = isInvasive ? PRESENCE_RADIUS + 8 : PRESENCE_RADIUS;
           
           if (sensorData.isActive) {
-            // Draw pulsing presence sensor
-            const pulseScale = 1 + Math.sin(sensorData.pulsePhase) * 0.2;
+            // Enhanced pulsing animation
+            const pulseScale = 1 + Math.sin(sensorData.pulsePhase) * 0.25;
             const currentRadius = radius * pulseScale;
             
-            // Outer glow
+            // Multi-layer sensor visualization
             const gradient = ctx.createRadialGradient(
               sensorData.x, sensorData.y, 0,
               sensorData.x, sensorData.y, currentRadius
             );
             
             if (isInvasive) {
-              gradient.addColorStop(0, 'rgba(234, 56, 76, 0.8)');
-              gradient.addColorStop(0.5, 'rgba(234, 56, 76, 0.4)');
+              gradient.addColorStop(0, 'rgba(234, 56, 76, 0.9)');
+              gradient.addColorStop(0.3, 'rgba(234, 56, 76, 0.6)');
+              gradient.addColorStop(0.7, 'rgba(234, 56, 76, 0.3)');
               gradient.addColorStop(1, 'rgba(234, 56, 76, 0.1)');
             } else {
-              gradient.addColorStop(0, `${sensorColor}AA`);
-              gradient.addColorStop(0.5, `${sensorColor}66`);
-              gradient.addColorStop(1, `${sensorColor}22`);
+              gradient.addColorStop(0, `${sensorColor}CC`);
+              gradient.addColorStop(0.3, `${sensorColor}88`);
+              gradient.addColorStop(0.7, `${sensorColor}44`);
+              gradient.addColorStop(1, `${sensorColor}11`);
             }
             
             ctx.fillStyle = gradient;
@@ -385,92 +425,93 @@ export default function GalleryItem({
             ctx.arc(sensorData.x, sensorData.y, currentRadius, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inner core
+            // Inner core with confidence indicator
+            const coreSize = 6 + (sensorData.confidence * 4);
             ctx.fillStyle = isInvasive ? '#ea384c' : sensorColor;
             ctx.beginPath();
-            ctx.arc(sensorData.x, sensorData.y, 8, 0, Math.PI * 2);
+            ctx.arc(sensorData.x, sensorData.y, coreSize, 0, Math.PI * 2);
             ctx.fill();
             
-            // Presence indicator ring
+            // Active tracking ring
             ctx.strokeStyle = isInvasive ? '#ea384c' : sensorColor;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(sensorData.x, sensorData.y, currentRadius * 0.7, 0, Math.PI * 2);
+            ctx.arc(sensorData.x, sensorData.y, currentRadius * 0.8, 0, Math.PI * 2);
             ctx.stroke();
             
-            // Status text
+            // Enhanced status display
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 11px Arial';
+            ctx.font = 'bold 10px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
             // Background for text
-            const textWidth = 90;
-            const textHeight = 16;
+            const textWidth = 100;
+            const textHeight = 20;
             const textX = sensorData.x - textWidth / 2;
-            const textY = sensorData.y + radius + 15 - textHeight / 2;
+            const textY = sensorData.y + radius + 20 - textHeight / 2;
             
-            ctx.fillStyle = `${sensorColor}DD`;
+            ctx.fillStyle = `${sensorColor}EE`;
             ctx.fillRect(textX, textY, textWidth, textHeight);
             
-            // Presence text
+            // Status text
             ctx.fillStyle = 'white';
-            ctx.fillText('PRESENÇA DETECTADA', sensorData.x, sensorData.y + radius + 15 - 5);
-            ctx.font = '9px Arial';
-            ctx.fillText(`${animal.name}`, sensorData.x, sensorData.y + radius + 15 + 8);
+            ctx.fillText('🎯 RASTREANDO', sensorData.x, sensorData.y + radius + 18);
+            ctx.font = '8px Arial';
+            ctx.fillText(`${animal.name} - ${Math.round(sensorData.confidence * 100)}%`, sensorData.x, sensorData.y + radius + 30);
             
-            // Add heat map trace if enabled
+            // Heat map trace for movement history
             if (heatMapEnabled) {
               const heatGradient = heatMapCtx.createRadialGradient(
-                sensorData.x, sensorData.y, 1,
-                sensorData.x, sensorData.y, radius
+                sensorData.x, sensorData.y, 2,
+                sensorData.x, sensorData.y, radius * 0.8
               );
               
               if (isInvasive) {
-                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.6)');
-                heatGradient.addColorStop(0.7, 'rgba(234, 56, 76, 0.3)');
+                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.7)');
+                heatGradient.addColorStop(0.8, 'rgba(234, 56, 76, 0.2)');
               } else {
-                heatGradient.addColorStop(0, `${sensorColor}99`);
-                heatGradient.addColorStop(0.7, `${sensorColor}33`);
+                heatGradient.addColorStop(0, `${sensorColor}BB`);
+                heatGradient.addColorStop(0.8, `${sensorColor}22`);
               }
               heatGradient.addColorStop(1, 'transparent');
               
               heatMapCtx.fillStyle = heatGradient;
               heatMapCtx.beginPath();
-              heatMapCtx.arc(sensorData.x, sensorData.y, radius, 0, Math.PI * 2);
+              heatMapCtx.arc(sensorData.x, sensorData.y, radius * 0.8, 0, Math.PI * 2);
               heatMapCtx.fill();
             }
           } else {
-            // Draw inactive sensor
-            ctx.strokeStyle = `${sensorColor}60`;
+            // Inactive sensor - standby mode
+            ctx.strokeStyle = `${sensorColor}50`;
             ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            ctx.setLineDash([8, 8]);
             ctx.beginPath();
-            ctx.arc(sensorData.x, sensorData.y, radius * 0.5, 0, Math.PI * 2);
+            ctx.arc(sensorData.x, sensorData.y, radius * 0.6, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
             
             // Inactive core
-            ctx.fillStyle = `${sensorColor}40`;
+            ctx.fillStyle = `${sensorColor}30`;
             ctx.beginPath();
-            ctx.arc(sensorData.x, sensorData.y, 6, 0, Math.PI * 2);
+            ctx.arc(sensorData.x, sensorData.y, 5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inactive label
-            ctx.fillStyle = `${sensorColor}80`;
-            ctx.font = '9px Arial';
+            // Standby label
+            ctx.fillStyle = `${sensorColor}70`;
+            ctx.font = '8px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('AGUARDANDO', sensorData.x, sensorData.y + radius + 10);
+            ctx.fillText('⏸️ AGUARDANDO', sensorData.x, sensorData.y + radius + 12);
           }
         });
       };
       
-      // Animation loop for presence sensors
+      // Main animation loop
       const animate = () => {
-        const presenceAreas = detectPresence();
-        updatePresenceSensors(presenceAreas);
-        drawPresenceSensors();
+        const movementAreas = detectAnimalMovement();
+        updateAnimalSensors(movementAreas);
+        drawAnimalSensors();
         
         animationRef.current = requestAnimationFrame(animate);
       };
@@ -478,7 +519,7 @@ export default function GalleryItem({
       animate();
     };
     
-    setupPresenceTracking();
+    setupAnimalTracking();
     
     return () => {
       if (animationRef.current !== null) {
@@ -550,7 +591,7 @@ export default function GalleryItem({
                 
                 <div className="flex items-center gap-1 text-sm text-green-600">
                   <Circle size={16} className="text-green-500" />
-                  <span>Sensores de presença ativos</span>
+                  <span>Sensores de presença rastreando movimento</span>
                 </div>
               </div>
             )}
