@@ -315,7 +315,7 @@ export default function GalleryItem({
       
       heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
       if (heatMapEnabled) {
-        heatMapCtx.globalAlpha = 0.3;
+        heatMapCtx.globalAlpha = 0.15; // Reduced opacity for subtler heat map
       }
       
       // Type-specific motion detection
@@ -591,7 +591,7 @@ export default function GalleryItem({
             ctx.font = '8px Arial';
             ctx.fillText(`${animal.name} - ${Math.round(sensorData.confidence * 100)}%`, sensorData.x, sensorData.y + radius + 35);
             
-            // Heat map trace for movement history with invasive emphasis
+            // Heat map trace for movement history with reduced intensity
             if (heatMapEnabled) {
               const heatGradient = heatMapCtx.createRadialGradient(
                 sensorData.x, sensorData.y, 2,
@@ -599,12 +599,14 @@ export default function GalleryItem({
               );
               
               if (isInvasive) {
-                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.8)');
-                heatGradient.addColorStop(0.6, 'rgba(234, 56, 76, 0.4)');
-                heatGradient.addColorStop(1, 'rgba(234, 56, 76, 0.1)');
+                // Reduced intensity colors for invasive species heat map
+                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.3)');
+                heatGradient.addColorStop(0.6, 'rgba(234, 56, 76, 0.15)');
+                heatGradient.addColorStop(1, 'rgba(234, 56, 76, 0.03)');
               } else {
-                heatGradient.addColorStop(0, `${sensorColor}BB`);
-                heatGradient.addColorStop(0.8, `${sensorColor}33`);
+                // Reduced intensity colors for domestic species heat map
+                heatGradient.addColorStop(0, `${sensorColor}40`);
+                heatGradient.addColorStop(0.8, `${sensorColor}15`);
                 heatGradient.addColorStop(1, 'transparent');
               }
               
