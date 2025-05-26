@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle } from 'lucide-react';
@@ -27,6 +28,7 @@ const animalColors = {
   cachorro: '#4ecdc4',
   capivara: '#ff6b6b',
   javali: '#b76d2b',
+  invasivo: '#ea384c',
   default: '#ff5e57'
 };
 
@@ -53,16 +55,17 @@ const getAnimalColor = (animalType: string) => {
   } else if (type.includes('javali')) {
     return animalColors.javali;
   } else {
-    return animalColors.default;
+    return animalColors.invasivo;
   }
 };
 
 // Enhanced motion tracking parameters for better animal tracking
-const MOTION_THRESHOLD = 8; // Lower threshold for better sensitivity
-const MOVEMENT_INTENSITY_THRESHOLD = 0.15; // More sensitive detection
-const TRACKING_SMOOTHNESS = 0.6; // Balanced movement tracking
-const PRESENCE_RADIUS = 40; // Larger radius for better visibility
-const INACTIVITY_TIMEOUT = 3000; // Time before sensor becomes inactive
+const MOTION_THRESHOLD = 6; // Mais sensível para capturar movimentos sutis
+const MOVEMENT_INTENSITY_THRESHOLD = 0.12; // Threshold mais baixo para invasores
+const TRACKING_SMOOTHNESS = 0.7; // Rastreamento mais responsivo
+const PRESENCE_RADIUS = 45; // Raio maior para melhor visibilidade
+const INACTIVITY_TIMEOUT = 2500; // Timeout menor para manter sensores ativos
+const INVASIVE_TRACKING_BOOST = 1.3; // Boost para rastreamento de invasores
 
 export default function GalleryItem({
   imageUrl,
@@ -80,7 +83,7 @@ export default function GalleryItem({
   const previousFrameDataRef = useRef<ImageData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  // Enhanced presence sensors tracking
+  // Enhanced presence sensors tracking with invasive species priority
   const activePresenceSensorsRef = useRef<{[key: string]: {
     x: number, 
     y: number, 
@@ -88,7 +91,9 @@ export default function GalleryItem({
     isActive: boolean, 
     pulsePhase: number,
     velocity: {x: number, y: number},
-    confidence: number
+    confidence: number,
+    isInvasive: boolean,
+    trackingPriority: number
   }}>({});
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
@@ -125,37 +130,67 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo]);
 
-  // Initialize presence sensors with improved positioning
+  // Initialize presence sensors with enhanced invasive species detection
   const initializePresenceSensors = () => {
     if (!canvasRef.current || !videoRef.current) return;
     
     const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
-    console.log(`Inicializando sensores para ${animals.length} animais em área ${width}x${height}`);
+    console.log(`Inicializando sensores aprimorados para ${animals.length} animais em área ${width}x${height}`);
     
-    // Position sensors strategically across the video area
-    animals.forEach((animal, index) => {
-      // Distribute sensors more naturally across the frame
-      const cols = Math.ceil(Math.sqrt(animals.length));
-      const row = Math.floor(index / cols);
-      const col = index % cols;
-      
-      const xPos = width * (0.15 + (col * 0.7) / Math.max(1, cols - 1));
-      const yPos = height * (0.2 + (row * 0.6) / Math.max(1, Math.ceil(animals.length / cols) - 1));
+    // Clear existing sensors
+    activePresenceSensorsRef.current = {};
+    
+    // Position sensors strategically with priority for invasive species
+    const invasiveAnimals = animals.filter(animal => 
+      animal.category?.toLowerCase().includes('invasora') ||
+      animal.name.toLowerCase().includes('capivara') ||
+      animal.name.toLowerCase().includes('javali')
+    );
+    
+    const domesticAnimals = animals.filter(animal => 
+      !invasiveAnimals.includes(animal)
+    );
+    
+    // Process invasive animals first (higher priority positioning)
+    invasiveAnimals.forEach((animal, index) => {
+      const xPos = width * (0.2 + (index * 0.6) / Math.max(1, invasiveAnimals.length - 1));
+      const yPos = height * (0.25 + Math.random() * 0.3); // Posição central para invasores
       
       activePresenceSensorsRef.current[animal.name] = {
         x: xPos,
         y: yPos,
         lastMovement: Date.now(),
         isActive: true,
-        pulsePhase: Math.random() * Math.PI * 2, // Random initial phase
+        pulsePhase: Math.random() * Math.PI * 2,
         velocity: {x: 0, y: 0},
-        confidence: animal.confidence
+        confidence: animal.confidence,
+        isInvasive: true,
+        trackingPriority: 10 // Alta prioridade para invasores
       };
     });
     
-    console.log("Sensores de presença inicializados:", activePresenceSensorsRef.current);
+    // Process domestic animals
+    domesticAnimals.forEach((animal, index) => {
+      const totalDomestic = domesticAnimals.length;
+      const xPos = width * (0.15 + (index * 0.7) / Math.max(1, totalDomestic - 1));
+      const yPos = height * (0.6 + Math.random() * 0.25); // Posição inferior para domésticos
+      
+      activePresenceSensorsRef.current[animal.name] = {
+        x: xPos,
+        y: yPos,
+        lastMovement: Date.now(),
+        isActive: true,
+        pulsePhase: Math.random() * Math.PI * 2,
+        velocity: {x: 0, y: 0},
+        confidence: animal.confidence,
+        isInvasive: false,
+        trackingPriority: 5 // Prioridade normal para domésticos
+      };
+    });
+    
+    console.log("Sensores de presença com prioridade invasiva inicializados:", activePresenceSensorsRef.current);
   };
   
   // Show alert for invasive species
@@ -173,7 +208,7 @@ export default function GalleryItem({
         invasiveSpecies.forEach(species => {
           toast({
             title: "⚠️ Espécie Invasora Detectada!",
-            description: `${species.name} foi identificada com ${Math.round(species.confidence * 100)}% de confiança.`,
+            description: `${species.name} foi identificada com ${Math.round(species.confidence * 100)}% de confiança. Rastreamento prioritário ativado.`,
             variant: "destructive",
             duration: 6000,
           });
@@ -205,11 +240,11 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Enhanced animal tracking system
+  // Enhanced animal tracking system with invasive species priority
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
-    console.log("Iniciando sistema de rastreamento aprimorado para", animals.length, "animais");
+    console.log("Iniciando sistema de rastreamento com prioridade para invasores para", animals.length, "animais");
     
     const setupAnimalTracking = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
@@ -258,10 +293,10 @@ export default function GalleryItem({
       
       heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
       if (heatMapEnabled) {
-        heatMapCtx.globalAlpha = 0.2;
+        heatMapCtx.globalAlpha = 0.3;
       }
       
-      // Enhanced motion detection for animal tracking
+      // Enhanced motion detection with invasive species priority
       const detectAnimalMovement = () => {
         if (!motionCtx || !videoRef.current) return [];
         
@@ -274,7 +309,7 @@ export default function GalleryItem({
         }
         
         const movementAreas = [];
-        const blockSize = 12; // Smaller blocks for better precision
+        const blockSize = 10; // Blocos menores para maior precisão
         
         for (let y = 0; y < motionCanvas.height; y += blockSize) {
           for (let x = 0; x < motionCanvas.width; x += blockSize) {
@@ -304,7 +339,7 @@ export default function GalleryItem({
               movementAreas.push({
                 x: x + blockSize / 2,
                 y: y + blockSize / 2,
-                intensity: Math.min(1.0, intensity * 2), // Amplify intensity for better tracking
+                intensity: Math.min(1.0, intensity * 2.5), // Amplificação maior para melhor rastreamento
                 area: pixelCount
               });
             }
@@ -315,20 +350,30 @@ export default function GalleryItem({
         return movementAreas;
       };
       
-      // Update sensor positions based on animal movement
+      // Update sensor positions with priority for invasive species
       const updateAnimalSensors = (movementAreas: Array<{x: number, y: number, intensity: number, area: number}>) => {
         const currentTime = Date.now();
         
-        animals.forEach(animal => {
+        // Sort animals by tracking priority (invasive species first)
+        const sortedAnimals = animals.sort((a, b) => {
+          const sensorA = activePresenceSensorsRef.current[a.name];
+          const sensorB = activePresenceSensorsRef.current[b.name];
+          return (sensorB?.trackingPriority || 0) - (sensorA?.trackingPriority || 0);
+        });
+        
+        sortedAnimals.forEach(animal => {
           const sensorData = activePresenceSensorsRef.current[animal.name];
           if (!sensorData) return;
           
           // Update pulse phase for smooth animation
-          sensorData.pulsePhase += 0.08;
+          sensorData.pulsePhase += sensorData.isInvasive ? 0.12 : 0.08; // Pulsação mais rápida para invasores
           
           // Find the most significant movement near this sensor
           let bestMovement = null;
           let maxScore = 0;
+          
+          const detectionRadius = sensorData.isInvasive ? 220 : 180; // Raio maior para invasores
+          const trackingBoost = sensorData.isInvasive ? INVASIVE_TRACKING_BOOST : 1.0;
           
           movementAreas.forEach(movement => {
             const distance = Math.sqrt(
@@ -336,11 +381,12 @@ export default function GalleryItem({
               Math.pow(movement.y - sensorData.y, 2)
             );
             
-            // Score based on distance, intensity, and area
-            const distanceScore = Math.max(0, 1 - distance / 200);
-            const score = movement.intensity * movement.area * distanceScore;
+            // Score baseado em distância, intensidade, área e prioridade
+            const distanceScore = Math.max(0, 1 - distance / detectionRadius);
+            const priorityBoost = sensorData.trackingPriority / 10;
+            const score = movement.intensity * movement.area * distanceScore * priorityBoost * trackingBoost;
             
-            if (score > maxScore && distance < 180) {
+            if (score > maxScore && distance < detectionRadius) {
               maxScore = score;
               bestMovement = movement;
             }
@@ -350,12 +396,14 @@ export default function GalleryItem({
             sensorData.isActive = true;
             sensorData.lastMovement = currentTime;
             
-            // Calculate velocity for smoother tracking
+            // Calculate velocity for smoother tracking with invasive boost
             const deltaX = bestMovement.x - sensorData.x;
             const deltaY = bestMovement.y - sensorData.y;
             
-            sensorData.velocity.x = deltaX * TRACKING_SMOOTHNESS;
-            sensorData.velocity.y = deltaY * TRACKING_SMOOTHNESS;
+            const trackingSmoothness = sensorData.isInvasive ? TRACKING_SMOOTHNESS * 1.2 : TRACKING_SMOOTHNESS;
+            
+            sensorData.velocity.x = deltaX * trackingSmoothness;
+            sensorData.velocity.y = deltaY * trackingSmoothness;
             
             // Update position with velocity
             sensorData.x += sensorData.velocity.x;
@@ -365,22 +413,24 @@ export default function GalleryItem({
             sensorData.x = Math.max(PRESENCE_RADIUS, Math.min(canvas.width - PRESENCE_RADIUS, sensorData.x));
             sensorData.y = Math.max(PRESENCE_RADIUS, Math.min(canvas.height - PRESENCE_RADIUS, sensorData.y));
             
-            console.log(`Sensor ${animal.name} rastreando movimento em (${Math.round(sensorData.x)}, ${Math.round(sensorData.y)})`);
+            const invasiveLabel = sensorData.isInvasive ? '[INVASOR]' : '';
+            console.log(`Sensor ${invasiveLabel} ${animal.name} rastreando movimento em (${Math.round(sensorData.x)}, ${Math.round(sensorData.y)})`);
           } else {
             // Gradual velocity decay when no movement detected
-            sensorData.velocity.x *= 0.95;
-            sensorData.velocity.y *= 0.95;
+            sensorData.velocity.x *= 0.92;
+            sensorData.velocity.y *= 0.92;
             
-            // Check for inactivity
+            // Check for inactivity with different timeouts
+            const timeoutDuration = sensorData.isInvasive ? INACTIVITY_TIMEOUT * 1.5 : INACTIVITY_TIMEOUT;
             const timeSinceLastMovement = currentTime - sensorData.lastMovement;
-            if (timeSinceLastMovement > INACTIVITY_TIMEOUT) {
+            if (timeSinceLastMovement > timeoutDuration) {
               sensorData.isActive = false;
             }
           }
         });
       };
       
-      // Enhanced sensor rendering
+      // Enhanced sensor rendering with invasive species highlighting
       const drawAnimalSensors = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
@@ -390,29 +440,29 @@ export default function GalleryItem({
           const sensorData = activePresenceSensorsRef.current[animal.name];
           if (!sensorData) return; 
           
-          const isInvasive = animal.name.toLowerCase().includes('capivara') || 
-                            animal.name.toLowerCase().includes('javali') || 
-                            animal.category?.toLowerCase().includes('invasora');
-          
-          const sensorColor = getAnimalColor(animal.name);
-          const radius = isInvasive ? PRESENCE_RADIUS + 8 : PRESENCE_RADIUS;
+          const isInvasive = sensorData.isInvasive;
+          const sensorColor = isInvasive ? animalColors.invasivo : getAnimalColor(animal.name);
+          const radius = isInvasive ? PRESENCE_RADIUS + 12 : PRESENCE_RADIUS;
           
           if (sensorData.isActive) {
-            // Enhanced pulsing animation
-            const pulseScale = 1 + Math.sin(sensorData.pulsePhase) * 0.25;
+            // Enhanced pulsing animation for invasive species
+            const pulseIntensity = isInvasive ? 0.35 : 0.25;
+            const pulseScale = 1 + Math.sin(sensorData.pulsePhase) * pulseIntensity;
             const currentRadius = radius * pulseScale;
             
-            // Multi-layer sensor visualization
+            // Multi-layer sensor visualization with invasive priority
             const gradient = ctx.createRadialGradient(
               sensorData.x, sensorData.y, 0,
               sensorData.x, sensorData.y, currentRadius
             );
             
             if (isInvasive) {
-              gradient.addColorStop(0, 'rgba(234, 56, 76, 0.9)');
-              gradient.addColorStop(0.3, 'rgba(234, 56, 76, 0.6)');
-              gradient.addColorStop(0.7, 'rgba(234, 56, 76, 0.3)');
-              gradient.addColorStop(1, 'rgba(234, 56, 76, 0.1)');
+              // Cores mais vibrantes para invasores
+              gradient.addColorStop(0, 'rgba(234, 56, 76, 0.95)');
+              gradient.addColorStop(0.2, 'rgba(234, 56, 76, 0.8)');
+              gradient.addColorStop(0.5, 'rgba(234, 56, 76, 0.5)');
+              gradient.addColorStop(0.8, 'rgba(234, 56, 76, 0.2)');
+              gradient.addColorStop(1, 'rgba(234, 56, 76, 0.05)');
             } else {
               gradient.addColorStop(0, `${sensorColor}CC`);
               gradient.addColorStop(0.3, `${sensorColor}88`);
@@ -426,65 +476,68 @@ export default function GalleryItem({
             ctx.fill();
             
             // Inner core with confidence indicator
-            const coreSize = 6 + (sensorData.confidence * 4);
-            ctx.fillStyle = isInvasive ? '#ea384c' : sensorColor;
+            const coreSize = isInvasive ? 8 + (sensorData.confidence * 6) : 6 + (sensorData.confidence * 4);
+            ctx.fillStyle = sensorColor;
             ctx.beginPath();
             ctx.arc(sensorData.x, sensorData.y, coreSize, 0, Math.PI * 2);
             ctx.fill();
             
-            // Active tracking ring
-            ctx.strokeStyle = isInvasive ? '#ea384c' : sensorColor;
-            ctx.lineWidth = 2;
+            // Active tracking ring with invasive emphasis
+            ctx.strokeStyle = sensorColor;
+            ctx.lineWidth = isInvasive ? 3 : 2;
             ctx.beginPath();
-            ctx.arc(sensorData.x, sensorData.y, currentRadius * 0.8, 0, Math.PI * 2);
+            ctx.arc(sensorData.x, sensorData.y, currentRadius * 0.75, 0, Math.PI * 2);
             ctx.stroke();
             
             // Enhanced status display
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 10px Arial';
+            ctx.font = isInvasive ? 'bold 11px Arial' : 'bold 10px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
             // Background for text
-            const textWidth = 100;
-            const textHeight = 20;
+            const textWidth = isInvasive ? 120 : 100;
+            const textHeight = 22;
             const textX = sensorData.x - textWidth / 2;
-            const textY = sensorData.y + radius + 20 - textHeight / 2;
+            const textY = sensorData.y + radius + 25 - textHeight / 2;
             
             ctx.fillStyle = `${sensorColor}EE`;
             ctx.fillRect(textX, textY, textWidth, textHeight);
             
-            // Status text
+            // Status text with invasive indicator
             ctx.fillStyle = 'white';
-            ctx.fillText('🎯 RASTREANDO', sensorData.x, sensorData.y + radius + 18);
+            const statusText = isInvasive ? '🚨 INVASOR DETECTADO' : '🎯 RASTREANDO';
+            ctx.fillText(statusText, sensorData.x, sensorData.y + radius + 20);
             ctx.font = '8px Arial';
-            ctx.fillText(`${animal.name} - ${Math.round(sensorData.confidence * 100)}%`, sensorData.x, sensorData.y + radius + 30);
+            ctx.fillText(`${animal.name} - ${Math.round(sensorData.confidence * 100)}%`, sensorData.x, sensorData.y + radius + 35);
             
-            // Heat map trace for movement history
+            // Heat map trace for movement history with invasive emphasis
             if (heatMapEnabled) {
               const heatGradient = heatMapCtx.createRadialGradient(
                 sensorData.x, sensorData.y, 2,
-                sensorData.x, sensorData.y, radius * 0.8
+                sensorData.x, sensorData.y, radius * (isInvasive ? 1.0 : 0.8)
               );
               
               if (isInvasive) {
-                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.7)');
-                heatGradient.addColorStop(0.8, 'rgba(234, 56, 76, 0.2)');
+                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.8)');
+                heatGradient.addColorStop(0.6, 'rgba(234, 56, 76, 0.4)');
+                heatGradient.addColorStop(1, 'rgba(234, 56, 76, 0.1)');
               } else {
                 heatGradient.addColorStop(0, `${sensorColor}BB`);
-                heatGradient.addColorStop(0.8, `${sensorColor}22`);
+                heatGradient.addColorStop(0.8, `${sensorColor}33`);
+                heatGradient.addColorStop(1, 'transparent');
               }
-              heatGradient.addColorStop(1, 'transparent');
               
               heatMapCtx.fillStyle = heatGradient;
               heatMapCtx.beginPath();
-              heatMapCtx.arc(sensorData.x, sensorData.y, radius * 0.8, 0, Math.PI * 2);
+              heatMapCtx.arc(sensorData.x, sensorData.y, radius * (isInvasive ? 1.0 : 0.8), 0, Math.PI * 2);
               heatMapCtx.fill();
             }
           } else {
-            // Inactive sensor - standby mode
-            ctx.strokeStyle = `${sensorColor}50`;
-            ctx.lineWidth = 2;
+            // Inactive sensor - standby mode with invasive differentiation
+            const standbyColor = isInvasive ? '#ea384c50' : `${sensorColor}50`;
+            ctx.strokeStyle = standbyColor;
+            ctx.lineWidth = isInvasive ? 3 : 2;
             ctx.setLineDash([8, 8]);
             ctx.beginPath();
             ctx.arc(sensorData.x, sensorData.y, radius * 0.6, 0, Math.PI * 2);
@@ -494,7 +547,7 @@ export default function GalleryItem({
             // Inactive core
             ctx.fillStyle = `${sensorColor}30`;
             ctx.beginPath();
-            ctx.arc(sensorData.x, sensorData.y, 5, 0, Math.PI * 2);
+            ctx.arc(sensorData.x, sensorData.y, isInvasive ? 6 : 5, 0, Math.PI * 2);
             ctx.fill();
             
             // Standby label
@@ -502,7 +555,8 @@ export default function GalleryItem({
             ctx.font = '8px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('⏸️ AGUARDANDO', sensorData.x, sensorData.y + radius + 12);
+            const standbyText = isInvasive ? '⚠️ INVASOR EM STANDBY' : '⏸️ AGUARDANDO';
+            ctx.fillText(standbyText, sensorData.x, sensorData.y + radius + 15);
           }
         });
       };
