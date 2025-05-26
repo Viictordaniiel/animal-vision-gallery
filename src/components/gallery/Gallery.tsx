@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Upload, Play } from 'lucide-react';
 import ImageUploader from './ImageUploader';
 import GalleryItem from './GalleryItem';
 import { recognizeAnimal } from '@/services/imageRecognition';
@@ -28,6 +28,7 @@ export default function Gallery() {
   const [currentMedia, setCurrentMedia] = useState<GalleryItemType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showUploader, setShowUploader] = useState(true);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   
   const handleImageUpload = (imageUrl: string, file: File) => {
     // Determine if it's an image or video
@@ -37,15 +38,23 @@ export default function Gallery() {
     // Hide uploader after successful upload
     setShowUploader(false);
     
+    // Store the file for later analysis
+    setPendingFile(file);
+    
     // Show appropriate toast message
     if (isVideo) {
       toast({
-        title: "Vídeo detectado",
-        description: "Pronto para análise de movimentos em modo vídeo."
+        title: "Vídeo carregado",
+        description: "Clique em 'Analisar' para iniciar a detecção de animais."
+      });
+    } else {
+      toast({
+        title: "Imagem carregada",
+        description: "Clique em 'Analisar' para iniciar a detecção de animais."
       });
     }
 
-    // Create a new media object
+    // Create a new media object without analysis
     const newMedia: GalleryItemType = {
       url: imageUrl,
       analyzed: false,
@@ -57,9 +66,6 @@ export default function Gallery() {
     
     // Set current media
     setCurrentMedia(newMedia);
-
-    // Automatically analyze the uploaded media
-    analyzeMedia(imageUrl, file, mediaType);
   };
   
   const analyzeMedia = async (url: string, file: File, type: 'image' | 'video') => {
@@ -121,9 +127,16 @@ export default function Gallery() {
     }
   };
 
+  // Function to start analysis manually
+  const handleStartAnalysis = () => {
+    if (!currentMedia || !pendingFile) return;
+    
+    analyzeMedia(currentMedia.url, pendingFile, currentMedia.type);
+  };
+
   // Function to reanalyze
   const reanalyzeCurrentMedia = async () => {
-    if (!currentMedia) return;
+    if (!currentMedia || !pendingFile) return;
     
     setCurrentMedia(prev => {
       if (!prev) return null;
@@ -133,60 +146,7 @@ export default function Gallery() {
       };
     });
     
-    setIsAnalyzing(true);
-    
-    try {
-      // Add timestamp to avoid browser cache
-      const timestamp = Date.now();
-      const mediaUrlWithTimestamp = currentMedia.url.includes('?') 
-        ? `${currentMedia.url}&t=${timestamp}` 
-        : `${currentMedia.url}?t=${timestamp}`;
-      
-      // Show appropriate message for video processing
-      if (currentMedia.type === 'video') {
-        toast({
-          title: "Processando vídeo",
-          description: "Reanalisando quadros e padrões de movimento..."
-        });
-      }
-      
-      const results = await recognizeAnimal(mediaUrlWithTimestamp);
-      
-      // Update the current media with new results
-      setCurrentMedia(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          analyzed: true,
-          animals: results,
-          timestamp: timestamp
-        };
-      });
-      
-      toast({
-        title: "Reanálise concluída",
-        description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''} com mapa de calor atualizado.`
-      });
-      
-    } catch (error) {
-      console.error('Erro ao reanalisar mídia:', error);
-      
-      setCurrentMedia(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          analyzed: true
-        };
-      });
-      
-      toast({
-        variant: "destructive",
-        title: "Erro na reanálise",
-        description: "Não foi possível processar o reconhecimento."
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
+    analyzeMedia(currentMedia.url, pendingFile, currentMedia.type);
   };
 
   // Function to toggle heat map
@@ -216,6 +176,7 @@ export default function Gallery() {
   const handleNewUpload = () => {
     setShowUploader(true);
     setCurrentMedia(null);
+    setPendingFile(null);
   };
 
   return (
@@ -231,7 +192,17 @@ export default function Gallery() {
           <div className="mb-6 w-full flex justify-between items-center">
             <h2 className="text-xl">Análise de {currentMedia.type === 'video' ? 'Vídeo' : 'Imagem'}</h2>
             <div className="flex gap-2">
-              {currentMedia.type === 'video' && (
+              {!currentMedia.analyzed && (
+                <Button 
+                  onClick={handleStartAnalysis} 
+                  disabled={isAnalyzing}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Play size={16} />
+                  <span>{isAnalyzing ? 'Analisando...' : 'Analisar'}</span>
+                </Button>
+              )}
+              {currentMedia.type === 'video' && currentMedia.analyzed && (
                 <Button 
                   onClick={toggleHeatMap} 
                   variant={currentMedia.heatMapEnabled ? "default" : "outline"}
@@ -256,7 +227,7 @@ export default function Gallery() {
               imageUrl={currentMedia.url}
               animals={currentMedia.animals}
               onAnalyze={reanalyzeCurrentMedia}
-              isAnalyzing={isAnalyzing || !currentMedia.analyzed}
+              isAnalyzing={isAnalyzing}
               showReanalyze={currentMedia.analyzed}
               isVideo={currentMedia.type === 'video'}
               heatMapEnabled={currentMedia.heatMapEnabled}
