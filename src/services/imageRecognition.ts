@@ -1,4 +1,3 @@
-
 // Simulação de um serviço avançado de reconhecimento de imagens de animais
 // Em uma implementação real, isso seria integrado com um serviço de IA como Google Cloud Vision ou Hugging Face
 
@@ -151,88 +150,144 @@ const getImageFingerprint = (imageUrl: string): string => {
 // Cache para resultados
 const resultCache = new Map<string, Animal[]>();
 
-// Função para determinar o tipo de animal a ser mostrado
-const shouldShowInvasiveSpecies = (imageUrl: string): boolean => {
+// Função aprimorada para análise inteligente de conteúdo
+const analyzeVideoContent = (imageUrl: string): { hasCapybara: boolean, hasWildBoar: boolean, hasDog: boolean } => {
+  const lowerUrl = imageUrl?.toLowerCase() || '';
+  const fingerprint = getImageFingerprint(imageUrl);
+  
+  // Análise por nome de arquivo ou URL
+  const hasCapybara = lowerUrl.includes('capivara') || 
+                      lowerUrl.includes('capybara') || 
+                      lowerUrl.includes('hydrochoerus') ||
+                      lowerUrl.includes('roedor');
+  
+  const hasWildBoar = lowerUrl.includes('javali') || 
+                      lowerUrl.includes('wild boar') || 
+                      lowerUrl.includes('sus scrofa') ||
+                      lowerUrl.includes('suino');
+  
+  const hasDog = lowerUrl.includes('cachorro') || 
+                 lowerUrl.includes('dog') || 
+                 lowerUrl.includes('canino') ||
+                 lowerUrl.includes('cão');
+  
+  // Análise por fingerprint para casos específicos
+  if (fingerprint) {
+    const specificImage = specificImages[fingerprint];
+    if (specificImage) {
+      const animalName = specificImage.result[0]?.name.toLowerCase() || '';
+      return {
+        hasCapybara: animalName.includes('capivara'),
+        hasWildBoar: animalName.includes('javali'),
+        hasDog: animalName.includes('cachorro')
+      };
+    }
+  }
+  
+  // Para blob URLs (uploads), usar análise baseada em timestamp e características
   if (imageUrl.startsWith('blob:')) {
-    const fingerprint = getImageFingerprint(imageUrl);
     const hashCode = Array.from(fingerprint).reduce(
       (hash, char) => char.charCodeAt(0) + ((hash << 5) - hash), 0
     );
     
-    // 60% de chance de mostrar espécies invasoras para uploads
-    return (Math.abs(hashCode) % 10) < 6;
+    // Algoritmo melhorado para determinar conteúdo
+    const modulo = Math.abs(hashCode) % 100;
+    
+    // 40% chance de ser apenas capivara
+    // 30% chance de ser apenas javali  
+    // 20% chance de ter ambos invasores
+    // 10% chance de ter cachorro junto
+    
+    if (modulo < 40) {
+      return { hasCapybara: true, hasWildBoar: false, hasDog: false };
+    } else if (modulo < 70) {
+      return { hasCapybara: false, hasWildBoar: true, hasDog: false };
+    } else if (modulo < 90) {
+      return { hasCapybara: true, hasWildBoar: true, hasDog: false };
+    } else {
+      return { hasCapybara: false, hasWildBoar: false, hasDog: true };
+    }
   }
   
-  return false;
+  return { hasCapybara, hasWildBoar, hasDog };
 };
 
-// Função para detectar animais em uploads do usuário
+// Função melhorada para detectar animais em uploads do usuário
 const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals: Animal[] } => {
-  const lowerUrl = imageUrl?.toLowerCase() || '';
+  const analysis = analyzeVideoContent(imageUrl || '');
   
-  // Detectar se é especificamente uma capivara
-  const isCapybaraOnly = lowerUrl.includes('capivara') || 
-                          lowerUrl.includes('capybara') || 
-                          lowerUrl.includes('hydrochoerus');
+  console.log('Análise de conteúdo do vídeo:', analysis, 'para URL:', imageUrl);
   
-  // Detectar se é especificamente um javali
-  const isWildBoarOnly = lowerUrl.includes('javali') || 
-                         lowerUrl.includes('wild boar') || 
-                         lowerUrl.includes('sus scrofa');
+  const animals: Animal[] = [];
   
-  // Se for especificamente capivara, retornar apenas capivara
-  if (isCapybaraOnly) {
-    return {
-      category: 'invasive',
-      animals: [{
-        name: 'Capivara',
-        confidence: Math.min(0.99, Math.max(0.90, 0.95 + (Math.random() * 0.04 - 0.02))),
-        description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.',
-        scientificName: 'Hydrochoerus hydrochaeris',
-        category: 'espécie invasora'
-      }]
-    };
+  // Adicionar capivara se detectada
+  if (analysis.hasCapybara) {
+    animals.push({
+      name: 'Capivara',
+      confidence: Math.min(0.99, Math.max(0.90, 0.95 + (Math.random() * 0.04 - 0.02))),
+      description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.',
+      scientificName: 'Hydrochoerus hydrochaeris',
+      category: 'espécie invasora'
+    });
   }
   
-  // Se for especificamente javali, retornar apenas javali
-  if (isWildBoarOnly) {
-    return {
-      category: 'invasive',
-      animals: [{
-        name: 'Javali',
-        confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
-        description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
-        scientificName: 'Sus scrofa',
-        category: 'espécie invasora'
-      }]
-    };
-  }
-  
-  // Para outros casos, incluir ambos (comportamento padrão)
-  const animals: Animal[] = [
-    // Cachorro
-    {
-      name: 'Cachorro',
-      confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
-      description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
-      scientificName: 'Canis familiaris',
-      category: 'mamífero doméstico'
-    },
-    // Javali (sempre como espécie invasora)
-    {
+  // Adicionar javali se detectado
+  if (analysis.hasWildBoar) {
+    animals.push({
       name: 'Javali',
       confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
       description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
       scientificName: 'Sus scrofa',
       category: 'espécie invasora'
-    }
-  ];
+    });
+  }
   
-  // Determinar o tipo de categoria
-  return { 
-    category: 'both', // Nova categoria que representa ambas as espécies
-    animals: animals
-  };
+  // Adicionar cachorro apenas se detectado
+  if (analysis.hasDog) {
+    animals.push({
+      name: 'Cachorro',
+      confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
+      description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
+      scientificName: 'Canis familiaris',
+      category: 'mamífero doméstico'
+    });
+  }
+  
+  // Se nenhum animal foi detectado especificamente, usar comportamento padrão misto
+  if (animals.length === 0) {
+    console.log('Nenhum animal específico detectado, usando detecção padrão');
+    animals.push(
+      {
+        name: 'Cachorro',
+        confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
+        description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
+        scientificName: 'Canis familiaris',
+        category: 'mamífero doméstico'
+      },
+      {
+        name: 'Javali',
+        confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
+        description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
+        scientificName: 'Sus scrofa',
+        category: 'espécie invasora'
+      }
+    );
+  }
+  
+  // Determinar categoria baseada nos animais detectados
+  const hasInvasive = animals.some(animal => animal.category?.includes('invasora'));
+  const hasDomestic = animals.some(animal => animal.category?.includes('doméstico'));
+  
+  let category = 'mixed';
+  if (hasInvasive && !hasDomestic) {
+    category = 'invasive';
+  } else if (hasDomestic && !hasInvasive) {
+    category = 'domestic';
+  }
+  
+  console.log(`Detecção finalizada: ${animals.length} animais, categoria: ${category}`);
+  
+  return { category, animals };
 };
 
 // Função para detectar tipo de animal
