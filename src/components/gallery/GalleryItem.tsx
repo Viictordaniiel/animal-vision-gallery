@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, X } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 type Animal = {
   name: string;
   confidence: number;
   description?: string;
   category?: string;
+  scientificName?: string;
 };
 
 type GalleryItemProps = {
@@ -84,6 +87,31 @@ const ANIMAL_DETECTION_ZONES = {
   }
 };
 
+// Species information database
+const speciesInfo = {
+  'Cachorro': {
+    description: 'O cachorro (Canis familiaris) é um mamífero carnívoro da família dos canídeos, considerado o melhor amigo do homem. São animais domésticos leais, inteligentes e versáteis.',
+    habitat: 'Ambientes domésticos e urbanos',
+    behavior: 'Sociável, leal, protetor',
+    conservationStatus: 'Doméstico',
+    riskLevel: 'Baixo'
+  },
+  'Capivara': {
+    description: 'A capivara (Hydrochoerus hydrochaeris) é o maior roedor do mundo. Pode pesar até 65kg e medir 1,3m de comprimento. É considerada espécie invasora em áreas urbanas.',
+    habitat: 'Proximidade de corpos d\'água, áreas alagadas',
+    behavior: 'Semi-aquático, vive em grupos, herbívoro',
+    conservationStatus: 'Espécie invasora em ambientes urbanos',
+    riskLevel: 'Alto - Causa danos a cultivos e infraestrutura'
+  },
+  'Javali': {
+    description: 'O javali (Sus scrofa) é um suíno selvagem originário da Europa e Ásia. No Brasil, é considerado espécie invasora extremamente prejudicial ao meio ambiente e agricultura.',
+    habitat: 'Florestas, campos, áreas rurais',
+    behavior: 'Omnívoro, agressivo quando ameaçado, vive em grupos',
+    conservationStatus: 'Espécie invasora - Controle obrigatório',
+    riskLevel: 'Muito Alto - Danos severos à biodiversidade e agricultura'
+  }
+};
+
 export default function GalleryItem({
   imageUrl,
   animals,
@@ -100,6 +128,7 @@ export default function GalleryItem({
   const previousFrameDataRef = useRef<ImageData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [selectedAnimalInfo, setSelectedAnimalInfo] = useState<string | null>(null);
   // Enhanced presence sensors tracking with invasive species priority
   const activePresenceSensorsRef = useRef<{[key: string]: {
     x: number, 
@@ -262,7 +291,7 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Enhanced animal tracking system with type-specific detection
+  // Enhanced animal tracking system with type-specific detection and clickable info
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
@@ -510,7 +539,7 @@ export default function GalleryItem({
         });
       };
       
-      // Enhanced sensor rendering with invasive species highlighting
+      // Enhanced sensor rendering with invasive species highlighting and clickable info
       const drawAnimalSensors = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
@@ -555,12 +584,19 @@ export default function GalleryItem({
             ctx.arc(sensorData.x, sensorData.y, currentRadius, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inner core with confidence indicator
+            // Clickable inner core with confidence indicator
             const coreSize = isInvasive ? 8 + (sensorData.confidence * 6) : 6 + (sensorData.confidence * 4);
             ctx.fillStyle = sensorColor;
             ctx.beginPath();
             ctx.arc(sensorData.x, sensorData.y, coreSize, 0, Math.PI * 2);
             ctx.fill();
+            
+            // Info icon overlay for clickable interaction
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('i', sensorData.x, sensorData.y);
             
             // Active tracking ring with invasive emphasis
             ctx.strokeStyle = sensorColor;
@@ -632,6 +668,13 @@ export default function GalleryItem({
             ctx.arc(sensorData.x, sensorData.y, isInvasive ? 6 : 5, 0, Math.PI * 2);
             ctx.fill();
             
+            // Info icon for inactive sensors
+            ctx.fillStyle = `${sensorColor}70`;
+            ctx.font = 'bold 8px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('i', sensorData.x, sensorData.y);
+            
             // Standby label
             ctx.fillStyle = `${sensorColor}70`;
             ctx.font = '8px Arial';
@@ -663,144 +706,282 @@ export default function GalleryItem({
     };
   }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled]);
 
-  return (
-    <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
-      <div className="relative aspect-video w-full overflow-hidden bg-black">
-        {isVideo ? (
-          <>
-            <video 
-              ref={videoRef} 
-              className="w-full h-full object-contain"
-              onClick={togglePlayPause}
-              playsInline
-              muted
-              loop
-              onLoadedData={() => setVideoLoaded(true)}
-            />
-            <canvas 
-              ref={canvasRef}
-              className="absolute top-0 left-0 w-full h-full pointer-events-none"
-              style={{zIndex: 10}}
-            />
-            <canvas 
-              ref={heatMapCanvasRef}
-              className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
-              style={{zIndex: 9}}
-            />
-          </>
-        ) : (
-          <img 
-            src={imageUrl} 
-            alt="Uploaded media" 
-            className="w-full h-full object-contain"
-          />
-        )}
-        
-        {isAnalyzing && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
-            <Loader2 className="h-8 w-8 animate-spin mb-2" />
-            <p>Analisando...</p>
-          </div>
-        )}
-      </div>
+  // Handle sensor click to show species information
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Scale coordinates to match canvas internal dimensions
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    const canvasX = x * scaleX;
+    const canvasY = y * scaleY;
+    
+    // Check if click is within any sensor radius
+    for (const animal of animals) {
+      const sensorData = activePresenceSensorsRef.current[animal.name];
+      if (!sensorData) continue;
       
-      <CardContent className="p-6">
-        <div className="flex flex-wrap justify-between items-center">
-          <div className="mb-4 md:mb-0">
-            <h3 className="text-lg font-medium mb-2">
-              {isAnalyzing ? 'Processando análise...' : (
-                animals.length > 0 
-                  ? `${animals.length} ${animals.length === 1 ? 'animal' : 'animais'} identificado${animals.length !== 1 ? 's' : ''}` 
-                  : 'Nenhum animal detectado'
-              )}
-            </h3>
-            
-            {isVideo && (
-              <div className="flex flex-col gap-1">
-                {heatMapEnabled && (
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <ThermometerSun size={16} className="text-amber-500" />
-                    <span>Mapa de calor ativado</span>
-                  </div>
-                )}
-                
-                <div className="flex items-center gap-1 text-sm text-green-600">
-                  <Circle size={16} className="text-green-500" />
-                  <span>Sensores de presença rastreando movimento</span>
-                </div>
-              </div>
-            )}
-            
-            {!isAnalyzing && animals.some(animal => 
-              animal.category?.toLowerCase().includes('invasora') || 
-              animal.name.toLowerCase().includes('capivara') ||
-              animal.name.toLowerCase().includes('javali')
-            ) && (
-              <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
-                <AlertTriangle size={16} className="text-red-500" />
-                <span>Espécie invasora detectada!</span>
-              </div>
-            )}
-          </div>
+      const distance = Math.sqrt(
+        Math.pow(canvasX - sensorData.x, 2) + 
+        Math.pow(canvasY - sensorData.y, 2)
+      );
+      
+      const sensorRadius = sensorData.isInvasive ? PRESENCE_RADIUS + 12 : PRESENCE_RADIUS;
+      
+      if (distance <= sensorRadius) {
+        setSelectedAnimalInfo(animal.name);
+        break;
+      }
+    }
+  };
+
+  return (
+    <TooltipProvider>
+      <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
+        <div className="relative aspect-video w-full overflow-hidden bg-black">
+          {isVideo ? (
+            <>
+              <video 
+                ref={videoRef} 
+                className="w-full h-full object-contain"
+                onClick={togglePlayPause}
+                playsInline
+                muted
+                loop
+                onLoadedData={() => setVideoLoaded(true)}
+              />
+              <canvas 
+                ref={canvasRef}
+                className="absolute top-0 left-0 w-full h-full cursor-pointer"
+                style={{zIndex: 10}}
+                onClick={handleCanvasClick}
+              />
+              <canvas 
+                ref={heatMapCanvasRef}
+                className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
+                style={{zIndex: 9}}
+              />
+            </>
+          ) : (
+            <img 
+              src={imageUrl} 
+              alt="Uploaded media" 
+              className="w-full h-full object-contain"
+            />
+          )}
           
-          {showReanalyze && (
-            <Button 
-              onClick={onAnalyze} 
-              variant="secondary" 
-              className="flex items-center gap-2"
-            >
-              <RefreshCw size={16} />
-              <span>Reanalisar</span>
-            </Button>
+          {isAnalyzing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p>Analisando...</p>
+            </div>
           )}
         </div>
         
-        {!isAnalyzing && animals.length > 0 && (
-          <div className="mt-6">
-            <h4 className="text-sm font-medium mb-3">Espécies detectadas:</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {animals.map((animal, index) => {
-                const isInvasive = animal.name.toLowerCase().includes('capivara') || 
-                                  animal.name.toLowerCase().includes('javali') ||
-                                  animal.category?.toLowerCase().includes('invasora');
-                return (
-                  <div 
-                    key={`${animal.name}-${index}`} 
-                    className={`flex items-center p-2 rounded-md border ${isInvasive ? 'border-red-500/70' : ''}`}
-                    style={{ borderColor: isInvasive ? '#ea384c80' : getAnimalColor(animal.name) + '80' }}
-                  >
-                    <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center mr-3" 
-                      style={{ backgroundColor: isInvasive ? '#ea384c33' : getAnimalColor(animal.name) + '33' }}
-                    >
-                      {isInvasive ? (
-                        <AlertTriangle size={16} className="text-red-500" />
-                      ) : (
-                        getAnimalIcon(animal.name) || <ThermometerSun size={16} />
-                      )}
+        <CardContent className="p-6">
+          <div className="flex flex-wrap justify-between items-center">
+            <div className="mb-4 md:mb-0">
+              <h3 className="text-lg font-medium mb-2">
+                {isAnalyzing ? 'Processando análise...' : (
+                  animals.length > 0 
+                    ? `${animals.length} ${animals.length === 1 ? 'animal' : 'animais'} identificado${animals.length !== 1 ? 's' : ''}` 
+                    : 'Nenhum animal detectado'
+                )}
+              </h3>
+              
+              {isVideo && (
+                <div className="flex flex-col gap-1">
+                  {heatMapEnabled && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <ThermometerSun size={16} className="text-amber-500" />
+                      <span>Mapa de calor ativado</span>
                     </div>
-                    <div>
-                      <p className="font-medium">{animal.name}</p>
-                      <div className="text-xs text-muted-foreground">
-                        <p>Confiança: {Math.round(animal.confidence * 100)}%</p>
-                        {animal.category ? (
-                          <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
-                            {animal.category}
-                          </p>
-                        ) : (
-                          <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
-                            {isInvasive ? 'Espécie invasora' : classifyAnimalType(animal.name)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-1 text-sm text-green-600">
+                    <Circle size={16} className="text-green-500" />
+                    <span>Sensores de presença rastreando movimento - Clique no sensor para mais informações</span>
                   </div>
-                );
-              })}
+                </div>
+              )}
+              
+              {!isAnalyzing && animals.some(animal => 
+                animal.category?.toLowerCase().includes('invasora') || 
+                animal.name.toLowerCase().includes('capivara') ||
+                animal.name.toLowerCase().includes('javali')
+              ) && (
+                <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
+                  <AlertTriangle size={16} className="text-red-500" />
+                  <span>Espécie invasora detectada!</span>
+                </div>
+              )}
+            </div>
+            
+            {showReanalyze && (
+              <Button 
+                onClick={onAnalyze} 
+                variant="secondary" 
+                className="flex items-center gap-2"
+              >
+                <RefreshCw size={16} />
+                <span>Reanalisar</span>
+              </Button>
+            )}
+          </div>
+          
+          {!isAnalyzing && animals.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-medium mb-3">Espécies detectadas:</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {animals.map((animal, index) => {
+                  const isInvasive = animal.name.toLowerCase().includes('capivara') || 
+                                    animal.name.toLowerCase().includes('javali') ||
+                                    animal.category?.toLowerCase().includes('invasora');
+                  return (
+                    <Popover key={`${animal.name}-${index}`}>
+                      <PopoverTrigger asChild>
+                        <div 
+                          className={`flex items-center p-2 rounded-md border cursor-pointer hover:bg-gray-50 transition-colors ${isInvasive ? 'border-red-500/70' : ''}`}
+                          style={{ borderColor: isInvasive ? '#ea384c80' : getAnimalColor(animal.name) + '80' }}
+                        >
+                          <div 
+                            className="w-8 h-8 rounded-full flex items-center justify-center mr-3" 
+                            style={{ backgroundColor: isInvasive ? '#ea384c33' : getAnimalColor(animal.name) + '33' }}
+                          >
+                            {isInvasive ? (
+                              <AlertTriangle size={16} className="text-red-500" />
+                            ) : (
+                              getAnimalIcon(animal.name) || <ThermometerSun size={16} />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium">{animal.name}</p>
+                            <div className="text-xs text-muted-foreground">
+                              <p>Confiança: {Math.round(animal.confidence * 100)}%</p>
+                              {animal.category ? (
+                                <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
+                                  {animal.category}
+                                </p>
+                              ) : (
+                                <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
+                                  {isInvasive ? 'Espécie invasora' : classifyAnimalType(animal.name)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-lg">{animal.name}</h4>
+                            {animal.scientificName && (
+                              <span className="text-sm italic text-muted-foreground">
+                                {animal.scientificName}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {speciesInfo[animal.name] && (
+                            <div className="space-y-2 text-sm">
+                              <div>
+                                <p className="font-medium">Descrição:</p>
+                                <p className="text-muted-foreground">{speciesInfo[animal.name].description}</p>
+                              </div>
+                              
+                              <div>
+                                <p className="font-medium">Habitat:</p>
+                                <p className="text-muted-foreground">{speciesInfo[animal.name].habitat}</p>
+                              </div>
+                              
+                              <div>
+                                <p className="font-medium">Comportamento:</p>
+                                <p className="text-muted-foreground">{speciesInfo[animal.name].behavior}</p>
+                              </div>
+                              
+                              <div>
+                                <p className="font-medium">Status de Conservação:</p>
+                                <p className={`font-medium ${isInvasive ? 'text-red-600' : 'text-green-600'}`}>
+                                  {speciesInfo[animal.name].conservationStatus}
+                                </p>
+                              </div>
+                              
+                              <div>
+                                <p className="font-medium">Nível de Risco:</p>
+                                <p className={`font-medium ${isInvasive ? 'text-red-600' : 'text-green-600'}`}>
+                                  {speciesInfo[animal.name].riskLevel}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {animal.description && !speciesInfo[animal.name] && (
+                            <div>
+                              <p className="font-medium">Descrição:</p>
+                              <p className="text-sm text-muted-foreground">{animal.description}</p>
+                            </div>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+        
+        {/* Species Information Modal */}
+        {selectedAnimalInfo && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedAnimalInfo(null)}>
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">{selectedAnimalInfo}</h3>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedAnimalInfo(null)}>
+                  <X size={16} />
+                </Button>
+              </div>
+              
+              {speciesInfo[selectedAnimalInfo] && (
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="font-medium">Descrição:</p>
+                    <p className="text-muted-foreground">{speciesInfo[selectedAnimalInfo].description}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium">Habitat:</p>
+                    <p className="text-muted-foreground">{speciesInfo[selectedAnimalInfo].habitat}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium">Comportamento:</p>
+                    <p className="text-muted-foreground">{speciesInfo[selectedAnimalInfo].behavior}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium">Status de Conservação:</p>
+                    <p className={`font-medium ${selectedAnimalInfo.includes('Capivara') || selectedAnimalInfo.includes('Javali') ? 'text-red-600' : 'text-green-600'}`}>
+                      {speciesInfo[selectedAnimalInfo].conservationStatus}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium">Nível de Risco:</p>
+                    <p className={`font-medium ${selectedAnimalInfo.includes('Capivara') || selectedAnimalInfo.includes('Javali') ? 'text-red-600' : 'text-green-600'}`}>
+                      {speciesInfo[selectedAnimalInfo].riskLevel}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
-      </CardContent>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
