@@ -1,3 +1,4 @@
+
 // Simulação de um serviço avançado de reconhecimento de imagens de animais
 // Em uma implementação real, isso seria integrado com um serviço de IA como Google Cloud Vision ou Hugging Face
 
@@ -169,7 +170,45 @@ const shouldShowInvasiveSpecies = (imageUrl: string): boolean => {
 const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals: Animal[] } => {
   const lowerUrl = imageUrl?.toLowerCase() || '';
   
-  // Sempre adiciona um cachorro e um javali para garantir que ambas as espécies sejam detectadas
+  // Detectar se é especificamente uma capivara
+  const isCapybaraOnly = lowerUrl.includes('capivara') || 
+                          lowerUrl.includes('capybara') || 
+                          lowerUrl.includes('hydrochoerus');
+  
+  // Detectar se é especificamente um javali
+  const isWildBoarOnly = lowerUrl.includes('javali') || 
+                         lowerUrl.includes('wild boar') || 
+                         lowerUrl.includes('sus scrofa');
+  
+  // Se for especificamente capivara, retornar apenas capivara
+  if (isCapybaraOnly) {
+    return {
+      category: 'invasive',
+      animals: [{
+        name: 'Capivara',
+        confidence: Math.min(0.99, Math.max(0.90, 0.95 + (Math.random() * 0.04 - 0.02))),
+        description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.',
+        scientificName: 'Hydrochoerus hydrochaeris',
+        category: 'espécie invasora'
+      }]
+    };
+  }
+  
+  // Se for especificamente javali, retornar apenas javali
+  if (isWildBoarOnly) {
+    return {
+      category: 'invasive',
+      animals: [{
+        name: 'Javali',
+        confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
+        description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
+        scientificName: 'Sus scrofa',
+        category: 'espécie invasora'
+      }]
+    };
+  }
+  
+  // Para outros casos, incluir ambos (comportamento padrão)
   const animals: Animal[] = [
     // Cachorro
     {
