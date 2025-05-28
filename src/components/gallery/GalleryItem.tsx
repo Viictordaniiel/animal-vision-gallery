@@ -145,69 +145,92 @@ export default function GalleryItem({
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
   
-  // Configure video for universal compatibility
+  // Configure video for universal compatibility with mobile fix
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Configurando vídeo para reprodução universal: ${imageUrl}`);
+      console.log(`Configurando vídeo para reprodução móvel: ${imageUrl}`);
       
       const video = videoRef.current;
       
-      // Universal video configuration
+      // Reset video completely
+      video.pause();
+      video.currentTime = 0;
+      
+      // Clear all previous event listeners
+      video.removeAttribute('src');
+      video.load();
+      
+      // Mobile-optimized configuration
       video.src = imageUrl;
-      video.setAttribute('playsinline', 'true');
-      video.setAttribute('webkit-playsinline', 'true');
+      video.preload = 'auto';
       video.muted = true;
       video.loop = true;
-      video.preload = 'metadata';
+      video.autoplay = false;
+      video.controls = true;
+      
+      // Mobile-specific attributes
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.setAttribute('x5-video-player-type', 'h5');
+      video.setAttribute('x5-video-player-fullscreen', 'true');
+      
+      // Force dimensions
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.objectFit = 'contain';
+      video.style.background = 'black';
       
       setVideoLoaded(false);
       setVideoError(false);
-      
-      const handleLoadedMetadata = () => {
-        console.log('Metadados do vídeo carregados');
-        setVideoLoaded(true);
+      setIsPlaying(false);
+
+      const handleLoadStart = () => {
+        console.log('Início do carregamento do vídeo');
         setVideoError(false);
       };
 
+      const handleLoadedMetadata = () => {
+        console.log('Metadados carregados - dimensões:', video.videoWidth, 'x', video.videoHeight);
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          setVideoLoaded(true);
+          setVideoError(false);
+        }
+      };
+
       const handleLoadedData = () => {
-        console.log('Dados do vídeo carregados completamente');
+        console.log('Dados do vídeo completamente carregados');
         setVideoLoaded(true);
         setVideoError(false);
-        
-        // Auto-play attempt
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log('Vídeo reproduzindo automaticamente');
-              setIsPlaying(true);
-              if (animals.length > 0) {
-                initializePresenceSensors();
-              }
-            })
-            .catch(error => {
-              console.log("Autoplay bloqueado, aguardando interação:", error);
-              setIsPlaying(false);
-            });
-        }
       };
 
       const handleCanPlay = () => {
         console.log('Vídeo pronto para reprodução');
         setVideoLoaded(true);
+        setVideoError(false);
+      };
+
+      const handleCanPlayThrough = () => {
+        console.log('Vídeo pode ser reproduzido completamente');
+        setVideoLoaded(true);
+        setVideoError(false);
       };
 
       const handleError = (e: Event) => {
-        console.error("Erro ao carregar vídeo:", e);
+        console.error("Erro detalhado no vídeo:", e);
+        console.error("Código do erro:", video.error?.code);
+        console.error("Mensagem do erro:", video.error?.message);
         setVideoError(true);
+        setVideoLoaded(false);
+        
         toast({
           title: "Erro no vídeo",
-          description: "Não foi possível carregar o vídeo. Tente novamente.",
+          description: `Erro ${video.error?.code}: ${video.error?.message || 'Não foi possível carregar o vídeo'}`,
           variant: "destructive"
         });
       };
 
       const handlePlay = () => {
+        console.log('Vídeo iniciou reprodução');
         setIsPlaying(true);
         if (animals.length > 0) {
           initializePresenceSensors();
@@ -215,23 +238,44 @@ export default function GalleryItem({
       };
 
       const handlePause = () => {
+        console.log('Vídeo pausado');
         setIsPlaying(false);
       };
+
+      const handleWaiting = () => {
+        console.log('Vídeo aguardando dados');
+      };
+
+      const handleStalled = () => {
+        console.log('Vídeo travado');
+      };
       
+      // Add all event listeners
+      video.addEventListener('loadstart', handleLoadStart);
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('loadeddata', handleLoadedData);
       video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('canplaythrough', handleCanPlayThrough);
       video.addEventListener('error', handleError);
       video.addEventListener('play', handlePlay);
       video.addEventListener('pause', handlePause);
+      video.addEventListener('waiting', handleWaiting);
+      video.addEventListener('stalled', handleStalled);
+      
+      // Force load
+      video.load();
       
       return () => {
+        video.removeEventListener('loadstart', handleLoadStart);
         video.removeEventListener('loadedmetadata', handleLoadedMetadata);
         video.removeEventListener('loadeddata', handleLoadedData);
         video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('canplaythrough', handleCanPlayThrough);
         video.removeEventListener('error', handleError);
         video.removeEventListener('play', handlePlay);
         video.removeEventListener('pause', handlePause);
+        video.removeEventListener('waiting', handleWaiting);
+        video.removeEventListener('stalled', handleStalled);
       };
     }
   }, [imageUrl, isVideo, animals.length]);
@@ -334,7 +378,7 @@ export default function GalleryItem({
     }
   }, [isAnalyzing]);
 
-  // Handle video play/pause
+  // Handle video play/pause with mobile support
   const togglePlayPause = () => {
     if (!videoRef.current) return;
     
@@ -343,18 +387,20 @@ export default function GalleryItem({
     if (isPlaying) {
       video.pause();
     } else {
+      // Force play for mobile
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log('Vídeo reproduzindo após interação');
+            console.log('Vídeo reproduzindo após interação do usuário');
+            setIsPlaying(true);
           })
           .catch(error => {
             console.error("Erro ao reproduzir vídeo:", error);
             setVideoError(true);
             toast({
               title: "Erro na reprodução",
-              description: "Não foi possível reproduzir o vídeo.",
+              description: "Toque no vídeo para reproduzir",
               variant: "destructive"
             });
           });
@@ -819,7 +865,18 @@ export default function GalleryItem({
                   <div className="text-center">
                     <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
                     <p className="text-lg mb-2">Erro ao carregar vídeo</p>
-                    <p className="text-sm text-gray-400">Verifique o formato do arquivo</p>
+                    <p className="text-sm text-gray-400">Toque para tentar novamente</p>
+                    <Button 
+                      onClick={() => {
+                        setVideoError(false);
+                        if (videoRef.current) {
+                          videoRef.current.load();
+                        }
+                      }}
+                      className="mt-4"
+                    >
+                      Recarregar
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -830,15 +887,18 @@ export default function GalleryItem({
                     onClick={togglePlayPause}
                     playsInline
                     webkit-playsinline="true"
+                    x5-video-player-type="h5"
+                    x5-video-player-fullscreen="true"
                     controls
                     muted
                     loop
-                    preload="metadata"
+                    preload="auto"
                     style={{
                       width: '100%',
                       height: '100%',
                       objectFit: 'contain',
-                      display: 'block'
+                      display: 'block',
+                      background: 'black'
                     }}
                   />
                   
@@ -847,6 +907,7 @@ export default function GalleryItem({
                       <div className="text-center">
                         <Loader2 className="h-8 w-8 animate-spin mb-2 mx-auto" />
                         <p>Carregando vídeo...</p>
+                        <p className="text-sm text-gray-400 mt-2">Se demorar muito, toque para recarregar</p>
                       </div>
                     </div>
                   )}
