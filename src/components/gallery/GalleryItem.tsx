@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Heart } from 'lucide-react';
@@ -193,12 +194,12 @@ export default function GalleryItem({
     capivaras.forEach((capivara, index) => {
       let xPos, yPos;
       if (capivaras.length === 1) {
-        xPos = width * 0.4;
+        xPos = width * 0.3;
         yPos = height * 0.4;
       } else {
         const angle = (index / capivaras.length) * Math.PI * 2;
         const radius = Math.min(width, height) * 0.25;
-        xPos = width * 0.4 + Math.cos(angle) * radius;
+        xPos = width * 0.3 + Math.cos(angle) * radius;
         yPos = height * 0.4 + Math.sin(angle) * radius;
       }
       
@@ -214,7 +215,7 @@ export default function GalleryItem({
         pulsePhase: Math.random() * Math.PI * 2,
         velocity: {x: 0, y: 0},
         confidence: capivara.confidence,
-        intensity: 0,
+        intensity: 0.5,
         detectionCount: 0,
         alertLevel: 'medium'
       };
@@ -247,9 +248,9 @@ export default function GalleryItem({
         pulsePhase: Math.random() * Math.PI * 2,
         velocity: {x: 0, y: 0},
         confidence: cachorro.confidence,
-        intensity: 0,
+        intensity: 0.4,
         detectionCount: 0,
-        alertLevel: 'low'
+        alertLevel: 'medium'
       };
       
       console.log(`🔵 SENSOR CACHORRO [${index}] posicionado em (${Math.round(xPos)}, ${Math.round(yPos)})`);
@@ -599,16 +600,18 @@ export default function GalleryItem({
         });
       };
       
-      // Enhanced sensor rendering for both species
+      // GARANTIR QUE AMBOS OS SENSORES SEJAM RENDERIZADOS
       const drawAllSensors = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw capivara sensors
+        // RENDERIZAR SENSORES DE CAPIVARA - SEMPRE VISÍVEIS
         Object.keys(capivaraSensorsRef.current).forEach(sensorKey => {
           const sensor = capivaraSensorsRef.current[sensorKey];
           if (!sensor) return;
+          
+          console.log(`🔴 Renderizando sensor capivara em (${sensor.x}, ${sensor.y})`);
           
           const alertColors = {
             low: '#ff6b6b80',
@@ -697,12 +700,12 @@ export default function GalleryItem({
           }
         });
 
-        // Draw cachorro sensors - GARANTINDO QUE APAREÇAM NA TELA
+        // RENDERIZAR SENSORES DE CACHORRO - SEMPRE VISÍVEIS
         Object.keys(cachorroSensorsRef.current).forEach(sensorKey => {
           const sensor = cachorroSensorsRef.current[sensorKey];
           if (!sensor) return;
           
-          console.log(`🔵 Renderizando sensor cachorro em (${sensor.x}, ${sensor.y}) - ativo: ${sensor.isActive}`);
+          console.log(`🔵 Renderizando sensor cachorro em (${sensor.x}, ${sensor.y})`);
           
           const domesticColors = {
             low: '#4ecdc480',
@@ -720,7 +723,6 @@ export default function GalleryItem({
           const pulseScale = 1 + Math.sin(sensor.pulsePhase) * pulseIntensity;
           const currentRadius = baseRadius * pulseScale;
           
-          // Renderizar sempre, independente de estar ativo ou não
           const gradient = ctx.createRadialGradient(
             sensor.x, sensor.y, 0,
             sensor.x, sensor.y, currentRadius
