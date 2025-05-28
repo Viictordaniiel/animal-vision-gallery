@@ -61,6 +61,12 @@ const getAnimalColor = (animalType: string) => {
   }
 };
 
+// Mobile detection utility
+const isMobile = () => {
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         window.innerWidth <= 768;
+};
+
 // Enhanced motion tracking parameters for specific animal types
 const MOTION_THRESHOLD = 6;
 const MOVEMENT_INTENSITY_THRESHOLD = 0.12;
@@ -72,14 +78,12 @@ const INVASIVE_TRACKING_BOOST = 1.3;
 // Specific detection parameters for different animal types
 const ANIMAL_DETECTION_ZONES = {
   invasive: {
-    // Zonas preferenciais para invasores (parte superior e central)
     preferredY: { min: 0.1, max: 0.6 },
     preferredX: { min: 0.2, max: 0.8 },
-    sensitivity: 1.4, // Maior sensibilidade para invasores
+    sensitivity: 1.4,
     trackingRadius: 180
   },
   domestic: {
-    // Zonas preferenciais para domésticos (parte inferior)
     preferredY: { min: 0.4, max: 0.9 },
     preferredX: { min: 0.1, max: 0.9 },
     sensitivity: 1.0,
@@ -129,6 +133,9 @@ export default function GalleryItem({
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [selectedAnimalInfo, setSelectedAnimalInfo] = useState<string | null>(null);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  
   // Enhanced presence sensors tracking with invasive species priority
   const activePresenceSensorsRef = useRef<{[key: string]: {
     x: number, 
@@ -144,20 +151,41 @@ export default function GalleryItem({
   }}>({});
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
+
+  // Detect mobile device on component mount
+  useEffect(() => {
+    setIsMobileDevice(isMobile());
+  }, []);
   
-  // Initialize video element
+  // Initialize video element with mobile optimizations
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Configurando reprodução de vídeo: ${imageUrl}`);
-      videoRef.current.src = imageUrl;
+      console.log(`Configurando reprodução de vídeo para ${isMobileDevice ? 'mobile' : 'desktop'}: ${imageUrl}`);
+      
+      const video = videoRef.current;
+      video.src = imageUrl;
+      
+      // Mobile-specific video attributes
+      if (isMobileDevice) {
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.preload = 'metadata';
+      } else {
+        video.preload = 'auto';
+      }
       
       setVideoLoaded(false);
+      setVideoError(false);
       
       const handleLoadedData = () => {
+        console.log('Vídeo carregado com sucesso');
         setVideoLoaded(true);
-        if (videoRef.current) {
-          videoRef.current.play().catch(error => {
+        setVideoError(false);
+        
+        if (video && !isMobileDevice) {
+          video.play().catch(error => {
             console.error("Erro ao reproduzir vídeo:", error);
+            setVideoError(true);
           });
           setIsPlaying(true);
           
@@ -166,27 +194,36 @@ export default function GalleryItem({
           }
         }
       };
+
+      const handleError = (e: Event) => {
+        console.error("Erro ao carregar vídeo:", e);
+        setVideoError(true);
+        toast({
+          title: "Erro no vídeo",
+          description: "Não foi possível carregar o vídeo. Tente novamente.",
+          variant: "destructive"
+        });
+      };
       
-      videoRef.current.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('error', handleError);
       
       return () => {
-        if (videoRef.current) {
-          videoRef.current.removeEventListener('loadeddata', handleLoadedData);
-        }
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('error', handleError);
       };
     }
-  }, [imageUrl, isVideo]);
+  }, [imageUrl, isVideo, isMobileDevice]);
 
   // Initialize presence sensors with specific animal type zones
   const initializePresenceSensors = () => {
-    if (!canvasRef.current || !videoRef.current) return;
+    if (!canvasRef.current || !videoRef.current || isMobileDevice) return;
     
     const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
     console.log(`Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height}`);
     
-    // Clear existing sensors
     activePresenceSensorsRef.current = {};
     
     // Separate animals by type
@@ -200,7 +237,7 @@ export default function GalleryItem({
       !invasiveAnimals.includes(animal)
     );
     
-    // Position invasive animal sensors in their preferred zones
+    // Position invasive animal sensors
     invasiveAnimals.forEach((animal, index) => {
       const zone = ANIMAL_DETECTION_ZONES.invasive;
       const xPos = width * (zone.preferredX.min + (index * (zone.preferredX.max - zone.preferredX.min)) / Math.max(1, invasiveAnimals.length - 1));
@@ -220,7 +257,7 @@ export default function GalleryItem({
       };
     });
     
-    // Position domestic animal sensors in their preferred zones
+    // Position domestic animal sensors
     domesticAnimals.forEach((animal, index) => {
       const zone = ANIMAL_DETECTION_ZONES.domestic;
       const totalDomestic = domesticAnimals.length;
@@ -276,7 +313,7 @@ export default function GalleryItem({
     }
   }, [isAnalyzing]);
 
-  // Handle video play/pause
+  // Handle video play/pause with mobile support
   const togglePlayPause = () => {
     if (!videoRef.current) return;
     
@@ -285,15 +322,16 @@ export default function GalleryItem({
     } else {
       videoRef.current.play().catch(error => {
         console.error("Erro ao reproduzir vídeo:", error);
+        setVideoError(true);
       });
     }
     
     setIsPlaying(!isPlaying);
   };
 
-  // Enhanced animal tracking system with type-specific detection and clickable info
+  // Enhanced animal tracking system (disabled on mobile for performance)
   useEffect(() => {
-    if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
+    if (!isVideo || !videoLoaded || !animals.length || isAnalyzing || isMobileDevice) return;
     
     console.log("Iniciando sistema de rastreamento específico por tipo para", animals.length, "animais");
     
@@ -344,7 +382,7 @@ export default function GalleryItem({
       
       heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
       if (heatMapEnabled) {
-        heatMapCtx.globalAlpha = 0.15; // Reduced opacity for subtler heat map
+        heatMapCtx.globalAlpha = 0.15;
       }
       
       // Type-specific motion detection
@@ -688,6 +726,9 @@ export default function GalleryItem({
       
       // Main animation loop with type-specific tracking
       const animate = () => {
+        // Skip animation frame on mobile to prevent performance issues
+        if (isMobileDevice) return;
+        
         updateAnimalSensorsByType();
         drawAnimalSensors();
         
@@ -704,23 +745,21 @@ export default function GalleryItem({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled]);
+  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled, isMobileDevice]);
 
   // Handle sensor click to show species information
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || isMobileDevice) return;
     
     const rect = canvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     
-    // Scale coordinates to match canvas internal dimensions
     const scaleX = canvasRef.current.width / rect.width;
     const scaleY = canvasRef.current.height / rect.height;
     const canvasX = x * scaleX;
     const canvasY = y * scaleY;
     
-    // Check if click is within any sensor radius
     for (const animal of animals) {
       const sensorData = activePresenceSensorsRef.current[animal.name];
       if (!sensorData) continue;
@@ -745,26 +784,48 @@ export default function GalleryItem({
         <div className="relative aspect-video w-full overflow-hidden bg-black">
           {isVideo ? (
             <>
-              <video 
-                ref={videoRef} 
-                className="w-full h-full object-contain"
-                onClick={togglePlayPause}
-                playsInline
-                muted
-                loop
-                onLoadedData={() => setVideoLoaded(true)}
-              />
-              <canvas 
-                ref={canvasRef}
-                className="absolute top-0 left-0 w-full h-full cursor-pointer"
-                style={{zIndex: 10}}
-                onClick={handleCanvasClick}
-              />
-              <canvas 
-                ref={heatMapCanvasRef}
-                className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
-                style={{zIndex: 9}}
-              />
+              {videoError ? (
+                <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
+                  <div className="text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+                    <p className="text-lg mb-2">Erro ao carregar vídeo</p>
+                    <p className="text-sm text-gray-400">Verifique o formato do arquivo</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <video 
+                    ref={videoRef} 
+                    className="w-full h-full object-contain"
+                    onClick={togglePlayPause}
+                    playsInline
+                    muted
+                    loop
+                    onLoadedData={() => setVideoLoaded(true)}
+                    onError={() => setVideoError(true)}
+                  />
+                  {!isMobileDevice && (
+                    <>
+                      <canvas 
+                        ref={canvasRef}
+                        className="absolute top-0 left-0 w-full h-full cursor-pointer"
+                        style={{zIndex: 10}}
+                        onClick={handleCanvasClick}
+                      />
+                      <canvas 
+                        ref={heatMapCanvasRef}
+                        className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
+                        style={{zIndex: 9}}
+                      />
+                    </>
+                  )}
+                  {isMobileDevice && videoLoaded && (
+                    <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm">
+                      📱 Modo móvel: Sensores desabilitados para melhor performance
+                    </div>
+                  )}
+                </>
+              )}
             </>
           ) : (
             <img 
@@ -795,17 +856,19 @@ export default function GalleryItem({
               
               {isVideo && (
                 <div className="flex flex-col gap-1">
-                  {heatMapEnabled && (
+                  {heatMapEnabled && !isMobileDevice && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <ThermometerSun size={16} className="text-amber-500" />
                       <span>Mapa de calor ativado</span>
                     </div>
                   )}
                   
-                  <div className="flex items-center gap-1 text-sm text-green-600">
-                    <Circle size={16} className="text-green-500" />
-                    <span>Sensores de presença rastreando movimento - Clique no sensor para mais informações</span>
-                  </div>
+                  {!isMobileDevice && (
+                    <div className="flex items-center gap-1 text-sm text-green-600">
+                      <Circle size={16} className="text-green-500" />
+                      <span>Sensores de presença rastreando movimento - Clique no sensor para mais informações</span>
+                    </div>
+                  )}
                 </div>
               )}
               
