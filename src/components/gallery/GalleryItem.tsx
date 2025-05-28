@@ -67,7 +67,7 @@ const INACTIVITY_TIMEOUT = 3000;
 const CAPIVARA_DETECTION_ZONES = {
   preferredY: { min: 0.0, max: 1.0 },
   preferredX: { min: 0.0, max: 1.0 },
-  sensitivity: 2.0, // Very high sensitivity for capivara
+  sensitivity: 2.0,
   trackingRadius: 220,
   priorityBoost: 2.5
 };
@@ -76,7 +76,7 @@ const CAPIVARA_DETECTION_ZONES = {
 const CACHORRO_DETECTION_ZONES = {
   preferredY: { min: 0.1, max: 0.9 },
   preferredX: { min: 0.1, max: 0.9 },
-  sensitivity: 1.6, // High sensitivity for cachorro
+  sensitivity: 1.6,
   trackingRadius: 180,
   priorityBoost: 1.8
 };
@@ -193,18 +193,15 @@ export default function GalleryItem({
     capivaras.forEach((capivara, index) => {
       let xPos, yPos;
       if (capivaras.length === 1) {
-        // Single capivara: center position
         xPos = width * 0.4;
         yPos = height * 0.4;
       } else {
-        // Multiple capivaras: distributed positioning
         const angle = (index / capivaras.length) * Math.PI * 2;
         const radius = Math.min(width, height) * 0.25;
         xPos = width * 0.4 + Math.cos(angle) * radius;
         yPos = height * 0.4 + Math.sin(angle) * radius;
       }
       
-      // Ensure within bounds
       xPos = Math.max(PRESENCE_RADIUS, Math.min(width - PRESENCE_RADIUS, xPos));
       yPos = Math.max(PRESENCE_RADIUS, Math.min(height - PRESENCE_RADIUS, yPos));
       
@@ -229,18 +226,15 @@ export default function GalleryItem({
     cachorros.forEach((cachorro, index) => {
       let xPos, yPos;
       if (cachorros.length === 1) {
-        // Single cachorro: offset position
         xPos = width * 0.7;
         yPos = height * 0.3;
       } else {
-        // Multiple cachorros: distributed positioning
-        const angle = (index / cachorros.length) * Math.PI * 2 + Math.PI; // Offset from capivaras
+        const angle = (index / cachorros.length) * Math.PI * 2 + Math.PI;
         const radius = Math.min(width, height) * 0.2;
         xPos = width * 0.7 + Math.cos(angle) * radius;
         yPos = height * 0.3 + Math.sin(angle) * radius;
       }
       
-      // Ensure within bounds
       xPos = Math.max(PRESENCE_RADIUS, Math.min(width - PRESENCE_RADIUS, xPos));
       yPos = Math.max(PRESENCE_RADIUS, Math.min(height - PRESENCE_RADIUS, yPos));
       
@@ -466,7 +460,7 @@ export default function GalleryItem({
           const sensor = capivaraSensorsRef.current[sensorKey];
           if (!sensor) return;
           
-          sensor.pulsePhase += 0.18; // Faster pulse for capivaras
+          sensor.pulsePhase += 0.18;
           
           let bestMovement = null;
           let maxScore = 0;
@@ -540,7 +534,7 @@ export default function GalleryItem({
           const sensor = cachorroSensorsRef.current[sensorKey];
           if (!sensor) return;
           
-          sensor.pulsePhase += 0.12; // Slower pulse for cachorros
+          sensor.pulsePhase += 0.12;
           
           let bestMovement = null;
           let maxScore = 0;
@@ -626,89 +620,89 @@ export default function GalleryItem({
           const sensorColor = alertColors[sensor.alertLevel];
           const baseRadius = PRESENCE_RADIUS + (sensor.alertLevel === 'critical' ? 25 : sensor.alertLevel === 'high' ? 20 : 15);
           
-          if (sensor.isActive) {
-            const pulseIntensity = sensor.alertLevel === 'critical' ? 0.6 : 
-                                  sensor.alertLevel === 'high' ? 0.5 : 
-                                  sensor.alertLevel === 'medium' ? 0.4 : 0.3;
-            const pulseScale = 1 + Math.sin(sensor.pulsePhase) * pulseIntensity;
-            const currentRadius = baseRadius * pulseScale;
-            
-            const gradient = ctx.createRadialGradient(
-              sensor.x, sensor.y, 0,
-              sensor.x, sensor.y, currentRadius
+          const pulseIntensity = sensor.alertLevel === 'critical' ? 0.6 : 
+                                sensor.alertLevel === 'high' ? 0.5 : 
+                                sensor.alertLevel === 'medium' ? 0.4 : 0.3;
+          const pulseScale = 1 + Math.sin(sensor.pulsePhase) * pulseIntensity;
+          const currentRadius = baseRadius * pulseScale;
+          
+          const gradient = ctx.createRadialGradient(
+            sensor.x, sensor.y, 0,
+            sensor.x, sensor.y, currentRadius
+          );
+          
+          gradient.addColorStop(0, sensorColor + 'FF');
+          gradient.addColorStop(0.2, sensorColor + 'CC');
+          gradient.addColorStop(0.4, sensorColor + '88');
+          gradient.addColorStop(0.7, sensorColor + '44');
+          gradient.addColorStop(1, sensorColor + '11');
+          
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(sensor.x, sensor.y, currentRadius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          if (sensor.alertLevel === 'critical' || sensor.alertLevel === 'high') {
+            ctx.strokeStyle = '#ff1744';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(sensor.x, sensor.y, currentRadius * 1.2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          
+          const coreSize = 12 + (sensor.intensity * 10);
+          ctx.fillStyle = sensorColor;
+          ctx.beginPath();
+          ctx.arc(sensor.x, sensor.y, coreSize, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 12px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          const textWidth = 150;
+          const textHeight = 35;
+          const textX = sensor.x - textWidth / 2;
+          const textY = sensor.y + baseRadius + 40 - textHeight / 2;
+          
+          ctx.fillStyle = sensorColor + 'EE';
+          ctx.fillRect(textX, textY, textWidth, textHeight);
+          
+          ctx.fillStyle = 'white';
+          const alertText = sensor.alertLevel === 'critical' ? '🚨 CAPIVARA CRÍTICO!' :
+                           sensor.alertLevel === 'high' ? '⚠️ CAPIVARA ALTO!' :
+                           sensor.alertLevel === 'medium' ? '🔴 CAPIVARA DETECTADA' :
+                           '👁️ SENSOR CAPIVARA';
+          ctx.fillText(alertText, sensor.x, sensor.y + baseRadius + 30);
+          ctx.font = '9px Arial';
+          ctx.fillText(`Confiança: ${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 45);
+          
+          if (heatMapEnabled) {
+            const heatGradient = heatMapCtx.createRadialGradient(
+              sensor.x, sensor.y, 5,
+              sensor.x, sensor.y, baseRadius * 1.1
             );
             
-            gradient.addColorStop(0, sensorColor + 'FF');
-            gradient.addColorStop(0.2, sensorColor + 'CC');
-            gradient.addColorStop(0.4, sensorColor + '88');
-            gradient.addColorStop(0.7, sensorColor + '44');
-            gradient.addColorStop(1, sensorColor + '11');
+            heatGradient.addColorStop(0, 'rgba(255, 107, 107, 0.18)');
+            heatGradient.addColorStop(0.6, 'rgba(255, 107, 107, 0.10)');
+            heatGradient.addColorStop(1, 'rgba(255, 107, 107, 0.03)');
             
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(sensor.x, sensor.y, currentRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            if (sensor.alertLevel === 'critical' || sensor.alertLevel === 'high') {
-              ctx.strokeStyle = '#ff1744';
-              ctx.lineWidth = 4;
-              ctx.setLineDash([5, 5]);
-              ctx.beginPath();
-              ctx.arc(sensor.x, sensor.y, currentRadius * 1.2, 0, Math.PI * 2);
-              ctx.stroke();
-              ctx.setLineDash([]);
-            }
-            
-            const coreSize = 12 + (sensor.intensity * 10);
-            ctx.fillStyle = sensorColor;
-            ctx.beginPath();
-            ctx.arc(sensor.x, sensor.y, coreSize, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            const textWidth = 150;
-            const textHeight = 35;
-            const textX = sensor.x - textWidth / 2;
-            const textY = sensor.y + baseRadius + 40 - textHeight / 2;
-            
-            ctx.fillStyle = sensorColor + 'EE';
-            ctx.fillRect(textX, textY, textWidth, textHeight);
-            
-            ctx.fillStyle = 'white';
-            const alertText = sensor.alertLevel === 'critical' ? '🚨 CAPIVARA CRÍTICO!' :
-                             sensor.alertLevel === 'high' ? '⚠️ CAPIVARA ALTO!' :
-                             sensor.alertLevel === 'medium' ? '🔴 CAPIVARA DETECTADA' :
-                             '👁️ SENSOR CAPIVARA';
-            ctx.fillText(alertText, sensor.x, sensor.y + baseRadius + 30);
-            ctx.font = '9px Arial';
-            ctx.fillText(`Confiança: ${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 45);
-            
-            if (heatMapEnabled) {
-              const heatGradient = heatMapCtx.createRadialGradient(
-                sensor.x, sensor.y, 5,
-                sensor.x, sensor.y, baseRadius * 1.1
-              );
-              
-              heatGradient.addColorStop(0, 'rgba(255, 107, 107, 0.18)');
-              heatGradient.addColorStop(0.6, 'rgba(255, 107, 107, 0.10)');
-              heatGradient.addColorStop(1, 'rgba(255, 107, 107, 0.03)');
-              
-              heatMapCtx.fillStyle = heatGradient;
-              heatMapCtx.beginPath();
-              heatMapCtx.arc(sensor.x, sensor.y, baseRadius * 1.1, 0, Math.PI * 2);
-              heatMapCtx.fill();
-            }
+            heatMapCtx.fillStyle = heatGradient;
+            heatMapCtx.beginPath();
+            heatMapCtx.arc(sensor.x, sensor.y, baseRadius * 1.1, 0, Math.PI * 2);
+            heatMapCtx.fill();
           }
         });
 
-        // Draw cachorro sensors
+        // Draw cachorro sensors - GARANTINDO QUE APAREÇAM NA TELA
         Object.keys(cachorroSensorsRef.current).forEach(sensorKey => {
           const sensor = cachorroSensorsRef.current[sensorKey];
           if (!sensor) return;
+          
+          console.log(`🔵 Renderizando sensor cachorro em (${sensor.x}, ${sensor.y}) - ativo: ${sensor.isActive}`);
           
           const domesticColors = {
             low: '#4ecdc480',
@@ -720,71 +714,70 @@ export default function GalleryItem({
           const sensorColor = domesticColors[sensor.alertLevel];
           const baseRadius = PRESENCE_RADIUS * 0.85;
           
-          if (sensor.isActive) {
-            const pulseIntensity = sensor.alertLevel === 'active' ? 0.35 : 
-                                  sensor.alertLevel === 'high' ? 0.3 : 
-                                  sensor.alertLevel === 'medium' ? 0.25 : 0.2;
-            const pulseScale = 1 + Math.sin(sensor.pulsePhase) * pulseIntensity;
-            const currentRadius = baseRadius * pulseScale;
-            
-            const gradient = ctx.createRadialGradient(
-              sensor.x, sensor.y, 0,
-              sensor.x, sensor.y, currentRadius
+          const pulseIntensity = sensor.alertLevel === 'active' ? 0.35 : 
+                                sensor.alertLevel === 'high' ? 0.3 : 
+                                sensor.alertLevel === 'medium' ? 0.25 : 0.2;
+          const pulseScale = 1 + Math.sin(sensor.pulsePhase) * pulseIntensity;
+          const currentRadius = baseRadius * pulseScale;
+          
+          // Renderizar sempre, independente de estar ativo ou não
+          const gradient = ctx.createRadialGradient(
+            sensor.x, sensor.y, 0,
+            sensor.x, sensor.y, currentRadius
+          );
+          
+          gradient.addColorStop(0, sensorColor + 'FF');
+          gradient.addColorStop(0.3, sensorColor + 'AA');
+          gradient.addColorStop(0.6, sensorColor + '66');
+          gradient.addColorStop(1, sensorColor + '22');
+          
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(sensor.x, sensor.y, currentRadius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          const coreSize = 10 + (sensor.intensity * 8);
+          ctx.fillStyle = sensorColor;
+          ctx.beginPath();
+          ctx.arc(sensor.x, sensor.y, coreSize, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          const textWidth = 130;
+          const textHeight = 30;
+          const textX = sensor.x - textWidth / 2;
+          const textY = sensor.y + baseRadius + 35 - textHeight / 2;
+          
+          ctx.fillStyle = sensorColor + 'DD';
+          ctx.fillRect(textX, textY, textWidth, textHeight);
+          
+          ctx.fillStyle = 'white';
+          const alertText = sensor.alertLevel === 'active' ? '💙 CACHORRO ATIVO' :
+                           sensor.alertLevel === 'high' ? '🔵 CACHORRO DETECTADO' :
+                           sensor.alertLevel === 'medium' ? '🟦 CACHORRO' :
+                           '👁️ SENSOR CACHORRO';
+          ctx.fillText(alertText, sensor.x, sensor.y + baseRadius + 25);
+          ctx.font = '8px Arial';
+          ctx.fillText(`Confiança: ${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 37);
+          
+          if (heatMapEnabled) {
+            const heatGradient = heatMapCtx.createRadialGradient(
+              sensor.x, sensor.y, 3,
+              sensor.x, sensor.y, baseRadius * 1.1
             );
             
-            gradient.addColorStop(0, sensorColor + 'FF');
-            gradient.addColorStop(0.3, sensorColor + 'AA');
-            gradient.addColorStop(0.6, sensorColor + '66');
-            gradient.addColorStop(1, sensorColor + '22');
+            heatGradient.addColorStop(0, 'rgba(78, 205, 196, 0.15)');
+            heatGradient.addColorStop(0.6, 'rgba(78, 205, 196, 0.08)');
+            heatGradient.addColorStop(1, 'rgba(78, 205, 196, 0.02)');
             
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(sensor.x, sensor.y, currentRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            const coreSize = 10 + (sensor.intensity * 8);
-            ctx.fillStyle = sensorColor;
-            ctx.beginPath();
-            ctx.arc(sensor.x, sensor.y, coreSize, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 11px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            const textWidth = 130;
-            const textHeight = 30;
-            const textX = sensor.x - textWidth / 2;
-            const textY = sensor.y + baseRadius + 35 - textHeight / 2;
-            
-            ctx.fillStyle = sensorColor + 'DD';
-            ctx.fillRect(textX, textY, textWidth, textHeight);
-            
-            ctx.fillStyle = 'white';
-            const alertText = sensor.alertLevel === 'active' ? '💙 CACHORRO ATIVO' :
-                             sensor.alertLevel === 'high' ? '🔵 CACHORRO DETECTADO' :
-                             sensor.alertLevel === 'medium' ? '🟦 CACHORRO' :
-                             '👁️ SENSOR CACHORRO';
-            ctx.fillText(alertText, sensor.x, sensor.y + baseRadius + 25);
-            ctx.font = '8px Arial';
-            ctx.fillText(`Confiança: ${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 37);
-            
-            if (heatMapEnabled) {
-              const heatGradient = heatMapCtx.createRadialGradient(
-                sensor.x, sensor.y, 3,
-                sensor.x, sensor.y, baseRadius * 1.1
-              );
-              
-              heatGradient.addColorStop(0, 'rgba(78, 205, 196, 0.15)');
-              heatGradient.addColorStop(0.6, 'rgba(78, 205, 196, 0.08)');
-              heatGradient.addColorStop(1, 'rgba(78, 205, 196, 0.02)');
-              
-              heatMapCtx.fillStyle = heatGradient;
-              heatMapCtx.beginPath();
-              heatMapCtx.arc(sensor.x, sensor.y, baseRadius * 1.1, 0, Math.PI * 2);
-              heatMapCtx.fill();
-            }
+            heatMapCtx.fillStyle = heatGradient;
+            heatMapCtx.beginPath();
+            heatMapCtx.arc(sensor.x, sensor.y, baseRadius * 1.1, 0, Math.PI * 2);
+            heatMapCtx.fill();
           }
         });
       };
