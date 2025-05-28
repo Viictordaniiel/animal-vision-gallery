@@ -67,27 +67,27 @@ const isMobile = () => {
          window.innerWidth <= 768;
 };
 
-// Enhanced motion tracking parameters for specific animal types
-const MOTION_THRESHOLD = 6;
-const MOVEMENT_INTENSITY_THRESHOLD = 0.12;
-const TRACKING_SMOOTHNESS = 0.7;
-const PRESENCE_RADIUS = 45;
-const INACTIVITY_TIMEOUT = 2500;
-const INVASIVE_TRACKING_BOOST = 1.3;
+// Enhanced motion tracking parameters for specific animal types (adjusted for mobile)
+const MOTION_THRESHOLD = 8; // Increased for mobile
+const MOVEMENT_INTENSITY_THRESHOLD = 0.15; // Increased for mobile
+const TRACKING_SMOOTHNESS = 0.6; // Reduced for mobile
+const PRESENCE_RADIUS = 35; // Reduced for mobile
+const INACTIVITY_TIMEOUT = 3000; // Increased for mobile
+const INVASIVE_TRACKING_BOOST = 1.2; // Reduced for mobile
 
-// Specific detection parameters for different animal types
+// Specific detection parameters for different animal types (mobile optimized)
 const ANIMAL_DETECTION_ZONES = {
   invasive: {
     preferredY: { min: 0.1, max: 0.6 },
     preferredX: { min: 0.2, max: 0.8 },
-    sensitivity: 1.4,
-    trackingRadius: 180
+    sensitivity: 1.2, // Reduced for mobile
+    trackingRadius: 150 // Reduced for mobile
   },
   domestic: {
     preferredY: { min: 0.4, max: 0.9 },
     preferredX: { min: 0.1, max: 0.9 },
-    sensitivity: 1.0,
-    trackingRadius: 150
+    sensitivity: 0.9, // Reduced for mobile
+    trackingRadius: 120 // Reduced for mobile
   }
 };
 
@@ -215,14 +215,14 @@ export default function GalleryItem({
     }
   }, [imageUrl, isVideo, isMobileDevice]);
   
-  // Initialize presence sensors with specific animal type zones
+  // Initialize presence sensors with specific animal type zones (now works on mobile)
   const initializePresenceSensors = () => {
-    if (!canvasRef.current || !videoRef.current || isMobileDevice) return;
+    if (!canvasRef.current || !videoRef.current) return;
     
     const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
-    console.log(`Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height}`);
+    console.log(`Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height} (${isMobileDevice ? 'mobile' : 'desktop'})`);
     
     activePresenceSensorsRef.current = {};
     
@@ -329,11 +329,11 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Enhanced animal tracking system (disabled on mobile for performance)
+  // Enhanced animal tracking system (now enabled on mobile with optimizations)
   useEffect(() => {
-    if (!isVideo || !videoLoaded || !animals.length || isAnalyzing || isMobileDevice) return;
+    if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
-    console.log("Iniciando sistema de rastreamento específico por tipo para", animals.length, "animais");
+    console.log(`Iniciando sistema de rastreamento específico por tipo para ${animals.length} animais (${isMobileDevice ? 'mobile' : 'desktop'})`);
     
     const setupAnimalTracking = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
@@ -385,7 +385,7 @@ export default function GalleryItem({
         heatMapCtx.globalAlpha = 0.15;
       }
       
-      // Type-specific motion detection
+      // Type-specific motion detection (mobile optimized)
       const detectAnimalMovementByType = (animalType: 'invasive' | 'domestic') => {
         if (!motionCtx || !videoRef.current) return [];
         
@@ -398,7 +398,7 @@ export default function GalleryItem({
         }
         
         const movementAreas = [];
-        const blockSize = animalType === 'invasive' ? 8 : 10; // Blocos menores para invasores
+        const blockSize = isMobileDevice ? (animalType === 'invasive' ? 12 : 16) : (animalType === 'invasive' ? 8 : 10); // Larger blocks for mobile
         const zone = ANIMAL_DETECTION_ZONES[animalType];
         
         // Detectar movimento apenas na zona preferencial do tipo de animal
@@ -724,15 +724,17 @@ export default function GalleryItem({
         });
       };
       
-      // Main animation loop with type-specific tracking
+      // Main animation loop with mobile optimization
       const animate = () => {
-        // Skip animation frame on mobile to prevent performance issues
-        if (isMobileDevice) return;
-        
         updateAnimalSensorsByType();
         drawAnimalSensors();
         
-        animationRef.current = requestAnimationFrame(animate);
+        // Reduce frame rate on mobile for better performance
+        const frameDelay = isMobileDevice ? 100 : 16; // ~10fps on mobile, ~60fps on desktop
+        
+        setTimeout(() => {
+          animationRef.current = requestAnimationFrame(animate);
+        }, frameDelay);
       };
       
       animate();
@@ -749,7 +751,7 @@ export default function GalleryItem({
 
   // Handle sensor click to show species information
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || isMobileDevice) return;
+    if (!canvasRef.current) return;
     
     const rect = canvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -804,20 +806,21 @@ export default function GalleryItem({
                     onLoadedData={() => setVideoLoaded(true)}
                     onError={() => setVideoError(true)}
                   />
-                  {!isMobileDevice && (
-                    <>
-                      <canvas 
-                        ref={canvasRef}
-                        className="absolute top-0 left-0 w-full h-full cursor-pointer"
-                        style={{zIndex: 10}}
-                        onClick={handleCanvasClick}
-                      />
-                      <canvas 
-                        ref={heatMapCanvasRef}
-                        className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
-                        style={{zIndex: 9}}
-                      />
-                    </>
+                  <canvas 
+                    ref={canvasRef}
+                    className="absolute top-0 left-0 w-full h-full cursor-pointer"
+                    style={{zIndex: 10}}
+                    onClick={handleCanvasClick}
+                  />
+                  <canvas 
+                    ref={heatMapCanvasRef}
+                    className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
+                    style={{zIndex: 9}}
+                  />
+                  {isMobileDevice && videoLoaded && (
+                    <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm">
+                      📱 Sensores ativos em modo móvel
+                    </div>
                   )}
                 </>
               )}
@@ -851,19 +854,17 @@ export default function GalleryItem({
               
               {isVideo && (
                 <div className="flex flex-col gap-1">
-                  {heatMapEnabled && !isMobileDevice && (
+                  {heatMapEnabled && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <ThermometerSun size={16} className="text-amber-500" />
                       <span>Mapa de calor ativado</span>
                     </div>
                   )}
                   
-                  {!isMobileDevice && (
-                    <div className="flex items-center gap-1 text-sm text-green-600">
-                      <Circle size={16} className="text-green-500" />
-                      <span>Sensores de presença rastreando movimento - Clique no sensor para mais informações</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 text-sm text-green-600">
+                    <Circle size={16} className="text-green-500" />
+                    <span>Sensores de presença rastreando movimento{isMobileDevice ? ' (modo móvel)' : ''} - Clique no sensor para mais informações</span>
+                  </div>
                 </div>
               )}
               
