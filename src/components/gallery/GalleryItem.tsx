@@ -145,34 +145,65 @@ export default function GalleryItem({
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
   
-  // Initialize video element
+  // Initialize video element with mobile-specific configuration
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Configurando reprodução de vídeo: ${imageUrl}`);
+      console.log(`Configurando reprodução de vídeo para mobile: ${imageUrl}`);
       
       const video = videoRef.current;
+      
+      // Configure video for mobile compatibility
       video.src = imageUrl;
       video.setAttribute('playsinline', 'true');
       video.setAttribute('webkit-playsinline', 'true');
-      video.preload = 'auto';
+      video.setAttribute('controls', 'true');
+      video.muted = true; // Essential for mobile autoplay
+      video.loop = true;
+      video.preload = 'metadata';
+      
+      // Force video dimensions for mobile
+      video.style.width = '100%';
+      video.style.height = 'auto';
+      video.style.maxHeight = '400px';
+      video.style.objectFit = 'contain';
+      video.style.display = 'block';
       
       setVideoLoaded(false);
       setVideoError(false);
       
+      const handleLoadedMetadata = () => {
+        console.log('Metadados do vídeo carregados');
+        setVideoLoaded(true);
+        setVideoError(false);
+      };
+
       const handleLoadedData = () => {
-        console.log('Vídeo carregado com sucesso');
+        console.log('Dados do vídeo carregados completamente');
         setVideoLoaded(true);
         setVideoError(false);
         
-        video.play().catch(error => {
-          console.error("Erro ao reproduzir vídeo:", error);
-          setVideoError(true);
-        });
-        setIsPlaying(true);
-        
-        if (animals.length > 0) {
-          initializePresenceSensors();
+        // Try to play with user gesture simulation for mobile
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('Vídeo reproduzindo com sucesso');
+              setIsPlaying(true);
+              if (animals.length > 0) {
+                initializePresenceSensors();
+              }
+            })
+            .catch(error => {
+              console.log("Autoplay bloqueado, aguardando interação do usuário:", error);
+              // Don't set error, just wait for user interaction
+              setIsPlaying(false);
+            });
         }
+      };
+
+      const handleCanPlay = () => {
+        console.log('Vídeo pronto para reprodução');
+        setVideoLoaded(true);
       };
 
       const handleError = (e: Event) => {
@@ -184,16 +215,35 @@ export default function GalleryItem({
           variant: "destructive"
         });
       };
+
+      const handlePlay = () => {
+        setIsPlaying(true);
+        if (animals.length > 0) {
+          initializePresenceSensors();
+        }
+      };
+
+      const handlePause = () => {
+        setIsPlaying(false);
+      };
       
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('canplay', handleCanPlay);
       video.addEventListener('error', handleError);
+      video.addEventListener('play', handlePlay);
+      video.addEventListener('pause', handlePause);
       
       return () => {
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
         video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('canplay', handleCanPlay);
         video.removeEventListener('error', handleError);
+        video.removeEventListener('play', handlePlay);
+        video.removeEventListener('pause', handlePause);
       };
     }
-  }, [imageUrl, isVideo]);
+  }, [imageUrl, isVideo, animals.length]);
   
   // Initialize presence sensors with specific animal type zones
   const initializePresenceSensors = () => {
@@ -293,20 +343,32 @@ export default function GalleryItem({
     }
   }, [isAnalyzing]);
 
-  // Handle video play/pause
+  // Handle video play/pause with mobile compatibility
   const togglePlayPause = () => {
     if (!videoRef.current) return;
     
-    if (isPlaying) {
-      videoRef.current.pause();
-    } else {
-      videoRef.current.play().catch(error => {
-        console.error("Erro ao reproduzir vídeo:", error);
-        setVideoError(true);
-      });
-    }
+    const video = videoRef.current;
     
-    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      video.pause();
+    } else {
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Vídeo reproduzindo após clique do usuário');
+          })
+          .catch(error => {
+            console.error("Erro ao reproduzir vídeo:", error);
+            setVideoError(true);
+            toast({
+              title: "Erro na reprodução",
+              description: "Não foi possível reproduzir o vídeo.",
+              variant: "destructive"
+            });
+          });
+      }
+    }
   };
 
   // Enhanced animal tracking system (same for all devices)
@@ -773,14 +835,31 @@ export default function GalleryItem({
                 <>
                   <video 
                     ref={videoRef} 
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain bg-black"
                     onClick={togglePlayPause}
                     playsInline
+                    webkit-playsinline="true"
+                    controls
                     muted
                     loop
-                    onLoadedData={() => setVideoLoaded(true)}
-                    onError={() => setVideoError(true)}
+                    preload="metadata"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      display: 'block'
+                    }}
                   />
+                  
+                  {!videoLoaded && !videoError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white">
+                      <div className="text-center">
+                        <Loader2 className="h-8 w-8 animate-spin mb-2 mx-auto" />
+                        <p>Carregando vídeo...</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <canvas 
                     ref={canvasRef}
                     className="absolute top-0 left-0 w-full h-full cursor-pointer"
