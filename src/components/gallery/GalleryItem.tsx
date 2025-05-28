@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, Heart } from 'lucide-react';
@@ -170,6 +169,7 @@ export default function GalleryItem({
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
     console.log(`🎯 Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height}`);
+    console.log(`📋 Animais detectados:`, animals.map(a => ({ nome: a.name, confiança: a.confidence })));
     
     // Clear existing sensors
     capivaraSensorsRef.current = {};
@@ -180,15 +180,35 @@ export default function GalleryItem({
       animal.name.toLowerCase().includes('capivara')
     );
 
-    // Identify cachorros
-    const cachorros = animals.filter(animal => 
-      animal.name.toLowerCase().includes('cachorro') ||
-      animal.name.toLowerCase().includes('cão') ||
-      animal.name.toLowerCase().includes('dog')
-    );
+    // Identify cachorros - expandindo os critérios de detecção
+    const cachorros = animals.filter(animal => {
+      const name = animal.name.toLowerCase();
+      return name.includes('cachorro') ||
+             name.includes('cão') ||
+             name.includes('dog') ||
+             name.includes('canine') ||
+             name.includes('pet') ||
+             name.includes('domestic') ||
+             // Adicionar detecção baseada na categoria se ela existe
+             (animal.category && animal.category.toLowerCase().includes('domestic'));
+    });
+    
+    // Se não encontrou cachorros pelos nomes, vamos criar um sensor genérico para animais domésticos
+    let domesticAnimals = cachorros;
+    if (domesticAnimals.length === 0) {
+      // Filtrar animais que não são capivaras como potenciais domésticos
+      const nonCapivaras = animals.filter(animal => 
+        !animal.name.toLowerCase().includes('capivara')
+      );
+      
+      if (nonCapivaras.length > 0) {
+        console.log(`🔵 Criando sensores para animais domésticos genéricos:`, nonCapivaras.map(a => a.name));
+        domesticAnimals = nonCapivaras;
+      }
+    }
     
     console.log(`🔴 Detectadas ${capivaras.length} capivaras:`, capivaras.map(a => a.name));
-    console.log(`🔵 Detectados ${cachorros.length} cachorros:`, cachorros.map(a => a.name));
+    console.log(`🔵 Detectados ${domesticAnimals.length} animais domésticos:`, domesticAnimals.map(a => a.name));
     
     // Create sensors for capivaras
     capivaras.forEach((capivara, index) => {
@@ -220,17 +240,17 @@ export default function GalleryItem({
         alertLevel: 'medium'
       };
       
-      console.log(`🔴 SENSOR CAPIVARA [${index}] posicionado em (${Math.round(xPos)}, ${Math.round(yPos)})`);
+      console.log(`🔴 SENSOR CAPIVARA [${index}] criado e posicionado em (${Math.round(xPos)}, ${Math.round(yPos)})`);
     });
 
-    // Create sensors for cachorros
-    cachorros.forEach((cachorro, index) => {
+    // Create sensors for domestic animals (cachorros ou outros animais domésticos)
+    domesticAnimals.forEach((animal, index) => {
       let xPos, yPos;
-      if (cachorros.length === 1) {
+      if (domesticAnimals.length === 1) {
         xPos = width * 0.7;
         yPos = height * 0.3;
       } else {
-        const angle = (index / cachorros.length) * Math.PI * 2 + Math.PI;
+        const angle = (index / domesticAnimals.length) * Math.PI * 2 + Math.PI;
         const radius = Math.min(width, height) * 0.2;
         xPos = width * 0.7 + Math.cos(angle) * radius;
         yPos = height * 0.3 + Math.sin(angle) * radius;
@@ -239,7 +259,7 @@ export default function GalleryItem({
       xPos = Math.max(PRESENCE_RADIUS, Math.min(width - PRESENCE_RADIUS, xPos));
       yPos = Math.max(PRESENCE_RADIUS, Math.min(height - PRESENCE_RADIUS, yPos));
       
-      const sensorKey = `cachorro_${index}`;
+      const sensorKey = `domestico_${index}`;
       cachorroSensorsRef.current[sensorKey] = {
         x: xPos,
         y: yPos,
@@ -247,14 +267,16 @@ export default function GalleryItem({
         isActive: true,
         pulsePhase: Math.random() * Math.PI * 2,
         velocity: {x: 0, y: 0},
-        confidence: cachorro.confidence,
+        confidence: animal.confidence,
         intensity: 0.4,
         detectionCount: 0,
         alertLevel: 'medium'
       };
       
-      console.log(`🔵 SENSOR CACHORRO [${index}] posicionado em (${Math.round(xPos)}, ${Math.round(yPos)})`);
+      console.log(`🔵 SENSOR DOMÉSTICO [${index}] criado e posicionado para "${animal.name}" em (${Math.round(xPos)}, ${Math.round(yPos)})`);
     });
+    
+    console.log(`📊 Total de sensores criados: ${Object.keys(capivaraSensorsRef.current).length} capivaras + ${Object.keys(cachorroSensorsRef.current).length} domésticos`);
   };
   
   // Show alert for capivaras
@@ -279,20 +301,31 @@ export default function GalleryItem({
     }
   }, [animals, isAnalyzing, toast]);
 
-  // Show alert for cachorros
+  // Show alert for cachorros - expandindo para animais domésticos
   useEffect(() => {
     if (!isAnalyzing && animals.length > 0 && !cachorroAlertShownRef.current) {
-      const cachorros = animals.filter(animal => 
-        animal.name.toLowerCase().includes('cachorro') ||
-        animal.name.toLowerCase().includes('cão') ||
-        animal.name.toLowerCase().includes('dog')
+      const domesticAnimals = animals.filter(animal => {
+        const name = animal.name.toLowerCase();
+        return name.includes('cachorro') ||
+               name.includes('cão') ||
+               name.includes('dog') ||
+               name.includes('canine') ||
+               name.includes('pet') ||
+               name.includes('domestic') ||
+               // Se não é capivara, considerar como potencial doméstico
+               !name.includes('capivara');
+      });
+      
+      // Filtrar apenas os que não são capivaras
+      const nonCapivaras = domesticAnimals.filter(animal => 
+        !animal.name.toLowerCase().includes('capivara')
       );
       
-      if (cachorros.length > 0) {
-        cachorros.forEach(cachorro => {
+      if (nonCapivaras.length > 0) {
+        nonCapivaras.forEach(animal => {
           toast({
-            title: "💙 Cachorro Detectado",
-            description: `Cachorro identificado com ${Math.round(cachorro.confidence * 100)}% de confiança. Sensor específico ativado para monitoramento.`,
+            title: "💙 Animal Doméstico Detectado",
+            description: `${animal.name} identificado com ${Math.round(animal.confidence * 100)}% de confiança. Sensor específico ativado para monitoramento.`,
             duration: 6000,
           });
         });
@@ -332,15 +365,15 @@ export default function GalleryItem({
       animal.name.toLowerCase().includes('capivara')
     );
 
-    const cachorros = animals.filter(animal => 
-      animal.name.toLowerCase().includes('cachorro') ||
-      animal.name.toLowerCase().includes('cão') ||
-      animal.name.toLowerCase().includes('dog')
-    );
+    // Expandir critérios para animais domésticos
+    const domesticAnimals = animals.filter(animal => {
+      const name = animal.name.toLowerCase();
+      return !name.includes('capivara'); // Qualquer animal que não seja capivara
+    });
     
-    if (capivaras.length === 0 && cachorros.length === 0) return;
+    console.log("🎯 Iniciando sistema de rastreamento para", capivaras.length, "capivaras e", domesticAnimals.length, "animais domésticos");
     
-    console.log("🎯 Iniciando sistema de rastreamento para", capivaras.length, "capivaras e", cachorros.length, "cachorros");
+    if (capivaras.length === 0 && domesticAnimals.length === 0) return;
     
     const setupTracking = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
@@ -526,10 +559,12 @@ export default function GalleryItem({
         });
       };
 
-      // Update cachorro sensors
-      const updateCachorroSensors = () => {
+      // Update cachorro sensors - renomeando para animais domésticos
+      const updateDomesticSensors = () => {
         const currentTime = Date.now();
         const movements = detectMovement(CACHORRO_DETECTION_ZONES, 1.8);
+        
+        console.log(`🔵 Atualizando ${Object.keys(cachorroSensorsRef.current).length} sensores domésticos`);
         
         Object.keys(cachorroSensorsRef.current).forEach(sensorKey => {
           const sensor = cachorroSensorsRef.current[sensorKey];
@@ -585,7 +620,7 @@ export default function GalleryItem({
             sensor.x = Math.max(PRESENCE_RADIUS, Math.min(canvas.width - PRESENCE_RADIUS, sensor.x));
             sensor.y = Math.max(PRESENCE_RADIUS, Math.min(canvas.height - PRESENCE_RADIUS, sensor.y));
             
-            console.log(`🔵 SENSOR CACHORRO rastreando em (${Math.round(sensor.x)}, ${Math.round(sensor.y)}) - Intensidade: ${(bestMovement.intensity * 100).toFixed(1)}% - Nível: ${sensor.alertLevel.toUpperCase()}`);
+            console.log(`🔵 SENSOR DOMÉSTICO rastreando em (${Math.round(sensor.x)}, ${Math.round(sensor.y)}) - Intensidade: ${(bestMovement.intensity * 100).toFixed(1)}% - Nível: ${sensor.alertLevel.toUpperCase()}`);
           } else {
             sensor.velocity.x *= 0.9;
             sensor.velocity.y *= 0.9;
@@ -605,6 +640,8 @@ export default function GalleryItem({
         if (!ctx || !heatMapCtx || !video) return;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        console.log(`🎨 Renderizando sensores: ${Object.keys(capivaraSensorsRef.current).length} capivaras + ${Object.keys(cachorroSensorsRef.current).length} domésticos`);
         
         // RENDERIZAR SENSORES DE CAPIVARA - SEMPRE VISÍVEIS
         Object.keys(capivaraSensorsRef.current).forEach(sensorKey => {
@@ -700,12 +737,12 @@ export default function GalleryItem({
           }
         });
 
-        // RENDERIZAR SENSORES DE CACHORRO - SEMPRE VISÍVEIS
+        // RENDERIZAR SENSORES DE ANIMAIS DOMÉSTICOS - SEMPRE VISÍVEIS
         Object.keys(cachorroSensorsRef.current).forEach(sensorKey => {
           const sensor = cachorroSensorsRef.current[sensorKey];
           if (!sensor) return;
           
-          console.log(`🔵 Renderizando sensor cachorro em (${sensor.x}, ${sensor.y})`);
+          console.log(`🔵 Renderizando sensor doméstico em (${sensor.x}, ${sensor.y})`);
           
           const domesticColors = {
             low: '#4ecdc480',
@@ -758,10 +795,10 @@ export default function GalleryItem({
           ctx.fillRect(textX, textY, textWidth, textHeight);
           
           ctx.fillStyle = 'white';
-          const alertText = sensor.alertLevel === 'active' ? '💙 CACHORRO ATIVO' :
-                           sensor.alertLevel === 'high' ? '🔵 CACHORRO DETECTADO' :
-                           sensor.alertLevel === 'medium' ? '🟦 CACHORRO' :
-                           '👁️ SENSOR CACHORRO';
+          const alertText = sensor.alertLevel === 'active' ? '💙 ANIMAL ATIVO' :
+                           sensor.alertLevel === 'high' ? '🔵 ANIMAL DETECTADO' :
+                           sensor.alertLevel === 'medium' ? '🟦 ANIMAL DOMÉSTICO' :
+                           '👁️ SENSOR DOMÉSTICO';
           ctx.fillText(alertText, sensor.x, sensor.y + baseRadius + 25);
           ctx.font = '8px Arial';
           ctx.fillText(`Confiança: ${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 37);
@@ -787,7 +824,7 @@ export default function GalleryItem({
       // Main animation loop
       const animate = () => {
         updateCapivaraSensors();
-        updateCachorroSensors();
+        updateDomesticSensors();
         drawAllSensors();
         
         animationRef.current = requestAnimationFrame(animate);
