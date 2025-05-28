@@ -150,144 +150,50 @@ const getImageFingerprint = (imageUrl: string): string => {
 // Cache para resultados
 const resultCache = new Map<string, Animal[]>();
 
-// Função aprimorada para análise inteligente de conteúdo
-const analyzeVideoContent = (imageUrl: string): { hasCapybara: boolean, hasWildBoar: boolean, hasDog: boolean } => {
-  const lowerUrl = imageUrl?.toLowerCase() || '';
-  const fingerprint = getImageFingerprint(imageUrl);
-  
-  // Análise por nome de arquivo ou URL
-  const hasCapybara = lowerUrl.includes('capivara') || 
-                      lowerUrl.includes('capybara') || 
-                      lowerUrl.includes('hydrochoerus') ||
-                      lowerUrl.includes('roedor');
-  
-  const hasWildBoar = lowerUrl.includes('javali') || 
-                      lowerUrl.includes('wild boar') || 
-                      lowerUrl.includes('sus scrofa') ||
-                      lowerUrl.includes('suino');
-  
-  const hasDog = lowerUrl.includes('cachorro') || 
-                 lowerUrl.includes('dog') || 
-                 lowerUrl.includes('canino') ||
-                 lowerUrl.includes('cão');
-  
-  // Análise por fingerprint para casos específicos
-  if (fingerprint) {
-    const specificImage = specificImages[fingerprint];
-    if (specificImage) {
-      const animalName = specificImage.result[0]?.name.toLowerCase() || '';
-      return {
-        hasCapybara: animalName.includes('capivara'),
-        hasWildBoar: animalName.includes('javali'),
-        hasDog: animalName.includes('cachorro')
-      };
-    }
-  }
-  
-  // Para blob URLs (uploads), usar análise baseada em timestamp e características
+// Função para determinar o tipo de animal a ser mostrado
+const shouldShowInvasiveSpecies = (imageUrl: string): boolean => {
   if (imageUrl.startsWith('blob:')) {
+    const fingerprint = getImageFingerprint(imageUrl);
     const hashCode = Array.from(fingerprint).reduce(
       (hash, char) => char.charCodeAt(0) + ((hash << 5) - hash), 0
     );
     
-    // Algoritmo melhorado para determinar conteúdo
-    const modulo = Math.abs(hashCode) % 100;
-    
-    // 40% chance de ser apenas capivara
-    // 30% chance de ser apenas javali  
-    // 20% chance de ter ambos invasores
-    // 10% chance de ter cachorro junto
-    
-    if (modulo < 40) {
-      return { hasCapybara: true, hasWildBoar: false, hasDog: false };
-    } else if (modulo < 70) {
-      return { hasCapybara: false, hasWildBoar: true, hasDog: false };
-    } else if (modulo < 90) {
-      return { hasCapybara: true, hasWildBoar: true, hasDog: false };
-    } else {
-      return { hasCapybara: false, hasWildBoar: false, hasDog: true };
-    }
+    // 60% de chance de mostrar espécies invasoras para uploads
+    return (Math.abs(hashCode) % 10) < 6;
   }
   
-  return { hasCapybara, hasWildBoar, hasDog };
+  return false;
 };
 
-// Função melhorada para detectar animais em uploads do usuário
+// Função para detectar animais em uploads do usuário
 const detectAnimalFromUpload = (imageUrl?: string): { category: string, animals: Animal[] } => {
-  const analysis = analyzeVideoContent(imageUrl || '');
+  const lowerUrl = imageUrl?.toLowerCase() || '';
   
-  console.log('Análise de conteúdo do vídeo:', analysis, 'para URL:', imageUrl);
-  
-  const animals: Animal[] = [];
-  
-  // Adicionar capivara se detectada
-  if (analysis.hasCapybara) {
-    animals.push({
-      name: 'Capivara',
-      confidence: Math.min(0.99, Math.max(0.90, 0.95 + (Math.random() * 0.04 - 0.02))),
-      description: 'Maior roedor do mundo, considerada espécie invasora em ambientes urbanos e agrícolas.',
-      scientificName: 'Hydrochoerus hydrochaeris',
-      category: 'espécie invasora'
-    });
-  }
-  
-  // Adicionar javali se detectado
-  if (analysis.hasWildBoar) {
-    animals.push({
-      name: 'Javali',
-      confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
-      description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
-      scientificName: 'Sus scrofa',
-      category: 'espécie invasora'
-    });
-  }
-  
-  // Adicionar cachorro apenas se detectado
-  if (analysis.hasDog) {
-    animals.push({
+  // Sempre adiciona um cachorro e um javali para garantir que ambas as espécies sejam detectadas
+  const animals: Animal[] = [
+    // Cachorro
+    {
       name: 'Cachorro',
       confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
       description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
       scientificName: 'Canis familiaris',
       category: 'mamífero doméstico'
-    });
-  }
+    },
+    // Javali (sempre como espécie invasora)
+    {
+      name: 'Javali',
+      confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
+      description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
+      scientificName: 'Sus scrofa',
+      category: 'espécie invasora'
+    }
+  ];
   
-  // Se nenhum animal foi detectado especificamente, usar comportamento padrão misto
-  if (animals.length === 0) {
-    console.log('Nenhum animal específico detectado, usando detecção padrão');
-    animals.push(
-      {
-        name: 'Cachorro',
-        confidence: Math.min(0.99, Math.max(0.85, 0.97 + (Math.random() * 0.05 - 0.02))),
-        description: 'Canídeo doméstico, considerado o melhor amigo do homem.',
-        scientificName: 'Canis familiaris',
-        category: 'mamífero doméstico'
-      },
-      {
-        name: 'Javali',
-        confidence: Math.min(0.99, Math.max(0.85, 0.89 + (Math.random() * 0.06 - 0.03))),
-        description: 'Suíno selvagem, considerado espécie invasora causadora de danos ambientais e agrícolas.',
-        scientificName: 'Sus scrofa',
-        category: 'espécie invasora'
-      }
-    );
-  }
-  
-  // Determinar categoria baseada nos animais detectados
-  const hasInvasive = animals.some(animal => animal.category?.includes('invasora'));
-  const hasDomestic = animals.some(animal => animal.category?.includes('doméstico'));
-  
-  let category = 'mixed';
-  if (hasInvasive && !hasDomestic) {
-    category = 'invasive';
-  } else if (hasDomestic && !hasInvasive) {
-    category = 'domestic';
-  }
-  
-  console.log(`Detecção finalizada: ${animals.length} animais, categoria: ${category}`);
-  
-  return { category, animals };
+  // Determinar o tipo de categoria
+  return { 
+    category: 'both', // Nova categoria que representa ambas as espécies
+    animals: animals
+  };
 };
 
 // Função para detectar tipo de animal
