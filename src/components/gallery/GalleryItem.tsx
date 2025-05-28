@@ -145,28 +145,20 @@ export default function GalleryItem({
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
   
-  // Initialize video element with mobile-specific configuration
+  // Configure video for universal compatibility
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Configurando reprodução de vídeo para mobile: ${imageUrl}`);
+      console.log(`Configurando vídeo para reprodução universal: ${imageUrl}`);
       
       const video = videoRef.current;
       
-      // Configure video for mobile compatibility
+      // Universal video configuration
       video.src = imageUrl;
       video.setAttribute('playsinline', 'true');
       video.setAttribute('webkit-playsinline', 'true');
-      video.setAttribute('controls', 'true');
-      video.muted = true; // Essential for mobile autoplay
+      video.muted = true;
       video.loop = true;
       video.preload = 'metadata';
-      
-      // Force video dimensions for mobile
-      video.style.width = '100%';
-      video.style.height = 'auto';
-      video.style.maxHeight = '400px';
-      video.style.objectFit = 'contain';
-      video.style.display = 'block';
       
       setVideoLoaded(false);
       setVideoError(false);
@@ -182,20 +174,19 @@ export default function GalleryItem({
         setVideoLoaded(true);
         setVideoError(false);
         
-        // Try to play with user gesture simulation for mobile
+        // Auto-play attempt
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log('Vídeo reproduzindo com sucesso');
+              console.log('Vídeo reproduzindo automaticamente');
               setIsPlaying(true);
               if (animals.length > 0) {
                 initializePresenceSensors();
               }
             })
             .catch(error => {
-              console.log("Autoplay bloqueado, aguardando interação do usuário:", error);
-              // Don't set error, just wait for user interaction
+              console.log("Autoplay bloqueado, aguardando interação:", error);
               setIsPlaying(false);
             });
         }
@@ -343,7 +334,7 @@ export default function GalleryItem({
     }
   }, [isAnalyzing]);
 
-  // Handle video play/pause with mobile compatibility
+  // Handle video play/pause
   const togglePlayPause = () => {
     if (!videoRef.current) return;
     
@@ -356,7 +347,7 @@ export default function GalleryItem({
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log('Vídeo reproduzindo após clique do usuário');
+            console.log('Vídeo reproduzindo após interação');
           })
           .catch(error => {
             console.error("Erro ao reproduzir vídeo:", error);
