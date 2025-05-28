@@ -189,7 +189,7 @@ export default function GalleryItem({
       animal.name.toLowerCase().includes('javali')
     );
 
-    // Identify domestic animals
+    // Identify domestic animals - each individual animal gets its own sensor
     const domesticAnimals = animals.filter(animal => 
       animal.category?.toLowerCase().includes('doméstico') ||
       animal.name.toLowerCase().includes('cachorro') ||
@@ -222,7 +222,8 @@ export default function GalleryItem({
       xPos = Math.max(PRESENCE_RADIUS, Math.min(width - PRESENCE_RADIUS, xPos));
       yPos = Math.max(PRESENCE_RADIUS, Math.min(height - PRESENCE_RADIUS, yPos));
       
-      invasiveSensorsRef.current[animal.name] = {
+      const sensorKey = `${animal.name}_${index}`;
+      invasiveSensorsRef.current[sensorKey] = {
         x: xPos,
         y: yPos,
         lastMovement: Date.now(),
@@ -238,7 +239,7 @@ export default function GalleryItem({
       console.log(`🔴 Sensor invasivo [${animal.name}] posicionado em (${Math.round(xPos)}, ${Math.round(yPos)})`);
     });
 
-    // Create sensors for domestic animals only if detected
+    // Create sensors for domestic animals - each animal gets its own sensor
     domesticAnimals.forEach((animal, index) => {
       const zone = DOMESTIC_DETECTION_ZONES;
       
@@ -260,7 +261,8 @@ export default function GalleryItem({
       xPos = Math.max(PRESENCE_RADIUS, Math.min(width - PRESENCE_RADIUS, xPos));
       yPos = Math.max(PRESENCE_RADIUS, Math.min(height - PRESENCE_RADIUS, yPos));
       
-      domesticSensorsRef.current[animal.name] = {
+      const sensorKey = `${animal.name}_${index}`;
+      domesticSensorsRef.current[sensorKey] = {
         x: xPos,
         y: yPos,
         lastMovement: Date.now(),
@@ -319,7 +321,7 @@ export default function GalleryItem({
         domesticSpecies.forEach(species => {
           toast({
             title: "💙 Animal Doméstico Detectado",
-            description: `${species.name} identificado com ${Math.round(species.confidence * 100)}% de confiança. Sensores domésticos ativados para monitoramento.`,
+            description: `${species.name} identificado com ${Math.round(species.confidence * 100)}% de confiança. Sensor doméstico ativado para monitoramento específico.`,
             duration: 6000,
           });
         });
@@ -487,9 +489,11 @@ export default function GalleryItem({
         const currentTime = Date.now();
         const movements = detectMovement(INVASIVE_DETECTION_ZONES, INVASIVE_TRACKING_BOOST);
         
-        Object.keys(invasiveSensorsRef.current).forEach(animalName => {
-          const sensor = invasiveSensorsRef.current[animalName];
+        Object.keys(invasiveSensorsRef.current).forEach(sensorKey => {
+          const sensor = invasiveSensorsRef.current[sensorKey];
           if (!sensor) return;
+          
+          const animalName = sensorKey.split('_')[0]; // Extract animal name from sensor key
           
           sensor.pulsePhase += 0.15;
           
@@ -561,9 +565,11 @@ export default function GalleryItem({
         const currentTime = Date.now();
         const movements = detectMovement(DOMESTIC_DETECTION_ZONES, DOMESTIC_TRACKING_BOOST);
         
-        Object.keys(domesticSensorsRef.current).forEach(animalName => {
-          const sensor = domesticSensorsRef.current[animalName];
+        Object.keys(domesticSensorsRef.current).forEach(sensorKey => {
+          const sensor = domesticSensorsRef.current[sensorKey];
           if (!sensor) return;
+          
+          const animalName = sensorKey.split('_')[0]; // Extract animal name from sensor key
           
           sensor.pulsePhase += 0.1; // Slower pulse for domestics
           
@@ -635,9 +641,11 @@ export default function GalleryItem({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Draw invasive sensors
-        Object.keys(invasiveSensorsRef.current).forEach(animalName => {
-          const sensor = invasiveSensorsRef.current[animalName];
+        Object.keys(invasiveSensorsRef.current).forEach(sensorKey => {
+          const sensor = invasiveSensorsRef.current[sensorKey];
           if (!sensor) return;
+          
+          const animalName = sensorKey.split('_')[0]; // Extract animal name from sensor key
           
           const alertColors = {
             low: '#ea384c80',
@@ -729,9 +737,11 @@ export default function GalleryItem({
         });
 
         // Draw domestic sensors
-        Object.keys(domesticSensorsRef.current).forEach(animalName => {
-          const sensor = domesticSensorsRef.current[animalName];
+        Object.keys(domesticSensorsRef.current).forEach(sensorKey => {
+          const sensor = domesticSensorsRef.current[sensorKey];
           if (!sensor) return;
+          
+          const animalName = sensorKey.split('_')[0]; // Extract animal name from sensor key
           
           const domesticColors = {
             low: '#4ecdc480',
@@ -785,13 +795,13 @@ export default function GalleryItem({
             ctx.fillRect(textX, textY, textWidth, textHeight);
             
             ctx.fillStyle = 'white';
-            const alertText = sensor.alertLevel === 'active' ? '💙 ATIVO - DOMÉSTICO' :
-                             sensor.alertLevel === 'high' ? '🔵 DOMÉSTICO ATIVO' :
-                             sensor.alertLevel === 'medium' ? '🟦 MONITORANDO' :
-                             '👁️ SENSOR DOMÉSTICO';
+            const alertText = sensor.alertLevel === 'active' ? `💙 ${animalName.toUpperCase()} ATIVO` :
+                             sensor.alertLevel === 'high' ? `🔵 ${animalName.toUpperCase()}` :
+                             sensor.alertLevel === 'medium' ? `🟦 ${animalName}` :
+                             `👁️ SENSOR ${animalName.toUpperCase()}`;
             ctx.fillText(alertText, sensor.x, sensor.y + baseRadius + 20);
             ctx.font = '8px Arial';
-            ctx.fillText(`${animalName} - ${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 32);
+            ctx.fillText(`${Math.round(sensor.confidence * 100)}% - Det: ${sensor.detectionCount}`, sensor.x, sensor.y + baseRadius + 32);
             
             if (heatMapEnabled) {
               const heatGradient = heatMapCtx.createRadialGradient(
