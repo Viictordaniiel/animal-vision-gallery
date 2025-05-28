@@ -1,18 +1,16 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle, X } from 'lucide-react';
+import { Loader2, RefreshCw, ThermometerSun, Dog, Rat, AlertTriangle, Circle } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 type Animal = {
   name: string;
   confidence: number;
   description?: string;
   category?: string;
-  scientificName?: string;
 };
 
 type GalleryItemProps = {
@@ -61,54 +59,13 @@ const getAnimalColor = (animalType: string) => {
   }
 };
 
-// Enhanced motion tracking parameters (same for all devices)
-const MOTION_THRESHOLD = 6;
-const MOVEMENT_INTENSITY_THRESHOLD = 0.12;
-const TRACKING_SMOOTHNESS = 0.7;
-const PRESENCE_RADIUS = 40;
-const INACTIVITY_TIMEOUT = 2500;
-const INVASIVE_TRACKING_BOOST = 1.4;
-
-// Specific detection parameters for different animal types
-const ANIMAL_DETECTION_ZONES = {
-  invasive: {
-    preferredY: { min: 0.1, max: 0.6 },
-    preferredX: { min: 0.2, max: 0.8 },
-    sensitivity: 1.4,
-    trackingRadius: 180
-  },
-  domestic: {
-    preferredY: { min: 0.4, max: 0.9 },
-    preferredX: { min: 0.1, max: 0.9 },
-    sensitivity: 1.0,
-    trackingRadius: 150
-  }
-};
-
-// Species information database
-const speciesInfo = {
-  'Cachorro': {
-    description: 'O cachorro (Canis familiaris) é um mamífero carnívoro da família dos canídeos, considerado o melhor amigo do homem. São animais domésticos leais, inteligentes e versáteis.',
-    habitat: 'Ambientes domésticos e urbanos',
-    behavior: 'Sociável, leal, protetor',
-    conservationStatus: 'Doméstico',
-    riskLevel: 'Baixo'
-  },
-  'Capivara': {
-    description: 'A capivara (Hydrochoerus hydrochaeris) é o maior roedor do mundo. Pode pesar até 65kg e medir 1,3m de comprimento. É considerada espécie invasora em áreas urbanas.',
-    habitat: 'Proximidade de corpos d\'água, áreas alagadas',
-    behavior: 'Semi-aquático, vive em grupos, herbívoro',
-    conservationStatus: 'Espécie invasora em ambientes urbanos',
-    riskLevel: 'Alto - Causa danos a cultivos e infraestrutura'
-  },
-  'Javali': {
-    description: 'O javali (Sus scrofa) é um suíno selvagem originário da Europa e Ásia. No Brasil, é considerado espécie invasora extremamente prejudicial ao meio ambiente e agricultura.',
-    habitat: 'Florestas, campos, áreas rurais',
-    behavior: 'Omnívoro, agressivo quando ameaçado, vive em grupos',
-    conservationStatus: 'Espécie invasora - Controle obrigatório',
-    riskLevel: 'Muito Alto - Danos severos à biodiversidade e agricultura'
-  }
-};
+// Enhanced motion tracking parameters for better animal tracking
+const MOTION_THRESHOLD = 6; // Mais sensível para capturar movimentos sutis
+const MOVEMENT_INTENSITY_THRESHOLD = 0.12; // Threshold mais baixo para invasores
+const TRACKING_SMOOTHNESS = 0.7; // Rastreamento mais responsivo
+const PRESENCE_RADIUS = 45; // Raio maior para melhor visibilidade
+const INACTIVITY_TIMEOUT = 2500; // Timeout menor para manter sensores ativos
+const INVASIVE_TRACKING_BOOST = 1.3; // Boost para rastreamento de invasores
 
 export default function GalleryItem({
   imageUrl,
@@ -126,9 +83,6 @@ export default function GalleryItem({
   const previousFrameDataRef = useRef<ImageData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const [selectedAnimalInfo, setSelectedAnimalInfo] = useState<string | null>(null);
-  const [videoError, setVideoError] = useState(false);
-  
   // Enhanced presence sensors tracking with invasive species priority
   const activePresenceSensorsRef = useRef<{[key: string]: {
     x: number, 
@@ -139,159 +93,56 @@ export default function GalleryItem({
     velocity: {x: number, y: number},
     confidence: number,
     isInvasive: boolean,
-    trackingPriority: number,
-    animalType: 'invasive' | 'domestic'
+    trackingPriority: number
   }}>({});
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
   
-  // Configure video for universal compatibility with mobile fix
+  // Initialize video element
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Configurando vídeo para reprodução móvel: ${imageUrl}`);
-      
-      const video = videoRef.current;
-      
-      // Reset video completely
-      video.pause();
-      video.currentTime = 0;
-      
-      // Clear all previous event listeners
-      video.removeAttribute('src');
-      video.load();
-      
-      // Mobile-optimized configuration
-      video.src = imageUrl;
-      video.preload = 'auto';
-      video.muted = true;
-      video.loop = true;
-      video.autoplay = false;
-      video.controls = true;
-      
-      // Mobile-specific attributes
-      video.setAttribute('playsinline', 'true');
-      video.setAttribute('webkit-playsinline', 'true');
-      video.setAttribute('x5-video-player-type', 'h5');
-      video.setAttribute('x5-video-player-fullscreen', 'true');
-      
-      // Force dimensions
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.style.objectFit = 'contain';
-      video.style.background = 'black';
+      console.log(`Configurando reprodução de vídeo: ${imageUrl}`);
+      videoRef.current.src = imageUrl;
       
       setVideoLoaded(false);
-      setVideoError(false);
-      setIsPlaying(false);
-
-      const handleLoadStart = () => {
-        console.log('Início do carregamento do vídeo');
-        setVideoError(false);
-      };
-
-      const handleLoadedMetadata = () => {
-        console.log('Metadados carregados - dimensões:', video.videoWidth, 'x', video.videoHeight);
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          setVideoLoaded(true);
-          setVideoError(false);
-        }
-      };
-
+      
       const handleLoadedData = () => {
-        console.log('Dados do vídeo completamente carregados');
         setVideoLoaded(true);
-        setVideoError(false);
-      };
-
-      const handleCanPlay = () => {
-        console.log('Vídeo pronto para reprodução');
-        setVideoLoaded(true);
-        setVideoError(false);
-      };
-
-      const handleCanPlayThrough = () => {
-        console.log('Vídeo pode ser reproduzido completamente');
-        setVideoLoaded(true);
-        setVideoError(false);
-      };
-
-      const handleError = (e: Event) => {
-        console.error("Erro detalhado no vídeo:", e);
-        console.error("Código do erro:", video.error?.code);
-        console.error("Mensagem do erro:", video.error?.message);
-        setVideoError(true);
-        setVideoLoaded(false);
-        
-        toast({
-          title: "Erro no vídeo",
-          description: `Erro ${video.error?.code}: ${video.error?.message || 'Não foi possível carregar o vídeo'}`,
-          variant: "destructive"
-        });
-      };
-
-      const handlePlay = () => {
-        console.log('Vídeo iniciou reprodução');
-        setIsPlaying(true);
-        if (animals.length > 0) {
-          initializePresenceSensors();
+        if (videoRef.current) {
+          videoRef.current.play().catch(error => {
+            console.error("Erro ao reproduzir vídeo:", error);
+          });
+          setIsPlaying(true);
+          
+          if (animals.length > 0) {
+            initializePresenceSensors();
+          }
         }
       };
-
-      const handlePause = () => {
-        console.log('Vídeo pausado');
-        setIsPlaying(false);
-      };
-
-      const handleWaiting = () => {
-        console.log('Vídeo aguardando dados');
-      };
-
-      const handleStalled = () => {
-        console.log('Vídeo travado');
-      };
       
-      // Add all event listeners
-      video.addEventListener('loadstart', handleLoadStart);
-      video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('loadeddata', handleLoadedData);
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('canplaythrough', handleCanPlayThrough);
-      video.addEventListener('error', handleError);
-      video.addEventListener('play', handlePlay);
-      video.addEventListener('pause', handlePause);
-      video.addEventListener('waiting', handleWaiting);
-      video.addEventListener('stalled', handleStalled);
-      
-      // Force load
-      video.load();
+      videoRef.current.addEventListener('loadeddata', handleLoadedData);
       
       return () => {
-        video.removeEventListener('loadstart', handleLoadStart);
-        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        video.removeEventListener('loadeddata', handleLoadedData);
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('canplaythrough', handleCanPlayThrough);
-        video.removeEventListener('error', handleError);
-        video.removeEventListener('play', handlePlay);
-        video.removeEventListener('pause', handlePause);
-        video.removeEventListener('waiting', handleWaiting);
-        video.removeEventListener('stalled', handleStalled);
+        if (videoRef.current) {
+          videoRef.current.removeEventListener('loadeddata', handleLoadedData);
+        }
       };
     }
-  }, [imageUrl, isVideo, animals.length]);
-  
-  // Initialize presence sensors with specific animal type zones
+  }, [imageUrl, isVideo]);
+
+  // Initialize presence sensors with enhanced invasive species detection
   const initializePresenceSensors = () => {
     if (!canvasRef.current || !videoRef.current) return;
     
     const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
-    console.log(`Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height}`);
+    console.log(`Inicializando sensores aprimorados para ${animals.length} animais em área ${width}x${height}`);
     
+    // Clear existing sensors
     activePresenceSensorsRef.current = {};
     
-    // Separate animals by type
+    // Position sensors strategically with priority for invasive species
     const invasiveAnimals = animals.filter(animal => 
       animal.category?.toLowerCase().includes('invasora') ||
       animal.name.toLowerCase().includes('capivara') ||
@@ -302,11 +153,10 @@ export default function GalleryItem({
       !invasiveAnimals.includes(animal)
     );
     
-    // Position invasive animal sensors
+    // Process invasive animals first (higher priority positioning)
     invasiveAnimals.forEach((animal, index) => {
-      const zone = ANIMAL_DETECTION_ZONES.invasive;
-      const xPos = width * (zone.preferredX.min + (index * (zone.preferredX.max - zone.preferredX.min)) / Math.max(1, invasiveAnimals.length - 1));
-      const yPos = height * (zone.preferredY.min + Math.random() * (zone.preferredY.max - zone.preferredY.min));
+      const xPos = width * (0.2 + (index * 0.6) / Math.max(1, invasiveAnimals.length - 1));
+      const yPos = height * (0.25 + Math.random() * 0.3); // Posição central para invasores
       
       activePresenceSensorsRef.current[animal.name] = {
         x: xPos,
@@ -317,17 +167,15 @@ export default function GalleryItem({
         velocity: {x: 0, y: 0},
         confidence: animal.confidence,
         isInvasive: true,
-        trackingPriority: 10,
-        animalType: 'invasive'
+        trackingPriority: 10 // Alta prioridade para invasores
       };
     });
     
-    // Position domestic animal sensors
+    // Process domestic animals
     domesticAnimals.forEach((animal, index) => {
-      const zone = ANIMAL_DETECTION_ZONES.domestic;
       const totalDomestic = domesticAnimals.length;
-      const xPos = width * (zone.preferredX.min + (index * (zone.preferredX.max - zone.preferredX.min)) / Math.max(1, totalDomestic - 1));
-      const yPos = height * (zone.preferredY.min + Math.random() * (zone.preferredY.max - zone.preferredY.min));
+      const xPos = width * (0.15 + (index * 0.7) / Math.max(1, totalDomestic - 1));
+      const yPos = height * (0.6 + Math.random() * 0.25); // Posição inferior para domésticos
       
       activePresenceSensorsRef.current[animal.name] = {
         x: xPos,
@@ -338,12 +186,11 @@ export default function GalleryItem({
         velocity: {x: 0, y: 0},
         confidence: animal.confidence,
         isInvasive: false,
-        trackingPriority: 5,
-        animalType: 'domestic'
+        trackingPriority: 5 // Prioridade normal para domésticos
       };
     });
     
-    console.log("Sensores específicos por tipo inicializados:", activePresenceSensorsRef.current);
+    console.log("Sensores de presença com prioridade invasiva inicializados:", activePresenceSensorsRef.current);
   };
   
   // Show alert for invasive species
@@ -378,41 +225,26 @@ export default function GalleryItem({
     }
   }, [isAnalyzing]);
 
-  // Handle video play/pause with mobile support
+  // Handle video play/pause
   const togglePlayPause = () => {
     if (!videoRef.current) return;
     
-    const video = videoRef.current;
-    
     if (isPlaying) {
-      video.pause();
+      videoRef.current.pause();
     } else {
-      // Force play for mobile
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Vídeo reproduzindo após interação do usuário');
-            setIsPlaying(true);
-          })
-          .catch(error => {
-            console.error("Erro ao reproduzir vídeo:", error);
-            setVideoError(true);
-            toast({
-              title: "Erro na reprodução",
-              description: "Toque no vídeo para reproduzir",
-              variant: "destructive"
-            });
-          });
-      }
+      videoRef.current.play().catch(error => {
+        console.error("Erro ao reproduzir vídeo:", error);
+      });
     }
+    
+    setIsPlaying(!isPlaying);
   };
 
-  // Enhanced animal tracking system (same for all devices)
+  // Enhanced animal tracking system with invasive species priority
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
-    console.log(`Iniciando sistema de rastreamento específico por tipo para ${animals.length} animais`);
+    console.log("Iniciando sistema de rastreamento com prioridade para invasores para", animals.length, "animais");
     
     const setupAnimalTracking = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
@@ -461,11 +293,11 @@ export default function GalleryItem({
       
       heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
       if (heatMapEnabled) {
-        heatMapCtx.globalAlpha = 0.15;
+        heatMapCtx.globalAlpha = 0.3;
       }
       
-      // Type-specific motion detection
-      const detectAnimalMovementByType = (animalType: 'invasive' | 'domestic') => {
+      // Enhanced motion detection with invasive species priority
+      const detectAnimalMovement = () => {
         if (!motionCtx || !videoRef.current) return [];
         
         motionCtx.drawImage(videoRef.current, 0, 0, motionCanvas.width, motionCanvas.height);
@@ -477,17 +309,10 @@ export default function GalleryItem({
         }
         
         const movementAreas = [];
-        const blockSize = animalType === 'invasive' ? 8 : 10;
-        const zone = ANIMAL_DETECTION_ZONES[animalType];
+        const blockSize = 10; // Blocos menores para maior precisão
         
-        // Detectar movimento apenas na zona preferencial do tipo de animal
-        const startY = Math.floor(motionCanvas.height * zone.preferredY.min);
-        const endY = Math.floor(motionCanvas.height * zone.preferredY.max);
-        const startX = Math.floor(motionCanvas.width * zone.preferredX.min);
-        const endX = Math.floor(motionCanvas.width * zone.preferredX.max);
-        
-        for (let y = startY; y < endY; y += blockSize) {
-          for (let x = startX; x < endX; x += blockSize) {
+        for (let y = 0; y < motionCanvas.height; y += blockSize) {
+          for (let x = 0; x < motionCanvas.width; x += blockSize) {
             let totalDifference = 0;
             let pixelCount = 0;
             
@@ -509,15 +334,13 @@ export default function GalleryItem({
             }
             
             const intensity = pixelCount > 0 ? totalDifference / (blockSize * blockSize) / 255 : 0;
-            const adjustedThreshold = MOVEMENT_INTENSITY_THRESHOLD / zone.sensitivity;
             
-            if (intensity > adjustedThreshold) {
+            if (intensity > MOVEMENT_INTENSITY_THRESHOLD) {
               movementAreas.push({
                 x: x + blockSize / 2,
                 y: y + blockSize / 2,
-                intensity: Math.min(1.0, intensity * zone.sensitivity),
-                area: pixelCount,
-                animalType: animalType
+                intensity: Math.min(1.0, intensity * 2.5), // Amplificação maior para melhor rastreamento
+                area: pixelCount
               });
             }
           }
@@ -527,99 +350,41 @@ export default function GalleryItem({
         return movementAreas;
       };
       
-      // Update sensor positions with type-specific tracking
-      const updateAnimalSensorsByType = () => {
+      // Update sensor positions with priority for invasive species
+      const updateAnimalSensors = (movementAreas: Array<{x: number, y: number, intensity: number, area: number}>) => {
         const currentTime = Date.now();
         
-        // Detectar movimento por tipo
-        const invasiveMovements = detectAnimalMovementByType('invasive');
-        const domesticMovements = detectAnimalMovementByType('domestic');
-        
-        // Atualizar sensores invasivos
-        animals.filter(animal => 
-          animal.category?.toLowerCase().includes('invasora') ||
-          animal.name.toLowerCase().includes('capivara') ||
-          animal.name.toLowerCase().includes('javali')
-        ).forEach(animal => {
-          const sensorData = activePresenceSensorsRef.current[animal.name];
-          if (!sensorData) return;
-          
-          sensorData.pulsePhase += 0.12;
-          
-          // Encontrar o melhor movimento invasivo para este sensor
-          let bestMovement = null;
-          let maxScore = 0;
-          
-          const detectionRadius = sensorData.trackingPriority === 10 ? 220 : 180;
-          
-          invasiveMovements.forEach(movement => {
-            const distance = Math.sqrt(
-              Math.pow(movement.x - sensorData.x, 2) + 
-              Math.pow(movement.y - sensorData.y, 2)
-            );
-            
-            const distanceScore = Math.max(0, 1 - distance / detectionRadius);
-            const score = movement.intensity * movement.area * distanceScore * INVASIVE_TRACKING_BOOST;
-            
-            if (score > maxScore && distance < detectionRadius) {
-              maxScore = score;
-              bestMovement = movement;
-            }
-          });
-          
-          if (bestMovement) {
-            sensorData.isActive = true;
-            sensorData.lastMovement = currentTime;
-            
-            const deltaX = bestMovement.x - sensorData.x;
-            const deltaY = bestMovement.y - sensorData.y;
-            
-            sensorData.velocity.x = deltaX * TRACKING_SMOOTHNESS * 1.2;
-            sensorData.velocity.y = deltaY * TRACKING_SMOOTHNESS * 1.2;
-            
-            sensorData.x += sensorData.velocity.x;
-            sensorData.y += sensorData.velocity.y;
-            
-            sensorData.x = Math.max(PRESENCE_RADIUS, Math.min(canvas.width - PRESENCE_RADIUS, sensorData.x));
-            sensorData.y = Math.max(PRESENCE_RADIUS, Math.min(canvas.height - PRESENCE_RADIUS, sensorData.y));
-            
-            console.log(`Sensor [INVASOR] ${animal.name} rastreando movimento invasivo em (${Math.round(sensorData.x)}, ${Math.round(sensorData.y)})`);
-          } else {
-            sensorData.velocity.x *= 0.92;
-            sensorData.velocity.y *= 0.92;
-            
-            const timeSinceLastMovement = currentTime - sensorData.lastMovement;
-            if (timeSinceLastMovement > INACTIVITY_TIMEOUT * 1.5) {
-              sensorData.isActive = false;
-            }
-          }
+        // Sort animals by tracking priority (invasive species first)
+        const sortedAnimals = animals.sort((a, b) => {
+          const sensorA = activePresenceSensorsRef.current[a.name];
+          const sensorB = activePresenceSensorsRef.current[b.name];
+          return (sensorB?.trackingPriority || 0) - (sensorA?.trackingPriority || 0);
         });
         
-        // Atualizar sensores domésticos
-        animals.filter(animal => 
-          !animal.category?.toLowerCase().includes('invasora') &&
-          !animal.name.toLowerCase().includes('capivara') &&
-          !animal.name.toLowerCase().includes('javali')
-        ).forEach(animal => {
+        sortedAnimals.forEach(animal => {
           const sensorData = activePresenceSensorsRef.current[animal.name];
           if (!sensorData) return;
           
-          sensorData.pulsePhase += 0.08;
+          // Update pulse phase for smooth animation
+          sensorData.pulsePhase += sensorData.isInvasive ? 0.12 : 0.08; // Pulsação mais rápida para invasores
           
-          // Encontrar o melhor movimento doméstico para este sensor
+          // Find the most significant movement near this sensor
           let bestMovement = null;
           let maxScore = 0;
           
-          const detectionRadius = 180;
+          const detectionRadius = sensorData.isInvasive ? 220 : 180; // Raio maior para invasores
+          const trackingBoost = sensorData.isInvasive ? INVASIVE_TRACKING_BOOST : 1.0;
           
-          domesticMovements.forEach(movement => {
+          movementAreas.forEach(movement => {
             const distance = Math.sqrt(
               Math.pow(movement.x - sensorData.x, 2) + 
               Math.pow(movement.y - sensorData.y, 2)
             );
             
+            // Score baseado em distância, intensidade, área e prioridade
             const distanceScore = Math.max(0, 1 - distance / detectionRadius);
-            const score = movement.intensity * movement.area * distanceScore;
+            const priorityBoost = sensorData.trackingPriority / 10;
+            const score = movement.intensity * movement.area * distanceScore * priorityBoost * trackingBoost;
             
             if (score > maxScore && distance < detectionRadius) {
               maxScore = score;
@@ -631,32 +396,41 @@ export default function GalleryItem({
             sensorData.isActive = true;
             sensorData.lastMovement = currentTime;
             
+            // Calculate velocity for smoother tracking with invasive boost
             const deltaX = bestMovement.x - sensorData.x;
             const deltaY = bestMovement.y - sensorData.y;
             
-            sensorData.velocity.x = deltaX * TRACKING_SMOOTHNESS;
-            sensorData.velocity.y = deltaY * TRACKING_SMOOTHNESS;
+            const trackingSmoothness = sensorData.isInvasive ? TRACKING_SMOOTHNESS * 1.2 : TRACKING_SMOOTHNESS;
             
+            sensorData.velocity.x = deltaX * trackingSmoothness;
+            sensorData.velocity.y = deltaY * trackingSmoothness;
+            
+            // Update position with velocity
             sensorData.x += sensorData.velocity.x;
             sensorData.y += sensorData.velocity.y;
             
+            // Keep sensors within bounds
             sensorData.x = Math.max(PRESENCE_RADIUS, Math.min(canvas.width - PRESENCE_RADIUS, sensorData.x));
             sensorData.y = Math.max(PRESENCE_RADIUS, Math.min(canvas.height - PRESENCE_RADIUS, sensorData.y));
             
-            console.log(`Sensor [DOMÉSTICO] ${animal.name} rastreando movimento doméstico em (${Math.round(sensorData.x)}, ${Math.round(sensorData.y)})`);
+            const invasiveLabel = sensorData.isInvasive ? '[INVASOR]' : '';
+            console.log(`Sensor ${invasiveLabel} ${animal.name} rastreando movimento em (${Math.round(sensorData.x)}, ${Math.round(sensorData.y)})`);
           } else {
+            // Gradual velocity decay when no movement detected
             sensorData.velocity.x *= 0.92;
             sensorData.velocity.y *= 0.92;
             
+            // Check for inactivity with different timeouts
+            const timeoutDuration = sensorData.isInvasive ? INACTIVITY_TIMEOUT * 1.5 : INACTIVITY_TIMEOUT;
             const timeSinceLastMovement = currentTime - sensorData.lastMovement;
-            if (timeSinceLastMovement > INACTIVITY_TIMEOUT) {
+            if (timeSinceLastMovement > timeoutDuration) {
               sensorData.isActive = false;
             }
           }
         });
       };
       
-      // Enhanced sensor rendering with invasive species highlighting and clickable info
+      // Enhanced sensor rendering with invasive species highlighting
       const drawAnimalSensors = () => {
         if (!ctx || !heatMapCtx || !video) return;
         
@@ -701,19 +475,12 @@ export default function GalleryItem({
             ctx.arc(sensorData.x, sensorData.y, currentRadius, 0, Math.PI * 2);
             ctx.fill();
             
-            // Clickable inner core with confidence indicator
+            // Inner core with confidence indicator
             const coreSize = isInvasive ? 8 + (sensorData.confidence * 6) : 6 + (sensorData.confidence * 4);
             ctx.fillStyle = sensorColor;
             ctx.beginPath();
             ctx.arc(sensorData.x, sensorData.y, coreSize, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Info icon overlay for clickable interaction
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 10px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('i', sensorData.x, sensorData.y);
             
             // Active tracking ring with invasive emphasis
             ctx.strokeStyle = sensorColor;
@@ -744,7 +511,7 @@ export default function GalleryItem({
             ctx.font = '8px Arial';
             ctx.fillText(`${animal.name} - ${Math.round(sensorData.confidence * 100)}%`, sensorData.x, sensorData.y + radius + 35);
             
-            // Heat map trace for movement history with reduced intensity
+            // Heat map trace for movement history with invasive emphasis
             if (heatMapEnabled) {
               const heatGradient = heatMapCtx.createRadialGradient(
                 sensorData.x, sensorData.y, 2,
@@ -752,14 +519,12 @@ export default function GalleryItem({
               );
               
               if (isInvasive) {
-                // Reduced intensity colors for invasive species heat map
-                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.3)');
-                heatGradient.addColorStop(0.6, 'rgba(234, 56, 76, 0.15)');
-                heatGradient.addColorStop(1, 'rgba(234, 56, 76, 0.03)');
+                heatGradient.addColorStop(0, 'rgba(234, 56, 76, 0.8)');
+                heatGradient.addColorStop(0.6, 'rgba(234, 56, 76, 0.4)');
+                heatGradient.addColorStop(1, 'rgba(234, 56, 76, 0.1)');
               } else {
-                // Reduced intensity colors for domestic species heat map
-                heatGradient.addColorStop(0, `${sensorColor}40`);
-                heatGradient.addColorStop(0.8, `${sensorColor}15`);
+                heatGradient.addColorStop(0, `${sensorColor}BB`);
+                heatGradient.addColorStop(0.8, `${sensorColor}33`);
                 heatGradient.addColorStop(1, 'transparent');
               }
               
@@ -785,13 +550,6 @@ export default function GalleryItem({
             ctx.arc(sensorData.x, sensorData.y, isInvasive ? 6 : 5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Info icon for inactive sensors
-            ctx.fillStyle = `${sensorColor}70`;
-            ctx.font = 'bold 8px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('i', sensorData.x, sensorData.y);
-            
             // Standby label
             ctx.fillStyle = `${sensorColor}70`;
             ctx.font = '8px Arial';
@@ -803,9 +561,10 @@ export default function GalleryItem({
         });
       };
       
-      // Main animation loop (same frame rate for all devices)
+      // Main animation loop
       const animate = () => {
-        updateAnimalSensorsByType();
+        const movementAreas = detectAnimalMovement();
+        updateAnimalSensors(movementAreas);
         drawAnimalSensors();
         
         animationRef.current = requestAnimationFrame(animate);
@@ -823,325 +582,144 @@ export default function GalleryItem({
     };
   }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled]);
 
-  // Handle sensor click to show species information
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
-    
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    const scaleX = canvasRef.current.width / rect.width;
-    const scaleY = canvasRef.current.height / rect.height;
-    const canvasX = x * scaleX;
-    const canvasY = y * scaleY;
-    
-    for (const animal of animals) {
-      const sensorData = activePresenceSensorsRef.current[animal.name];
-      if (!sensorData) continue;
-      
-      const distance = Math.sqrt(
-        Math.pow(canvasX - sensorData.x, 2) + 
-        Math.pow(canvasY - sensorData.y, 2)
-      );
-      
-      const sensorRadius = sensorData.isInvasive ? PRESENCE_RADIUS + 12 : PRESENCE_RADIUS;
-      
-      if (distance <= sensorRadius) {
-        setSelectedAnimalInfo(animal.name);
-        break;
-      }
-    }
-  };
-
   return (
-    <TooltipProvider>
-      <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
-        <div className="relative aspect-video w-full overflow-hidden bg-black">
-          {isVideo ? (
-            <>
-              {videoError ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
-                  <div className="text-center">
-                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-                    <p className="text-lg mb-2">Erro ao carregar vídeo</p>
-                    <p className="text-sm text-gray-400">Toque para tentar novamente</p>
-                    <Button 
-                      onClick={() => {
-                        setVideoError(false);
-                        if (videoRef.current) {
-                          videoRef.current.load();
-                        }
-                      }}
-                      className="mt-4"
-                    >
-                      Recarregar
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <video 
-                    ref={videoRef} 
-                    className="w-full h-full object-contain bg-black"
-                    onClick={togglePlayPause}
-                    playsInline
-                    webkit-playsinline="true"
-                    x5-video-player-type="h5"
-                    x5-video-player-fullscreen="true"
-                    controls
-                    muted
-                    loop
-                    preload="auto"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      display: 'block',
-                      background: 'black'
-                    }}
-                  />
-                  
-                  {!videoLoaded && !videoError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white">
-                      <div className="text-center">
-                        <Loader2 className="h-8 w-8 animate-spin mb-2 mx-auto" />
-                        <p>Carregando vídeo...</p>
-                        <p className="text-sm text-gray-400 mt-2">Se demorar muito, toque para recarregar</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <canvas 
-                    ref={canvasRef}
-                    className="absolute top-0 left-0 w-full h-full cursor-pointer"
-                    style={{zIndex: 10}}
-                    onClick={handleCanvasClick}
-                  />
-                  <canvas 
-                    ref={heatMapCanvasRef}
-                    className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
-                    style={{zIndex: 9}}
-                  />
-                </>
-              )}
-            </>
-          ) : (
-            <img 
-              src={imageUrl} 
-              alt="Uploaded media" 
+    <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
+      <div className="relative aspect-video w-full overflow-hidden bg-black">
+        {isVideo ? (
+          <>
+            <video 
+              ref={videoRef} 
               className="w-full h-full object-contain"
+              onClick={togglePlayPause}
+              playsInline
+              muted
+              loop
+              onLoadedData={() => setVideoLoaded(true)}
             />
-          )}
-          
-          {isAnalyzing && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
-              <Loader2 className="h-8 w-8 animate-spin mb-2" />
-              <p>Analisando...</p>
-            </div>
-          )}
-        </div>
+            <canvas 
+              ref={canvasRef}
+              className="absolute top-0 left-0 w-full h-full pointer-events-none"
+              style={{zIndex: 10}}
+            />
+            <canvas 
+              ref={heatMapCanvasRef}
+              className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
+              style={{zIndex: 9}}
+            />
+          </>
+        ) : (
+          <img 
+            src={imageUrl} 
+            alt="Uploaded media" 
+            className="w-full h-full object-contain"
+          />
+        )}
         
-        <CardContent className="p-6">
-          <div className="flex flex-wrap justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <h3 className="text-lg font-medium mb-2">
-                {isAnalyzing ? 'Processando análise...' : (
-                  animals.length > 0 
-                    ? `${animals.length} ${animals.length === 1 ? 'animal' : 'animais'} identificado${animals.length !== 1 ? 's' : ''}` 
-                    : 'Nenhum animal detectado'
-                )}
-              </h3>
-              
-              {isVideo && (
-                <div className="flex flex-col gap-1">
-                  {heatMapEnabled && (
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <ThermometerSun size={16} className="text-amber-500" />
-                      <span>Mapa de calor ativado</span>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-1 text-sm text-green-600">
-                    <Circle size={16} className="text-green-500" />
-                    <span>Sensores de presença rastreando movimento - Clique no sensor para mais informações</span>
-                  </div>
-                </div>
-              )}
-              
-              {!isAnalyzing && animals.some(animal => 
-                animal.category?.toLowerCase().includes('invasora') || 
-                animal.name.toLowerCase().includes('capivara') ||
-                animal.name.toLowerCase().includes('javali')
-              ) && (
-                <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
-                  <AlertTriangle size={16} className="text-red-500" />
-                  <span>Espécie invasora detectada!</span>
-                </div>
-              )}
-            </div>
-            
-            {showReanalyze && (
-              <Button 
-                onClick={onAnalyze} 
-                variant="secondary" 
-                className="flex items-center gap-2"
-              >
-                <RefreshCw size={16} />
-                <span>Reanalisar</span>
-              </Button>
-            )}
-          </div>
-          
-          {!isAnalyzing && animals.length > 0 && (
-            <div className="mt-6">
-              <h4 className="text-sm font-medium mb-3">Espécies detectadas:</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {animals.map((animal, index) => {
-                  const isInvasive = animal.name.toLowerCase().includes('capivara') || 
-                                    animal.name.toLowerCase().includes('javali') ||
-                                    animal.category?.toLowerCase().includes('invasora');
-                  return (
-                    <Popover key={`${animal.name}-${index}`}>
-                      <PopoverTrigger asChild>
-                        <div 
-                          className={`flex items-center p-2 rounded-md border cursor-pointer hover:bg-gray-50 transition-colors ${isInvasive ? 'border-red-500/70' : ''}`}
-                          style={{ borderColor: isInvasive ? '#ea384c80' : getAnimalColor(animal.name) + '80' }}
-                        >
-                          <div 
-                            className="w-8 h-8 rounded-full flex items-center justify-center mr-3" 
-                            style={{ backgroundColor: isInvasive ? '#ea384c33' : getAnimalColor(animal.name) + '33' }}
-                          >
-                            {isInvasive ? (
-                              <AlertTriangle size={16} className="text-red-500" />
-                            ) : (
-                              getAnimalIcon(animal.name) || <ThermometerSun size={16} />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium">{animal.name}</p>
-                            <div className="text-xs text-muted-foreground">
-                              <p>Confiança: {Math.round(animal.confidence * 100)}%</p>
-                              {animal.category ? (
-                                <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
-                                  {animal.category}
-                                </p>
-                              ) : (
-                                <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
-                                  {isInvasive ? 'Espécie invasora' : classifyAnimalType(animal.name)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-semibold text-lg">{animal.name}</h4>
-                            {animal.scientificName && (
-                              <span className="text-sm italic text-muted-foreground">
-                                {animal.scientificName}
-                              </span>
-                            )}
-                          </div>
-                          
-                          {speciesInfo[animal.name] && (
-                            <div className="space-y-2 text-sm">
-                              <div>
-                                <p className="font-medium">Descrição:</p>
-                                <p className="text-muted-foreground">{speciesInfo[animal.name].description}</p>
-                              </div>
-                              
-                              <div>
-                                <p className="font-medium">Habitat:</p>
-                                <p className="text-muted-foreground">{speciesInfo[animal.name].habitat}</p>
-                              </div>
-                              
-                              <div>
-                                <p className="font-medium">Comportamento:</p>
-                                <p className="text-muted-foreground">{speciesInfo[animal.name].behavior}</p>
-                              </div>
-                              
-                              <div>
-                                <p className="font-medium">Status de Conservação:</p>
-                                <p className={`font-medium ${isInvasive ? 'text-red-600' : 'text-green-600'}`}>
-                                  {speciesInfo[animal.name].conservationStatus}
-                                </p>
-                              </div>
-                              
-                              <div>
-                                <p className="font-medium">Nível de Risco:</p>
-                                <p className={`font-medium ${isInvasive ? 'text-red-600' : 'text-green-600'}`}>
-                                  {speciesInfo[animal.name].riskLevel}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {animal.description && !speciesInfo[animal.name] && (
-                            <div>
-                              <p className="font-medium">Descrição:</p>
-                              <p className="text-sm text-muted-foreground">{animal.description}</p>
-                            </div>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </CardContent>
-        
-        {/* Species Information Modal */}
-        {selectedAnimalInfo && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedAnimalInfo(null)}>
-            <div className="bg-white rounded-lg p-6 max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{selectedAnimalInfo}</h3>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedAnimalInfo(null)}>
-                  <X size={16} />
-                </Button>
-              </div>
-              
-              {speciesInfo[selectedAnimalInfo] && (
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="font-medium">Descrição:</p>
-                    <p className="text-muted-foreground">{speciesInfo[selectedAnimalInfo].description}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="font-medium">Habitat:</p>
-                    <p className="text-muted-foreground">{speciesInfo[selectedAnimalInfo].habitat}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="font-medium">Comportamento:</p>
-                    <p className="text-muted-foreground">{speciesInfo[selectedAnimalInfo].behavior}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="font-medium">Status de Conservação:</p>
-                    <p className={`font-medium ${selectedAnimalInfo.includes('Capivara') || selectedAnimalInfo.includes('Javali') ? 'text-red-600' : 'text-green-600'}`}>
-                      {speciesInfo[selectedAnimalInfo].conservationStatus}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p className="font-medium">Nível de Risco:</p>
-                    <p className={`font-medium ${selectedAnimalInfo.includes('Capivara') || selectedAnimalInfo.includes('Javali') ? 'text-red-600' : 'text-green-600'}`}>
-                      {speciesInfo[selectedAnimalInfo].riskLevel}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+        {isAnalyzing && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
+            <Loader2 className="h-8 w-8 animate-spin mb-2" />
+            <p>Analisando...</p>
           </div>
         )}
       </div>
-    </TooltipProvider>
+      
+      <CardContent className="p-6">
+        <div className="flex flex-wrap justify-between items-center">
+          <div className="mb-4 md:mb-0">
+            <h3 className="text-lg font-medium mb-2">
+              {isAnalyzing ? 'Processando análise...' : (
+                animals.length > 0 
+                  ? `${animals.length} ${animals.length === 1 ? 'animal' : 'animais'} identificado${animals.length !== 1 ? 's' : ''}` 
+                  : 'Nenhum animal detectado'
+              )}
+            </h3>
+            
+            {isVideo && (
+              <div className="flex flex-col gap-1">
+                {heatMapEnabled && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <ThermometerSun size={16} className="text-amber-500" />
+                    <span>Mapa de calor ativado</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-1 text-sm text-green-600">
+                  <Circle size={16} className="text-green-500" />
+                  <span>Sensores de presença rastreando movimento</span>
+                </div>
+              </div>
+            )}
+            
+            {!isAnalyzing && animals.some(animal => 
+              animal.category?.toLowerCase().includes('invasora') || 
+              animal.name.toLowerCase().includes('capivara') ||
+              animal.name.toLowerCase().includes('javali')
+            ) && (
+              <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
+                <AlertTriangle size={16} className="text-red-500" />
+                <span>Espécie invasora detectada!</span>
+              </div>
+            )}
+          </div>
+          
+          {showReanalyze && (
+            <Button 
+              onClick={onAnalyze} 
+              variant="secondary" 
+              className="flex items-center gap-2"
+            >
+              <RefreshCw size={16} />
+              <span>Reanalisar</span>
+            </Button>
+          )}
+        </div>
+        
+        {!isAnalyzing && animals.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3">Espécies detectadas:</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {animals.map((animal, index) => {
+                const isInvasive = animal.name.toLowerCase().includes('capivara') || 
+                                  animal.name.toLowerCase().includes('javali') ||
+                                  animal.category?.toLowerCase().includes('invasora');
+                return (
+                  <div 
+                    key={`${animal.name}-${index}`} 
+                    className={`flex items-center p-2 rounded-md border ${isInvasive ? 'border-red-500/70' : ''}`}
+                    style={{ borderColor: isInvasive ? '#ea384c80' : getAnimalColor(animal.name) + '80' }}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center mr-3" 
+                      style={{ backgroundColor: isInvasive ? '#ea384c33' : getAnimalColor(animal.name) + '33' }}
+                    >
+                      {isInvasive ? (
+                        <AlertTriangle size={16} className="text-red-500" />
+                      ) : (
+                        getAnimalIcon(animal.name) || <ThermometerSun size={16} />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium">{animal.name}</p>
+                      <div className="text-xs text-muted-foreground">
+                        <p>Confiança: {Math.round(animal.confidence * 100)}%</p>
+                        {animal.category ? (
+                          <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
+                            {animal.category}
+                          </p>
+                        ) : (
+                          <p className={`font-medium ${isInvasive ? 'text-red-500' : ''}`}>
+                            {isInvasive ? 'Espécie invasora' : classifyAnimalType(animal.name)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </div>
   );
 }
