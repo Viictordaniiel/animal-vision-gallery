@@ -214,7 +214,7 @@ export default function GalleryItem({
       };
     }
   }, [imageUrl, isVideo, isMobileDevice]);
-
+  
   // Initialize presence sensors with specific animal type zones
   const initializePresenceSensors = () => {
     if (!canvasRef.current || !videoRef.current || isMobileDevice) return;
@@ -818,11 +818,6 @@ export default function GalleryItem({
                         style={{zIndex: 9}}
                       />
                     </>
-                  )}
-                  {isMobileDevice && videoLoaded && (
-                    <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm">
-                      📱 Modo móvel: Sensores desabilitados para melhor performance
-                    </div>
                   )}
                 </>
               )}
