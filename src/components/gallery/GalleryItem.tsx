@@ -61,33 +61,27 @@ const getAnimalColor = (animalType: string) => {
   }
 };
 
-// Mobile detection utility
-const isMobile = () => {
-  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-         window.innerWidth <= 768;
-};
+// Enhanced motion tracking parameters (same for all devices)
+const MOTION_THRESHOLD = 6;
+const MOVEMENT_INTENSITY_THRESHOLD = 0.12;
+const TRACKING_SMOOTHNESS = 0.7;
+const PRESENCE_RADIUS = 40;
+const INACTIVITY_TIMEOUT = 2500;
+const INVASIVE_TRACKING_BOOST = 1.4;
 
-// Enhanced motion tracking parameters for specific animal types (adjusted for mobile)
-const MOTION_THRESHOLD = 8; // Increased for mobile
-const MOVEMENT_INTENSITY_THRESHOLD = 0.15; // Increased for mobile
-const TRACKING_SMOOTHNESS = 0.6; // Reduced for mobile
-const PRESENCE_RADIUS = 35; // Reduced for mobile
-const INACTIVITY_TIMEOUT = 3000; // Increased for mobile
-const INVASIVE_TRACKING_BOOST = 1.2; // Reduced for mobile
-
-// Specific detection parameters for different animal types (mobile optimized)
+// Specific detection parameters for different animal types
 const ANIMAL_DETECTION_ZONES = {
   invasive: {
     preferredY: { min: 0.1, max: 0.6 },
     preferredX: { min: 0.2, max: 0.8 },
-    sensitivity: 1.2, // Reduced for mobile
-    trackingRadius: 150 // Reduced for mobile
+    sensitivity: 1.4,
+    trackingRadius: 180
   },
   domestic: {
     preferredY: { min: 0.4, max: 0.9 },
     preferredX: { min: 0.1, max: 0.9 },
-    sensitivity: 0.9, // Reduced for mobile
-    trackingRadius: 120 // Reduced for mobile
+    sensitivity: 1.0,
+    trackingRadius: 150
   }
 };
 
@@ -133,7 +127,6 @@ export default function GalleryItem({
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [selectedAnimalInfo, setSelectedAnimalInfo] = useState<string | null>(null);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [videoError, setVideoError] = useState(false);
   
   // Enhanced presence sensors tracking with invasive species priority
@@ -151,28 +144,17 @@ export default function GalleryItem({
   }}>({});
   const { toast } = useToast();
   const invasiveAlertShownRef = useRef<boolean>(false);
-
-  // Detect mobile device on component mount
-  useEffect(() => {
-    setIsMobileDevice(isMobile());
-  }, []);
   
-  // Initialize video element with mobile optimizations
+  // Initialize video element
   useEffect(() => {
     if (isVideo && videoRef.current) {
-      console.log(`Configurando reprodução de vídeo para ${isMobileDevice ? 'mobile' : 'desktop'}: ${imageUrl}`);
+      console.log(`Configurando reprodução de vídeo: ${imageUrl}`);
       
       const video = videoRef.current;
       video.src = imageUrl;
-      
-      // Mobile-specific video attributes
-      if (isMobileDevice) {
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        video.preload = 'metadata';
-      } else {
-        video.preload = 'auto';
-      }
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.preload = 'auto';
       
       setVideoLoaded(false);
       setVideoError(false);
@@ -182,16 +164,14 @@ export default function GalleryItem({
         setVideoLoaded(true);
         setVideoError(false);
         
-        if (video && !isMobileDevice) {
-          video.play().catch(error => {
-            console.error("Erro ao reproduzir vídeo:", error);
-            setVideoError(true);
-          });
-          setIsPlaying(true);
-          
-          if (animals.length > 0) {
-            initializePresenceSensors();
-          }
+        video.play().catch(error => {
+          console.error("Erro ao reproduzir vídeo:", error);
+          setVideoError(true);
+        });
+        setIsPlaying(true);
+        
+        if (animals.length > 0) {
+          initializePresenceSensors();
         }
       };
 
@@ -213,16 +193,16 @@ export default function GalleryItem({
         video.removeEventListener('error', handleError);
       };
     }
-  }, [imageUrl, isVideo, isMobileDevice]);
+  }, [imageUrl, isVideo]);
   
-  // Initialize presence sensors with specific animal type zones (now works on mobile)
+  // Initialize presence sensors with specific animal type zones
   const initializePresenceSensors = () => {
     if (!canvasRef.current || !videoRef.current) return;
     
     const width = videoRef.current.videoWidth || videoRef.current.clientWidth;
     const height = videoRef.current.videoHeight || videoRef.current.clientHeight;
     
-    console.log(`Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height} (${isMobileDevice ? 'mobile' : 'desktop'})`);
+    console.log(`Inicializando sensores específicos para ${animals.length} animais em área ${width}x${height}`);
     
     activePresenceSensorsRef.current = {};
     
@@ -313,7 +293,7 @@ export default function GalleryItem({
     }
   }, [isAnalyzing]);
 
-  // Handle video play/pause with mobile support
+  // Handle video play/pause
   const togglePlayPause = () => {
     if (!videoRef.current) return;
     
@@ -329,11 +309,11 @@ export default function GalleryItem({
     setIsPlaying(!isPlaying);
   };
 
-  // Enhanced animal tracking system (now enabled on mobile with optimizations)
+  // Enhanced animal tracking system (same for all devices)
   useEffect(() => {
     if (!isVideo || !videoLoaded || !animals.length || isAnalyzing) return;
     
-    console.log(`Iniciando sistema de rastreamento específico por tipo para ${animals.length} animais (${isMobileDevice ? 'mobile' : 'desktop'})`);
+    console.log(`Iniciando sistema de rastreamento específico por tipo para ${animals.length} animais`);
     
     const setupAnimalTracking = () => {
       if (!videoRef.current || !canvasRef.current || !heatMapCanvasRef.current) {
@@ -385,7 +365,7 @@ export default function GalleryItem({
         heatMapCtx.globalAlpha = 0.15;
       }
       
-      // Type-specific motion detection (mobile optimized)
+      // Type-specific motion detection
       const detectAnimalMovementByType = (animalType: 'invasive' | 'domestic') => {
         if (!motionCtx || !videoRef.current) return [];
         
@@ -398,7 +378,7 @@ export default function GalleryItem({
         }
         
         const movementAreas = [];
-        const blockSize = isMobileDevice ? (animalType === 'invasive' ? 12 : 16) : (animalType === 'invasive' ? 8 : 10); // Larger blocks for mobile
+        const blockSize = animalType === 'invasive' ? 8 : 10;
         const zone = ANIMAL_DETECTION_ZONES[animalType];
         
         // Detectar movimento apenas na zona preferencial do tipo de animal
@@ -724,17 +704,12 @@ export default function GalleryItem({
         });
       };
       
-      // Main animation loop with mobile optimization
+      // Main animation loop (same frame rate for all devices)
       const animate = () => {
         updateAnimalSensorsByType();
         drawAnimalSensors();
         
-        // Reduce frame rate on mobile for better performance
-        const frameDelay = isMobileDevice ? 100 : 16; // ~10fps on mobile, ~60fps on desktop
-        
-        setTimeout(() => {
-          animationRef.current = requestAnimationFrame(animate);
-        }, frameDelay);
+        animationRef.current = requestAnimationFrame(animate);
       };
       
       animate();
@@ -747,7 +722,7 @@ export default function GalleryItem({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled, isMobileDevice]);
+  }, [imageUrl, isVideo, videoLoaded, animals, isAnalyzing, heatMapEnabled]);
 
   // Handle sensor click to show species information
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -817,11 +792,6 @@ export default function GalleryItem({
                     className={`absolute top-0 left-0 w-full h-full pointer-events-none ${!heatMapEnabled ? 'hidden' : ''}`}
                     style={{zIndex: 9}}
                   />
-                  {isMobileDevice && videoLoaded && (
-                    <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm">
-                      📱 Sensores ativos em modo móvel
-                    </div>
-                  )}
                 </>
               )}
             </>
@@ -863,7 +833,7 @@ export default function GalleryItem({
                   
                   <div className="flex items-center gap-1 text-sm text-green-600">
                     <Circle size={16} className="text-green-500" />
-                    <span>Sensores de presença rastreando movimento{isMobileDevice ? ' (modo móvel)' : ''} - Clique no sensor para mais informações</span>
+                    <span>Sensores de presença rastreando movimento - Clique no sensor para mais informações</span>
                   </div>
                 </div>
               )}
