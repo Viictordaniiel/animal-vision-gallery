@@ -1,16 +1,22 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Dog, AlertTriangle, Circle } from 'lucide-react';
+import { Loader2, RefreshCw, Dog, AlertTriangle, Circle, TreePine, Home, Cat } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
+import AnimalInfoDialog from './AnimalInfoDialog';
 
 type Animal = {
   name: string;
   confidence: number;
   description?: string;
   category?: string;
+  habitat?: string;
+  diet?: string;
+  threats?: string;
+  conservation?: string;
+  scientificName?: string;
 };
 
 type GalleryItemProps = {
@@ -27,22 +33,35 @@ type GalleryItemProps = {
 // Define colors for different animal types
 const animalColors = {
   vaca: '#4ecdc4',
+  boi: '#4ecdc4',
   cachorro: '#4ecdc4',
+  'lobo-guará': '#2ecc71',
   capivara: '#ff6b6b',
+  cutia: '#2ecc71',
   javali: '#b76d2b',
+  'porco-do-mato': '#2ecc71',
+  'onça-pintada': '#f39c12',
+  jaguatirica: '#f39c12',
   invasivo: '#ea384c',
+  nativo: '#2ecc71',
   default: '#4ecdc4'
 };
 
 // Get icon for animal type
 const getAnimalIcon = (animalType: string) => {
   const type = animalType.toLowerCase();
-  if (type.includes('vaca') || type.includes('cow') || type.includes('cattle')) {
+  if (type.includes('vaca') || type.includes('cow') || type.includes('boi')) {
     return <Circle size={16} />;
   } else if (type.includes('cachorro') || type.includes('cão') || type.includes('dog')) {
     return <Dog size={16} />;
+  } else if (type.includes('lobo')) {
+    return <Dog size={16} />;
   } else if (type.includes('capivara') || type.includes('javali')) {
     return <AlertTriangle size={16} />;
+  } else if (type.includes('cutia') || type.includes('porco-do-mato')) {
+    return <TreePine size={16} />;
+  } else if (type.includes('onça') || type.includes('jaguatirica')) {
+    return <Cat size={16} />;
   } else {
     return <Circle size={16} />;
   }
@@ -51,14 +70,26 @@ const getAnimalIcon = (animalType: string) => {
 // Get color for animal type
 const getAnimalColor = (animalType: string) => {
   const type = animalType.toLowerCase();
-  if (type.includes('vaca') || type.includes('cow') || type.includes('cattle')) {
+  if (type.includes('vaca') || type.includes('cow')) {
     return animalColors.vaca;
+  } else if (type.includes('boi')) {
+    return animalColors.boi;
   } else if (type.includes('cachorro') || type.includes('cão') || type.includes('dog')) {
     return animalColors.cachorro;
+  } else if (type.includes('lobo-guará') || type.includes('lobo')) {
+    return animalColors['lobo-guará'];
   } else if (type.includes('capivara')) {
     return animalColors.capivara;
+  } else if (type.includes('cutia')) {
+    return animalColors.cutia;
   } else if (type.includes('javali')) {
     return animalColors.javali;
+  } else if (type.includes('porco-do-mato')) {
+    return animalColors['porco-do-mato'];
+  } else if (type.includes('onça')) {
+    return animalColors['onça-pintada'];
+  } else if (type.includes('jaguatirica')) {
+    return animalColors.jaguatirica;
   } else {
     return animalColors.default;
   }
@@ -77,6 +108,8 @@ export default function GalleryItem({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
+  const [showAnimalInfo, setShowAnimalInfo] = useState(false);
   const { toast } = useToast();
   
   // Initialize video element
@@ -132,6 +165,11 @@ export default function GalleryItem({
     }
     
     setIsPlaying(!isPlaying);
+  };
+
+  const handleAnimalClick = (animal: Animal) => {
+    setSelectedAnimal(animal);
+    setShowAnimalInfo(true);
   };
 
   return (
@@ -219,8 +257,9 @@ export default function GalleryItem({
                 return (
                   <div 
                     key={`${animal.name}-${index}`} 
-                    className={`flex items-center p-2 rounded-md border ${isInvasive ? 'border-red-500/70' : ''}`}
+                    className={`flex items-center p-2 rounded-md border cursor-pointer hover:bg-gray-50 transition-colors ${isInvasive ? 'border-red-500/70' : ''}`}
                     style={{ borderColor: isInvasive ? '#ea384c80' : getAnimalColor(animal.name) + '80' }}
+                    onClick={() => handleAnimalClick(animal)}
                   >
                     <div 
                       className="w-8 h-8 rounded-full flex items-center justify-center mr-3" 
@@ -232,7 +271,7 @@ export default function GalleryItem({
                         getAnimalIcon(animal.name)
                       )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium">{animal.name}</p>
                       <div className="text-xs text-muted-foreground">
                         <p>Confiança: {Math.round(animal.confidence * 100)}%</p>
@@ -254,6 +293,12 @@ export default function GalleryItem({
           </div>
         )}
       </CardContent>
+
+      <AnimalInfoDialog 
+        animal={selectedAnimal}
+        isOpen={showAnimalInfo}
+        onClose={() => setShowAnimalInfo(false)}
+      />
     </div>
   );
 }
