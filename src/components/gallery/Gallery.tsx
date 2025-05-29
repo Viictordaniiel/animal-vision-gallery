@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Upload, Camera } from 'lucide-react';
 import ImageUploader from './ImageUploader';
 import GalleryItem from './GalleryItem';
+import DroneCapture from './DroneCapture';
 import { recognizeAnimal } from '@/services/imageRecognition';
 import { toast } from '@/components/ui/use-toast';
 
@@ -28,6 +28,7 @@ export default function Gallery() {
   const [currentMedia, setCurrentMedia] = useState<GalleryItemType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showUploader, setShowUploader] = useState(true);
+  const [showDroneCapture, setShowDroneCapture] = useState(false);
   
   const handleImageUpload = (imageUrl: string, file: File) => {
     // Determine if it's an image or video
@@ -185,6 +186,17 @@ export default function Gallery() {
     setCurrentMedia(null);
   };
 
+  // Function to show drone capture
+  const handleDroneCapture = () => {
+    setShowDroneCapture(true);
+  };
+
+  // Function to handle drone image capture
+  const handleDroneImageCapture = (imageUrl: string, file: File) => {
+    setShowDroneCapture(false);
+    handleImageUpload(imageUrl, file);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Detecção de Animais</h1>
@@ -192,12 +204,32 @@ export default function Gallery() {
       {showUploader ? (
         <div className="w-full max-w-2xl mx-auto">
           <ImageUploader onImageUpload={handleImageUpload} />
+          
+          {/* Botão para captura via drone */}
+          <div className="mt-4 text-center">
+            <Button 
+              onClick={handleDroneCapture}
+              variant="outline"
+              className="flex items-center gap-2 mx-auto"
+            >
+              <Camera size={16} />
+              Capturar via Drone
+            </Button>
+          </div>
         </div>
       ) : currentMedia ? (
         <div className="flex flex-col items-center">
           <div className="mb-6 w-full flex justify-between items-center">
             <h2 className="text-xl">Análise de {currentMedia.type === 'video' ? 'Vídeo' : 'Imagem'}</h2>
             <div className="flex gap-2">
+              <Button 
+                onClick={handleDroneCapture}
+                variant="outline" 
+                className="flex items-center gap-2"
+              >
+                <Camera size={16} />
+                <span>Drone</span>
+              </Button>
               <Button 
                 onClick={handleNewUpload} 
                 variant="outline" 
@@ -224,13 +256,30 @@ export default function Gallery() {
       ) : (
         <div className="text-center py-12">
           <p className="text-gray-500">Carregue um vídeo ou imagem para começar a detecção de animais.</p>
-          <Button 
-            onClick={handleNewUpload}
-            className="mt-4"
-          >
-            Carregar Mídia
-          </Button>
+          <div className="flex gap-2 justify-center mt-4">
+            <Button 
+              onClick={handleNewUpload}
+            >
+              Carregar Mídia
+            </Button>
+            <Button 
+              onClick={handleDroneCapture}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Camera size={16} />
+              Capturar via Drone
+            </Button>
+          </div>
         </div>
+      )}
+      
+      {/* Modal de captura via drone */}
+      {showDroneCapture && (
+        <DroneCapture 
+          onImageCapture={handleDroneImageCapture}
+          onClose={() => setShowDroneCapture(false)}
+        />
       )}
     </div>
   );
