@@ -95,8 +95,24 @@ const detectAnimalFromFileName = (fileName?: string): Animal[] => {
 export async function recognizeAnimal(imageUrl: string, fileName?: string): Promise<Animal[]> {
   console.log('Analisando arquivo:', fileName || 'sem nome');
   
-  // Simular tempo de processamento
-  await delay(Math.random() * 800 + 400);
+  // Determinar se é vídeo baseado na extensão do arquivo
+  const isVideo = fileName && (
+    fileName.toLowerCase().includes('.mp4') ||
+    fileName.toLowerCase().includes('.avi') ||
+    fileName.toLowerCase().includes('.mov') ||
+    fileName.toLowerCase().includes('.mkv') ||
+    fileName.toLowerCase().includes('.webm')
+  );
+  
+  // Simular tempo de processamento mais longo para vídeos
+  if (isVideo) {
+    console.log('Processando vídeo - análise mais demorada...');
+    // Tempo mais longo para vídeos (3-6 segundos)
+    await delay(Math.random() * 3000 + 3000);
+  } else {
+    // Tempo normal para imagens (400-1200ms)
+    await delay(Math.random() * 800 + 400);
+  }
   
   // Detectar baseado no nome do arquivo
   const detectedAnimals = detectAnimalFromFileName(fileName);
