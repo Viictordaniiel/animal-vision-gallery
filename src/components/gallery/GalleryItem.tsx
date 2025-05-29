@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Dog, AlertTriangle, Circle, TreePine, Home, Cat } from 'lucide-react';
@@ -6,6 +5,7 @@ import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
 import AnimalInfoDialog from './AnimalInfoDialog';
+import AnimalTracker from './AnimalTracker';
 
 type Animal = {
   name: string;
@@ -110,6 +110,7 @@ export default function GalleryItem({
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [showAnimalInfo, setShowAnimalInfo] = useState(false);
+  const [trackerActive, setTrackerActive] = useState(false);
   const { toast } = useToast();
   
   // Initialize video element
@@ -172,23 +173,39 @@ export default function GalleryItem({
     setShowAnimalInfo(true);
   };
 
+  const toggleTracker = () => {
+    setTrackerActive(!trackerActive);
+  };
+
   return (
     <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
       <div className="relative aspect-video w-full overflow-hidden bg-black">
         {isVideo ? (
-          <video 
-            ref={videoRef} 
-            className="w-full h-full object-contain"
-            onClick={togglePlayPause}
-            playsInline
-            muted
-            loop
-            onLoadedData={() => setVideoLoaded(true)}
-            style={{
-              minHeight: '200px',
-              backgroundColor: '#000'
-            }}
-          />
+          <>
+            <video 
+              ref={videoRef} 
+              className="w-full h-full object-contain"
+              onClick={togglePlayPause}
+              playsInline
+              muted
+              loop
+              onLoadedData={() => setVideoLoaded(true)}
+              style={{
+                minHeight: '200px',
+                backgroundColor: '#000'
+              }}
+            />
+            
+            {/* Rastreador de animais */}
+            {videoLoaded && !isAnalyzing && animals.length > 0 && (
+              <AnimalTracker
+                isActive={trackerActive}
+                onToggle={toggleTracker}
+                animals={animals}
+                videoElement={videoRef.current}
+              />
+            )}
+          </>
         ) : (
           <img 
             src={imageUrl} 
