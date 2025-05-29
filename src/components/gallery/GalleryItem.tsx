@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Dog, AlertTriangle, Circle, TreePine, Home, Cat } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
 import AnimalInfoDialog from './AnimalInfoDialog';
@@ -111,6 +112,13 @@ export default function GalleryItem({
   const [showAnimalInfo, setShowAnimalInfo] = useState(false);
   const { toast } = useToast();
   
+  // Check if there are invasive species
+  const hasInvasiveSpecies = animals.some(animal => 
+    animal.category?.toLowerCase().includes('invasora') || 
+    animal.name.toLowerCase().includes('capivara') ||
+    animal.name.toLowerCase().includes('javali')
+  );
+
   // Initialize video element
   useEffect(() => {
     if (isVideo && videoRef.current) {
@@ -205,6 +213,17 @@ export default function GalleryItem({
       </div>
       
       <CardContent className="p-6">
+        {/* Alerta para espécies invasoras */}
+        {!isAnalyzing && hasInvasiveSpecies && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Atenção!</strong> Espécie invasora detectada! Capivaras e javalis podem causar danos ao meio ambiente e à agricultura. 
+              Recomenda-se notificar as autoridades ambientais competentes para manejo adequado.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-wrap justify-between items-center">
           <div className="mb-4 md:mb-0">
             <h3 className="text-lg font-medium mb-2">
@@ -221,11 +240,7 @@ export default function GalleryItem({
               </div>
             )}
             
-            {!isAnalyzing && animals.some(animal => 
-              animal.category?.toLowerCase().includes('invasora') || 
-              animal.name.toLowerCase().includes('capivara') ||
-              animal.name.toLowerCase().includes('javali')
-            ) && (
+            {!isAnalyzing && hasInvasiveSpecies && (
               <div className="flex items-center gap-1 text-sm text-red-500 font-medium mt-1">
                 <AlertTriangle size={16} className="text-red-500" />
                 <span>Espécie invasora detectada!</span>
