@@ -28,12 +28,23 @@ const bovinosDatabase: Animal[] = [
   },
   { 
     name: 'Boi', 
-    confidence: 0.96, 
+    confidence: 0.92, 
     description: 'Bovino macho adulto, usado principalmente para trabalho e carne.', 
     scientificName: 'Bos taurus', 
     category: 'mamífero doméstico',
     habitat: 'Pastos, fazendas e áreas rurais',
     diet: 'Herbívoro - capim, feno, ração',
+    threats: 'Doenças, predadores naturais',
+    conservation: 'Não ameaçado - domesticado'
+  },
+  { 
+    name: 'Búfalo', 
+    confidence: 0.78, 
+    description: 'Bovino de origem asiática, robusto e resistente.', 
+    scientificName: 'Bubalus bubalis', 
+    category: 'mamífero doméstico',
+    habitat: 'Áreas alagadas, pastos úmidos',
+    diet: 'Herbívoro - plantas aquáticas, capim',
     threats: 'Doenças, predadores naturais',
     conservation: 'Não ameaçado - domesticado'
   }
@@ -53,8 +64,19 @@ const roedoresDatabase: Animal[] = [
     conservation: 'Preocupação menor, mas invasora em centros urbanos'
   },
   { 
+    name: 'Paca', 
+    confidence: 0.85, 
+    description: 'Roedor de grande porte, similar à capivara mas menor.', 
+    scientificName: 'Cuniculus paca', 
+    category: 'fauna nativa',
+    habitat: 'Florestas próximas a água, matas ciliares',
+    diet: 'Herbívoro - frutos, sementes, brotos',
+    threats: 'Caça, desmatamento',
+    conservation: 'Vulnerável em algumas regiões'
+  },
+  { 
     name: 'Cutia', 
-    confidence: 0.92, 
+    confidence: 0.72, 
     description: 'Roedor nativo brasileiro, importante dispersor de sementes.', 
     scientificName: 'Dasyprocta spp.', 
     category: 'fauna nativa',
@@ -88,6 +110,17 @@ const suinosDatabase: Animal[] = [
     diet: 'Onívoro - frutos, raízes, pequenos animais',
     threats: 'Desmatamento, caça, fragmentação de habitat',
     conservation: 'Vulnerável em algumas regiões'
+  },
+  { 
+    name: 'Porco Doméstico', 
+    confidence: 0.76, 
+    description: 'Suíno doméstico criado para consumo.', 
+    scientificName: 'Sus scrofa domesticus', 
+    category: 'mamífero doméstico',
+    habitat: 'Fazendas, chiqueiros, áreas rurais',
+    diet: 'Onívoro - ração, restos de comida',
+    threats: 'Doenças, predadores',
+    conservation: 'Não ameaçado - domesticado'
   }
 ];
 
@@ -114,6 +147,17 @@ const canideosDatabase: Animal[] = [
     diet: 'Onívoro - pequenos mamíferos, frutos, lobeira',
     threats: 'Atropelamentos, perda de habitat, doenças',
     conservation: 'Vulnerável - necessita proteção'
+  },
+  { 
+    name: 'Cachorro-do-mato', 
+    confidence: 0.83, 
+    description: 'Canídeo nativo brasileiro, menor que o lobo-guará.', 
+    scientificName: 'Cerdocyon thous', 
+    category: 'fauna nativa',
+    habitat: 'Cerrado, caatinga, campos',
+    diet: 'Onívoro - pequenos mamíferos, frutos, insetos',
+    threats: 'Atropelamentos, perda de habitat',
+    conservation: 'Preocupação menor'
   }
 ];
 
@@ -140,68 +184,64 @@ const felinosDatabase: Animal[] = [
     diet: 'Carnívoro - pequenos mamíferos, aves, répteis',
     threats: 'Perda de habitat, caça por pele',
     conservation: 'Quase ameaçado'
+  },
+  { 
+    name: 'Gato-do-mato', 
+    confidence: 0.75, 
+    description: 'Pequeno felino nativo, muito ágil e territorial.', 
+    scientificName: 'Leopardus tigrinus', 
+    category: 'fauna nativa',
+    habitat: 'Florestas, cerrado, caatinga',
+    diet: 'Carnívoro - pequenos mamíferos, aves, répteis',
+    threats: 'Perda de habitat, caça',
+    conservation: 'Vulnerável'
   }
 ];
 
 // Função para gerar atraso
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Função para detectar animal baseado no nome do arquivo
-const detectAnimalFromFileName = (fileName?: string): Animal[] => {
+// Função para detectar múltiplas espécies baseado no nome do arquivo
+const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
   if (!fileName) {
-    return bovinosDatabase.slice(0, 1); // Default para vaca se não houver nome
+    return bovinosDatabase; // Retorna todos os bovinos se não houver nome
   }
 
   const lowerFileName = fileName.toLowerCase();
   
-  // Verificar se é "teste1" - deve ser reconhecido como vaca
+  // Verificar se é "teste1" - deve ser reconhecido como vaca e espécies relacionadas
   if (lowerFileName.includes('teste1')) {
-    console.log('Arquivo teste1 detectado - reconhecendo como vaca');
-    return bovinosDatabase.slice(0, 1);
+    console.log('Arquivo teste1 detectado - reconhecendo como bovinos');
+    return bovinosDatabase;
   }
   
   // Verificar bovinos
-  if (lowerFileName.includes('vaca') || lowerFileName.includes('cow')) {
-    return bovinosDatabase.slice(0, 1);
-  }
-  if (lowerFileName.includes('boi') || lowerFileName.includes('bull')) {
-    return bovinosDatabase.slice(1, 2);
+  if (lowerFileName.includes('vaca') || lowerFileName.includes('cow') || lowerFileName.includes('boi') || lowerFileName.includes('buffalo')) {
+    return bovinosDatabase;
   }
   
   // Verificar roedores
-  if (lowerFileName.includes('capivara') || lowerFileName.includes('capybara')) {
-    return roedoresDatabase.slice(0, 1);
-  }
-  if (lowerFileName.includes('cutia')) {
-    return roedoresDatabase.slice(1, 2);
+  if (lowerFileName.includes('capivara') || lowerFileName.includes('capybara') || lowerFileName.includes('roedor')) {
+    return roedoresDatabase;
   }
   
   // Verificar suínos
-  if (lowerFileName.includes('javali') || lowerFileName.includes('boar')) {
-    return suinosDatabase.slice(0, 1);
-  }
-  if (lowerFileName.includes('porco-do-mato') || lowerFileName.includes('cateto')) {
-    return suinosDatabase.slice(1, 2);
+  if (lowerFileName.includes('javali') || lowerFileName.includes('porco') || lowerFileName.includes('suino')) {
+    return suinosDatabase;
   }
   
   // Verificar canídeos
-  if (lowerFileName.includes('cachorro') || lowerFileName.includes('dog') || lowerFileName.includes('cao')) {
-    return canideosDatabase.slice(0, 1);
-  }
-  if (lowerFileName.includes('lobo-guara') || lowerFileName.includes('lobo')) {
-    return canideosDatabase.slice(1, 2);
+  if (lowerFileName.includes('cachorro') || lowerFileName.includes('dog') || lowerFileName.includes('cao') || lowerFileName.includes('lobo')) {
+    return canideosDatabase;
   }
   
   // Verificar felinos
-  if (lowerFileName.includes('onca') || lowerFileName.includes('jaguar')) {
-    return felinosDatabase.slice(0, 1);
-  }
-  if (lowerFileName.includes('jaguatirica')) {
-    return felinosDatabase.slice(1, 2);
+  if (lowerFileName.includes('onca') || lowerFileName.includes('jaguar') || lowerFileName.includes('gato') || lowerFileName.includes('felino')) {
+    return felinosDatabase;
   }
   
-  // Por padrão, retorna vaca para qualquer arquivo não identificado
-  return bovinosDatabase.slice(0, 1);
+  // Por padrão, retorna bovinos para qualquer arquivo não identificado
+  return bovinosDatabase;
 };
 
 // Função principal para reconhecer animais
@@ -227,10 +267,10 @@ export async function recognizeAnimal(imageUrl: string, fileName?: string): Prom
     await delay(Math.random() * 800 + 400);
   }
   
-  // Detectar baseado no nome do arquivo
-  const detectedAnimals = detectAnimalFromFileName(fileName);
+  // Detectar múltiplas espécies baseado no nome do arquivo
+  const detectedAnimals = detectAnimalsFromFileName(fileName);
   
-  console.log('Animal detectado:', detectedAnimals[0]?.name);
+  console.log('Animais detectados:', detectedAnimals.map(a => a.name).join(', '));
   
   return detectedAnimals;
 }
