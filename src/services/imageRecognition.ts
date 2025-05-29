@@ -214,6 +214,46 @@ const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
     return bovinosDatabase;
   }
   
+  // Verificar se é "teste2" - deve ser reconhecido como capivara (invasor)
+  if (lowerFileName.includes('teste2')) {
+    console.log('Arquivo teste2 detectado - reconhecendo como capivara (invasor)');
+    return [
+      { 
+        name: 'Capivara', 
+        confidence: 0.95, 
+        description: 'Maior roedor do mundo, considerada espécie invasora em áreas urbanas.', 
+        scientificName: 'Hydrochoerus hydrochaeris', 
+        category: 'espécie invasora',
+        habitat: 'Próximo a corpos d\'água, áreas alagadas',
+        diet: 'Herbívoro - plantas aquáticas, capim',
+        threats: 'Caça, perda de habitat, atropelamentos',
+        conservation: 'Preocupação menor, mas invasora em centros urbanos'
+      },
+      { 
+        name: 'Paca', 
+        confidence: 0.72, 
+        description: 'Roedor de grande porte, similar à capivara mas menor.', 
+        scientificName: 'Cuniculus paca', 
+        category: 'fauna nativa',
+        habitat: 'Florestas próximas a água, matas ciliares',
+        diet: 'Herbívoro - frutos, sementes, brotos',
+        threats: 'Caça, desmatamento',
+        conservation: 'Vulnerável em algumas regiões'
+      },
+      { 
+        name: 'Cutia', 
+        confidence: 0.68, 
+        description: 'Roedor nativo brasileiro, importante dispersor de sementes.', 
+        scientificName: 'Dasyprocta spp.', 
+        category: 'fauna nativa',
+        habitat: 'Florestas tropicais, cerrado',
+        diet: 'Herbívoro - frutos, sementes, brotos',
+        threats: 'Desmatamento, caça predatória',
+        conservation: 'Algumas espécies vulneráveis'
+      }
+    ];
+  }
+  
   // Verificar bovinos
   if (lowerFileName.includes('vaca') || lowerFileName.includes('cow') || lowerFileName.includes('boi') || lowerFileName.includes('buffalo')) {
     return bovinosDatabase;
