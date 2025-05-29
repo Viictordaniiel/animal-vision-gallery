@@ -1,12 +1,11 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Dog, AlertTriangle, Circle, TreePine, Home, Cat, Target } from 'lucide-react';
+import { Loader2, RefreshCw, Dog, AlertTriangle, Circle, TreePine, Home, Cat } from 'lucide-react';
 import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
 import AnimalInfoDialog from './AnimalInfoDialog';
-import SensorInfo from './SensorInfo';
-import AnimalTracker from './AnimalTracker';
 
 type Animal = {
   name: string;
@@ -111,7 +110,6 @@ export default function GalleryItem({
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [showAnimalInfo, setShowAnimalInfo] = useState(false);
-  const [trackingEnabled, setTrackingEnabled] = useState(false);
   const { toast } = useToast();
   
   // Initialize video element
@@ -174,53 +172,23 @@ export default function GalleryItem({
     setShowAnimalInfo(true);
   };
 
-  // Auto-enable tracking when animals are detected in video
-  useEffect(() => {
-    if (isVideo && animals.length > 0 && !isAnalyzing) {
-      setTrackingEnabled(true);
-      toast({
-        title: "Rastreamento ativado",
-        description: `Acompanhando movimento de ${animals.length} ${animals.length === 1 ? 'animal' : 'animais'}.`
-      });
-    }
-  }, [animals, isVideo, isAnalyzing]);
-
-  // Check if this file has sensor data
-  const hasSensor = fileName?.toLowerCase().includes('teste1');
-
   return (
     <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
-      {/* Sensor Info - Show before the video/image */}
-      {hasSensor && (
-        <div className="p-4 border-b">
-          <SensorInfo fileName={fileName} />
-        </div>
-      )}
-
       <div className="relative aspect-video w-full overflow-hidden bg-black">
         {isVideo ? (
-          <>
-            <video 
-              ref={videoRef} 
-              className="w-full h-full object-contain"
-              onClick={togglePlayPause}
-              playsInline
-              muted
-              loop
-              onLoadedData={() => setVideoLoaded(true)}
-              style={{
-                minHeight: '200px',
-                backgroundColor: '#000'
-              }}
-            />
-            
-            {/* Animal Tracker Overlay */}
-            <AnimalTracker
-              videoRef={videoRef}
-              animals={animals}
-              isActive={trackingEnabled && !isAnalyzing && animals.length > 0}
-            />
-          </>
+          <video 
+            ref={videoRef} 
+            className="w-full h-full object-contain"
+            onClick={togglePlayPause}
+            playsInline
+            muted
+            loop
+            onLoadedData={() => setVideoLoaded(true)}
+            style={{
+              minHeight: '200px',
+              backgroundColor: '#000'
+            }}
+          />
         ) : (
           <img 
             src={imageUrl} 
@@ -251,12 +219,6 @@ export default function GalleryItem({
             {fileName && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                 <span>Arquivo: {fileName}</span>
-                {isVideo && trackingEnabled && (
-                  <div className="flex items-center gap-1 ml-2 text-red-500">
-                    <Target size={14} />
-                    <span>Rastreamento ativo</span>
-                  </div>
-                )}
               </div>
             )}
             
@@ -273,18 +235,6 @@ export default function GalleryItem({
           </div>
           
           <div className="flex gap-2">
-            {isVideo && animals.length > 0 && (
-              <Button 
-                onClick={() => setTrackingEnabled(!trackingEnabled)}
-                variant={trackingEnabled ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Target size={16} />
-                <span>{trackingEnabled ? 'Parar' : 'Iniciar'} Rastreamento</span>
-              </Button>
-            )}
-            
             {showReanalyze && (
               <Button 
                 onClick={onAnalyze} 
