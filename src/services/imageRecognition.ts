@@ -49,18 +49,18 @@ const bovinosDatabase: Animal[] = [
   }
 ];
 
-// Base de dados para capivaras e roedores (invasores/nativos)
+// Base de dados para capivaras e roedores (nativos)
 const roedoresDatabase: Animal[] = [
   { 
     name: 'Capivara', 
     confidence: 0.98, 
-    description: 'Maior roedor do mundo, considerada espécie invasora em áreas urbanas.', 
+    description: 'Maior roedor do mundo, animal nativo da América do Sul.', 
     scientificName: 'Hydrochoerus hydrochaeris', 
-    category: 'espécie invasora',
+    category: 'fauna nativa',
     habitat: 'Próximo a corpos d\'água, áreas alagadas',
     diet: 'Herbívoro - plantas aquáticas, capim',
     threats: 'Caça, perda de habitat, atropelamentos',
-    conservation: 'Preocupação menor, mas invasora em centros urbanos'
+    conservation: 'Preocupação menor'
   },
   { 
     name: 'Paca', 
@@ -214,20 +214,20 @@ const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
     return bovinosDatabase;
   }
   
-  // Verificar se é "teste2" - deve ser reconhecido como capivara (invasor)
+  // Verificar se é "teste2" - deve ser reconhecido como capivara (nativa)
   if (lowerFileName.includes('teste2')) {
-    console.log('Arquivo teste2 detectado - reconhecendo como capivara (invasor)');
+    console.log('Arquivo teste2 detectado - reconhecendo como capivara (nativa)');
     return [
       { 
         name: 'Capivara', 
         confidence: 0.95, 
-        description: 'Maior roedor do mundo, considerada espécie invasora em áreas urbanas.', 
+        description: 'Maior roedor do mundo, animal nativo da América do Sul.', 
         scientificName: 'Hydrochoerus hydrochaeris', 
-        category: 'espécie invasora',
+        category: 'fauna nativa',
         habitat: 'Próximo a corpos d\'água, áreas alagadas',
         diet: 'Herbívoro - plantas aquáticas, capim',
         threats: 'Caça, perda de habitat, atropelamentos',
-        conservation: 'Preocupação menor, mas invasora em centros urbanos'
+        conservation: 'Preocupação menor'
       },
       { 
         name: 'Paca', 
@@ -392,7 +392,7 @@ export async function getScientificName(animalName: string): Promise<string> {
 export function classifyAnimalType(animalName: string): string {
   const lowerName = animalName.toLowerCase();
   
-  if (lowerName.includes('capivara') || lowerName.includes('javali')) {
+  if (lowerName.includes('javali')) {
     return 'Espécie Invasora';
   } else if (lowerName.includes('vaca') || lowerName.includes('cow') || 
              lowerName.includes('cachorro') || lowerName.includes('cão') || 
