@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Dog, AlertTriangle, Circle, TreePine, Home, Cat } from 'lucide-react';
@@ -6,6 +5,7 @@ import { CardContent } from '@/components/ui/card';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
 import AnimalInfoDialog from './AnimalInfoDialog';
+import SensorInfo from './SensorInfo';
 
 type Animal = {
   name: string;
@@ -172,8 +172,18 @@ export default function GalleryItem({
     setShowAnimalInfo(true);
   };
 
+  // Check if this file has sensor data
+  const hasSensor = fileName?.toLowerCase().includes('teste1');
+
   return (
     <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
+      {/* Sensor Info - Show before the video/image */}
+      {hasSensor && (
+        <div className="p-4 border-b">
+          <SensorInfo fileName={fileName} />
+        </div>
+      )}
+
       <div className="relative aspect-video w-full overflow-hidden bg-black">
         {isVideo ? (
           <video 

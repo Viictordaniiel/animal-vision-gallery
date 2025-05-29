@@ -1,4 +1,3 @@
-
 // Simulação de um serviço de reconhecimento de imagens baseado no nome do arquivo
 
 type Animal = {
@@ -11,6 +10,17 @@ type Animal = {
   diet?: string;
   threats?: string;
   conservation?: string;
+};
+
+type SensorData = {
+  sensorId: string;
+  location: string;
+  temperature: number;
+  humidity: number;
+  lightLevel: number;
+  motionDetected: boolean;
+  timestamp: Date;
+  batteryLevel: number;
 };
 
 // Base de dados para bovinos (animais não invasores)
@@ -198,6 +208,18 @@ const felinosDatabase: Animal[] = [
   }
 ];
 
+// Dados do sensor para o arquivo teste1
+const teste1SensorData: SensorData = {
+  sensorId: "SENSOR-001-TESTE1",
+  location: "Pastagem Norte - Setor A",
+  temperature: 24.5,
+  humidity: 68,
+  lightLevel: 85,
+  motionDetected: true,
+  timestamp: new Date(),
+  batteryLevel: 87
+};
+
 // Função para gerar atraso
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -211,7 +233,7 @@ const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
   
   // Verificar se é "teste1" - deve ser reconhecido como vaca e espécies relacionadas
   if (lowerFileName.includes('teste1')) {
-    console.log('Arquivo teste1 detectado - reconhecendo como bovinos');
+    console.log('Arquivo teste1 detectado - reconhecendo como bovinos com sensor ativo');
     return bovinosDatabase;
   }
   
@@ -244,9 +266,34 @@ const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
   return bovinosDatabase;
 };
 
+// Função para obter dados do sensor
+export async function getSensorData(fileName?: string): Promise<SensorData | null> {
+  if (!fileName) return null;
+  
+  const lowerFileName = fileName.toLowerCase();
+  
+  if (lowerFileName.includes('teste1')) {
+    // Simular tempo de leitura do sensor
+    await delay(500);
+    console.log('Dados do sensor coletados para teste1:', teste1SensorData);
+    return {
+      ...teste1SensorData,
+      timestamp: new Date() // Atualizar timestamp
+    };
+  }
+  
+  return null;
+}
+
 // Função principal para reconhecer animais
 export async function recognizeAnimal(imageUrl: string, fileName?: string): Promise<Animal[]> {
   console.log('Analisando arquivo:', fileName || 'sem nome');
+  
+  // Verificar se há sensor ativo para este arquivo
+  const sensorData = await getSensorData(fileName);
+  if (sensorData) {
+    console.log('Sensor ativo detectado:', sensorData);
+  }
   
   // Determinar se é vídeo baseado na extensão do arquivo
   const isVideo = fileName && (
