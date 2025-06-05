@@ -33,6 +33,7 @@ export default function InvasiveSpeciesGallery() {
           detectedAt: new Date(record.detectedAt)
         }));
         setInvasiveSpecies(records);
+        console.log('Carregados registros de espécies invasoras:', records);
       } catch (error) {
         console.error('Erro ao carregar registros de espécies invasoras:', error);
       }
@@ -40,18 +41,24 @@ export default function InvasiveSpeciesGallery() {
 
     // Listen for new invasive species detections
     const handleNewInvasiveSpecies = (event: CustomEvent) => {
+      console.log('Evento de espécie invasora recebido:', event.detail);
       const newRecord = event.detail;
+      
       setInvasiveSpecies(prev => {
         const updated = [newRecord, ...prev];
+        console.log('Salvando registros atualizados:', updated);
         localStorage.setItem('invasiveSpeciesRecords', JSON.stringify(updated));
         return updated;
       });
     };
 
+    // Add event listener
     window.addEventListener('invasiveSpeciesDetected', handleNewInvasiveSpecies as EventListener);
+    console.log('Event listener para espécies invasoras adicionado');
 
     return () => {
       window.removeEventListener('invasiveSpeciesDetected', handleNewInvasiveSpecies as EventListener);
+      console.log('Event listener para espécies invasoras removido');
     };
   }, []);
 
