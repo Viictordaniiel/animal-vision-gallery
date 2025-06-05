@@ -1,9 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Calendar, FileText, Image } from 'lucide-react';
+import { AlertTriangle, Calendar, FileText, Image, Trash } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 
 type InvasiveSpeciesRecord = {
   id: string;
@@ -96,6 +98,27 @@ export default function InvasiveSpeciesGallery() {
     });
   }, [invasiveSpecies]);
 
+  // Function to delete a species record
+  const deleteSpecies = (speciesId: string) => {
+    console.log('🗑️ Excluindo espécie com ID:', speciesId);
+    
+    setInvasiveSpecies(prev => {
+      const updated = prev.filter(species => species.id !== speciesId);
+      console.log('📉 Total de registros após exclusão:', updated.length);
+      
+      // Update localStorage
+      localStorage.setItem('invasiveSpeciesRecords', JSON.stringify(updated));
+      console.log('💾 localStorage atualizado após exclusão');
+      
+      return updated;
+    });
+
+    toast({
+      title: "Espécie removida",
+      description: "Registro excluído da galeria de invasoras."
+    });
+  };
+
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
@@ -157,9 +180,20 @@ export default function InvasiveSpeciesGallery() {
                     </CardDescription>
                   )}
                 </div>
-                <Badge variant="destructive" className="text-xs">
-                  {Math.round(species.confidence * 100)}%
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="destructive" className="text-xs">
+                    {Math.round(species.confidence * 100)}%
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => deleteSpecies(species.id)}
+                    title="Excluir registro"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             
