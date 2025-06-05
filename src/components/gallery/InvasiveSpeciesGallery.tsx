@@ -23,59 +23,78 @@ export default function InvasiveSpeciesGallery() {
 
   // Load invasive species from localStorage on component mount
   useEffect(() => {
-    const stored = localStorage.getItem('invasiveSpeciesRecords');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        // Convert date strings back to Date objects
-        const records = parsed.map((record: any) => ({
-          ...record,
-          detectedAt: new Date(record.detectedAt)
-        }));
-        setInvasiveSpecies(records);
-        console.log('Carregados registros de espécies invasoras:', records);
-      } catch (error) {
-        console.error('Erro ao carregar registros de espécies invasoras:', error);
+    console.log('🔄 InvasiveSpeciesGallery: Carregando componente...');
+    
+    const loadStoredRecords = () => {
+      const stored = localStorage.getItem('invasiveSpeciesRecords');
+      console.log('📁 localStorage invasiveSpeciesRecords:', stored);
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          console.log('📦 Dados parseados:', parsed);
+          
+          // Convert date strings back to Date objects
+          const records = parsed.map((record: any) => ({
+            ...record,
+            detectedAt: new Date(record.detectedAt)
+          }));
+          
+          console.log('✅ Registros processados:', records.length);
+          setInvasiveSpecies(records);
+        } catch (error) {
+          console.error('❌ Erro ao carregar registros de espécies invasoras:', error);
+        }
+      } else {
+        console.log('ℹ️ Nenhum registro encontrado no localStorage');
       }
-    }
+    };
+
+    // Load initial records
+    loadStoredRecords();
 
     // Listen for new invasive species detections
     const handleNewInvasiveSpecies = (event: CustomEvent) => {
-      console.log('Evento de espécie invasora recebido na galeria:', event.detail);
+      console.log('🚨 EVENTO CAPTURADO na galeria:', event.detail);
       const newRecord = event.detail;
       
       setInvasiveSpecies(prev => {
+        console.log('📊 Estado atual da galeria:', prev.length, 'registros');
+        
         // Check if record already exists to avoid duplicates
         const exists = prev.find(item => item.id === newRecord.id);
         if (exists) {
-          console.log('Registro já existe, ignorando duplicata:', newRecord.id);
+          console.log('⚠️ Registro já existe, ignorando duplicata:', newRecord.id);
           return prev;
         }
         
+        console.log('➕ Adicionando novo registro à galeria');
         const updated = [newRecord, ...prev];
-        console.log('Salvando registros atualizados no localStorage:', updated);
-        
-        // Save to localStorage immediately
-        try {
-          localStorage.setItem('invasiveSpeciesRecords', JSON.stringify(updated));
-          console.log('Registros salvos com sucesso no localStorage');
-        } catch (error) {
-          console.error('Erro ao salvar no localStorage:', error);
-        }
+        console.log('📈 Total de registros após adição:', updated.length);
         
         return updated;
       });
     };
 
-    // Add event listener
-    window.addEventListener('invasiveSpeciesDetected', handleNewInvasiveSpecies as EventListener);
-    console.log('Event listener para espécies invasoras adicionado');
+    // Add event listener with proper type casting
+    const eventHandler = handleNewInvasiveSpecies as EventListener;
+    window.addEventListener('invasiveSpeciesDetected', eventHandler);
+    console.log('👂 Event listener para espécies invasoras adicionado');
 
+    // Cleanup function
     return () => {
-      window.removeEventListener('invasiveSpeciesDetected', handleNewInvasiveSpecies as EventListener);
-      console.log('Event listener para espécies invasoras removido');
+      window.removeEventListener('invasiveSpeciesDetected', eventHandler);
+      console.log('🧹 Event listener para espécies invasoras removido');
     };
   }, []);
+
+  // Debug effect to monitor state changes
+  useEffect(() => {
+    console.log('📊 ESTADO ATUALIZADO - Total de espécies invasoras:', invasiveSpecies.length);
+    invasiveSpecies.forEach((species, index) => {
+      console.log(`  ${index + 1}. ${species.name} (${species.id})`);
+    });
+  }, [invasiveSpecies]);
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('pt-BR', {
@@ -97,6 +116,9 @@ export default function InvasiveSpeciesGallery() {
         <p className="text-gray-500">
           Quando espécies invasoras forem identificadas, elas aparecerão aqui automaticamente.
         </p>
+        <div className="mt-4 text-xs text-gray-400">
+          <p>Debug: Aguardando eventos 'invasiveSpeciesDetected'</p>
+        </div>
       </div>
     );
   }
