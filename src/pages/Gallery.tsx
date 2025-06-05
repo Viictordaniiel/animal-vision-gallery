@@ -1,10 +1,11 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, Settings } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Gallery from '@/components/gallery/Gallery';
+import InvasiveSpeciesGallery from '@/components/gallery/InvasiveSpeciesGallery';
 import { 
   Dialog, 
   DialogContent, 
@@ -118,8 +119,6 @@ export default function GalleryPage() {
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
                 
-                {/* Removed the Edit Profile button from here */}
-
                 <button
                   className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   onClick={navigateToSettings}
@@ -144,7 +143,22 @@ export default function GalleryPage() {
       </header>
       
       <main className="flex-1">
-        <Gallery />
+        <div className="container mx-auto px-4 py-6">
+          <Tabs defaultValue="detection" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="detection">Detecção de Animais</TabsTrigger>
+              <TabsTrigger value="gallery">Galeria de Invasoras</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="detection" className="mt-6">
+              <Gallery />
+            </TabsContent>
+            
+            <TabsContent value="gallery" className="mt-6">
+              <InvasiveSpeciesGallery />
+            </TabsContent>
+          </Tabs>
+        </div>
       </main>
       
       <footer className="bg-white border-t py-4">

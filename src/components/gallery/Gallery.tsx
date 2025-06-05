@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, Camera } from 'lucide-react';
@@ -13,6 +12,8 @@ type Animal = {
   name: string;
   confidence: number;
   description?: string;
+  scientificName?: string;
+  category?: string;
 };
 
 // Type for gallery items
@@ -90,6 +91,35 @@ export default function Gallery() {
       console.log(`${isReanalysis ? 'Reanalisando' : 'Analisando'} ${type} com arquivo: ${file.name}`);
       
       const results = await recognizeAnimal(imageUrlWithTimestamp, file.name, isReanalysis, type === 'video');
+      
+      // Check for invasive species and add to gallery
+      const invasiveSpecies = results.filter(animal => 
+        animal.category?.toLowerCase().includes('invasora') || 
+        animal.name.toLowerCase().includes('capivara') ||
+        animal.name.toLowerCase().includes('javali')
+      );
+      
+      // Add invasive species to gallery
+      invasiveSpecies.forEach(species => {
+        const invasiveRecord = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: species.name,
+          confidence: species.confidence,
+          description: species.description,
+          scientificName: species.scientificName,
+          category: species.category || 'Espécie invasora',
+          detectedAt: new Date(),
+          imageUrl: url,
+          fileName: file.name,
+          isVideo: type === 'video'
+        };
+        
+        // Dispatch custom event to notify the invasive species gallery
+        const event = new CustomEvent('invasiveSpeciesDetected', {
+          detail: invasiveRecord
+        });
+        window.dispatchEvent(event);
+      });
       
       // Update current media with results
       setCurrentMedia(prev => {
