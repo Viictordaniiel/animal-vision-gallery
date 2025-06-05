@@ -164,7 +164,7 @@ export default function Gallery() {
           // Show specific toast for invasive species
           toast({
             title: "🚨 Espécie invasora detectada!",
-            description: `${species.name} foi identificada e salva na galeria de invasoras.`,
+            description: `${species.name} - Adicionado à Galeria de Invasoras`,
             variant: "destructive"
           });
         });
