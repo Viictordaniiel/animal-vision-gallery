@@ -78,7 +78,7 @@ export default function Gallery() {
       if (type === 'video') {
         toast({
           title: isReanalysis ? "Reanalisando vídeo" : "Processando vídeo",
-          description: isReanalysis ? "Buscando animais similares..." : "Analisando para identificar espécies."
+          description: isReanalysis ? "Buscando animais similares..." : "Analisando quadros para identificar espécies. Processamento pode demorar mais..."
         });
       } else if (isReanalysis) {
         toast({
@@ -89,7 +89,7 @@ export default function Gallery() {
       
       console.log(`${isReanalysis ? 'Reanalisando' : 'Analisando'} ${type} com arquivo: ${file.name}`);
       
-      const results = await recognizeAnimal(imageUrlWithTimestamp, file.name, isReanalysis);
+      const results = await recognizeAnimal(imageUrlWithTimestamp, file.name, isReanalysis, type === 'video');
       
       // Update current media with results
       setCurrentMedia(prev => {
@@ -109,7 +109,7 @@ export default function Gallery() {
       } else {
         toast({
           title: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}!`,
-          description: "Análise concluída com sucesso."
+          description: type === 'video' ? "Análise de vídeo concluída com sucesso." : "Análise concluída com sucesso."
         });
       }
       
@@ -150,7 +150,7 @@ export default function Gallery() {
       if (currentMedia.type === 'video') {
         toast({
           title: "Reanalisando vídeo",
-          description: "Buscando animais similares..."
+          description: "Buscando animais similares... Processamento pode demorar mais..."
         });
       } else {
         toast({
@@ -162,7 +162,7 @@ export default function Gallery() {
       // Criar um arquivo simulado para manter compatibilidade
       const mockFile = new File([''], currentMedia.fileName || 'unknown', { type: currentMedia.type === 'video' ? 'video/mp4' : 'image/jpeg' });
       
-      const results = await recognizeAnimal(mediaUrlWithTimestamp, currentMedia.fileName, true); // true = reanálise
+      const results = await recognizeAnimal(mediaUrlWithTimestamp, currentMedia.fileName, true, currentMedia.type === 'video'); // true = reanálise
       
       // Update the current media with new results
       setCurrentMedia(prev => {

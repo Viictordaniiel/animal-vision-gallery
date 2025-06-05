@@ -31,13 +31,15 @@ export const classifyAnimalType = (animalName: string): string => {
 };
 
 // Main recognition function
-export const recognizeAnimal = async (imageUrl: string, fileName: string = '', isReanalysis: boolean = false): Promise<Animal[]> => {
+export const recognizeAnimal = async (imageUrl: string, fileName: string = '', isReanalysis: boolean = false, isVideo: boolean = false): Promise<Animal[]> => {
   console.log(`Reconhecendo animal em: ${imageUrl}`);
   console.log(`Nome do arquivo: ${fileName}`);
   console.log(`É reanálise: ${isReanalysis}`);
+  console.log(`É vídeo: ${isVideo}`);
   
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  // Simulate API delay - videos take longer to process
+  const delay = isVideo ? 4500 : 1500; // 4.5 segundos para vídeos, 1.5 para imagens
+  await new Promise(resolve => setTimeout(resolve, delay));
   
   // Get all available animals
   const allAnimals = [
