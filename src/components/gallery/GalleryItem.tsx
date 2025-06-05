@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { classifyAnimalType } from '@/services/imageRecognition';
 import { useToast } from '@/hooks/use-toast';
 import AnimalInfoDialog from './AnimalInfoDialog';
+import MotionDetector from './MotionDetector';
 
 type Animal = {
   name: string;
@@ -110,6 +111,7 @@ export default function GalleryItem({
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [showAnimalInfo, setShowAnimalInfo] = useState(false);
+  const [motionDetectionEnabled, setMotionDetectionEnabled] = useState(false);
   const { toast } = useToast();
   
   // Check if there are invasive species
@@ -179,23 +181,42 @@ export default function GalleryItem({
     setShowAnimalInfo(true);
   };
 
+  const toggleMotionDetection = () => {
+    setMotionDetectionEnabled(!motionDetectionEnabled);
+    if (!motionDetectionEnabled) {
+      toast({
+        title: "Sensor de movimento ativado",
+        description: "O sistema irá detectar e destacar áreas com movimento no vídeo.",
+      });
+    }
+  };
+
   return (
     <div className="relative rounded-lg overflow-hidden border bg-background shadow-sm">
       <div className="relative aspect-video w-full overflow-hidden bg-black">
         {isVideo ? (
-          <video 
-            ref={videoRef} 
-            className="w-full h-full object-contain"
-            onClick={togglePlayPause}
-            playsInline
-            muted
-            loop
-            onLoadedData={() => setVideoLoaded(true)}
-            style={{
-              minHeight: '200px',
-              backgroundColor: '#000'
-            }}
-          />
+          <div className="relative w-full h-full">
+            <video 
+              ref={videoRef} 
+              className="w-full h-full object-contain"
+              onClick={togglePlayPause}
+              playsInline
+              muted
+              loop
+              onLoadedData={() => setVideoLoaded(true)}
+              style={{
+                minHeight: '200px',
+                backgroundColor: '#000'
+              }}
+            />
+            
+            {/* Detector de movimento */}
+            <MotionDetector 
+              videoRef={videoRef}
+              isEnabled={motionDetectionEnabled}
+              onToggle={toggleMotionDetection}
+            />
+          </div>
         ) : (
           <img 
             src={imageUrl} 
