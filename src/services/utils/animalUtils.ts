@@ -5,6 +5,13 @@ import { suinosDatabase } from '../data/swineAnimals';
 import { canideosDatabase } from '../data/canineAnimals';
 import { felinosDatabase } from '../data/felineAnimals';
 
+// Re-export animal databases for imageRecognition.ts
+export const bovineAnimals = bovinosDatabase;
+export const canineAnimals = canideosDatabase;
+export const felineAnimals = felinosDatabase;
+export const rodentAnimals = roedoresDatabase;
+export const swineAnimals = suinosDatabase;
+
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
