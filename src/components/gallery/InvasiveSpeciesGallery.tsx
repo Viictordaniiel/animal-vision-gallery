@@ -41,13 +41,28 @@ export default function InvasiveSpeciesGallery() {
 
     // Listen for new invasive species detections
     const handleNewInvasiveSpecies = (event: CustomEvent) => {
-      console.log('Evento de espécie invasora recebido:', event.detail);
+      console.log('Evento de espécie invasora recebido na galeria:', event.detail);
       const newRecord = event.detail;
       
       setInvasiveSpecies(prev => {
+        // Check if record already exists to avoid duplicates
+        const exists = prev.find(item => item.id === newRecord.id);
+        if (exists) {
+          console.log('Registro já existe, ignorando duplicata:', newRecord.id);
+          return prev;
+        }
+        
         const updated = [newRecord, ...prev];
-        console.log('Salvando registros atualizados:', updated);
-        localStorage.setItem('invasiveSpeciesRecords', JSON.stringify(updated));
+        console.log('Salvando registros atualizados no localStorage:', updated);
+        
+        // Save to localStorage immediately
+        try {
+          localStorage.setItem('invasiveSpeciesRecords', JSON.stringify(updated));
+          console.log('Registros salvos com sucesso no localStorage');
+        } catch (error) {
+          console.error('Erro ao salvar no localStorage:', error);
+        }
+        
         return updated;
       });
     };

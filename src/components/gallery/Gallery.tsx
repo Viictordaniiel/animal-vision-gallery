@@ -92,6 +92,8 @@ export default function Gallery() {
       
       const results = await recognizeAnimal(imageUrlWithTimestamp, file.name, isReanalysis, type === 'video');
       
+      console.log('Resultados da análise:', results);
+      
       // Check for invasive species with improved detection logic
       const invasiveSpecies = results.filter(animal => {
         const animalName = animal.name.toLowerCase();
@@ -99,13 +101,13 @@ export default function Gallery() {
         
         // Check if it's explicitly marked as invasive species
         if (animalCategory.includes('invasora') || animalCategory.includes('invasiva')) {
+          console.log(`Animal ${animal.name} detectado como invasor por categoria: ${animal.category}`);
           return true;
         }
         
         // Check specific invasive species names
-        if (animalName.includes('javali') || 
-            animalName.includes('capivara') ||
-            animalName.includes('porco-do-mato') && animalCategory.includes('invasora')) {
+        if (animalName.includes('javali')) {
+          console.log(`Javali detectado como espécie invasora: ${animal.name}`);
           return true;
         }
         
@@ -114,36 +116,41 @@ export default function Gallery() {
       
       console.log(`Espécies invasoras detectadas: ${invasiveSpecies.length}`, invasiveSpecies);
       
-      // Add invasive species to gallery
-      invasiveSpecies.forEach(species => {
-        const invasiveRecord = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: species.name,
-          confidence: species.confidence,
-          description: species.description,
-          scientificName: species.scientificName,
-          category: species.category || 'Espécie invasora',
-          detectedAt: new Date(),
-          imageUrl: url,
-          fileName: file.name,
-          isVideo: type === 'video'
-        };
-        
-        console.log('Adicionando espécie invasora à galeria:', invasiveRecord);
-        
-        // Dispatch custom event to notify the invasive species gallery
-        const event = new CustomEvent('invasiveSpeciesDetected', {
-          detail: invasiveRecord
+      // Add invasive species to gallery with more reliable event dispatch
+      if (invasiveSpecies.length > 0) {
+        invasiveSpecies.forEach((species, index) => {
+          const invasiveRecord = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`,
+            name: species.name,
+            confidence: species.confidence,
+            description: species.description,
+            scientificName: species.scientificName,
+            category: species.category || 'Espécie invasora',
+            detectedAt: new Date(),
+            imageUrl: url,
+            fileName: file.name,
+            isVideo: type === 'video'
+          };
+          
+          console.log('Adicionando espécie invasora à galeria:', invasiveRecord);
+          
+          // Use setTimeout to ensure event is dispatched after current execution
+          setTimeout(() => {
+            const event = new CustomEvent('invasiveSpeciesDetected', {
+              detail: invasiveRecord
+            });
+            window.dispatchEvent(event);
+            console.log('Evento invasiveSpeciesDetected disparado para:', species.name);
+          }, 100);
+          
+          // Show specific toast for invasive species
+          toast({
+            title: "Espécie invasora detectada!",
+            description: `${species.name} foi adicionada à galeria de invasoras.`,
+            variant: "destructive"
+          });
         });
-        window.dispatchEvent(event);
-        
-        // Show specific toast for invasive species
-        toast({
-          title: "Espécie invasora detectada!",
-          description: `${species.name} foi adicionada à galeria de invasoras.`,
-          variant: "destructive"
-        });
-      });
+      }
       
       // Update current media with results
       setCurrentMedia(prev => {
