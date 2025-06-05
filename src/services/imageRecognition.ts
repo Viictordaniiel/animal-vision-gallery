@@ -37,8 +37,8 @@ export const recognizeAnimal = async (imageUrl: string, fileName: string = '', i
   console.log(`É reanálise: ${isReanalysis}`);
   console.log(`É vídeo: ${isVideo}`);
   
-  // Simulate API delay - videos take longer to process
-  const delay = isVideo ? 4500 : 1500; // 4.5 segundos para vídeos, 1.5 para imagens
+  // Simulate API delay - 8-10 seconds for more realistic processing time
+  const delay = Math.random() * 2000 + 8000; // Entre 8 e 10 segundos
   await new Promise(resolve => setTimeout(resolve, delay));
   
   // Get all available animals
