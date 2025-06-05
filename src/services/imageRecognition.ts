@@ -326,7 +326,7 @@ const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
   }
   
   // Verificar felinos
-  if (lowerFileName.includes('onca') || lowerFileName.includes('jaguar') || lowerFileName.includes('gato') || lowerFileName.includes('felino')) {
+  if (lowerFileName.includes('onça') || lowerFileName.includes('jaguar') || lowerFileName.includes('gato') || lowerFileName.includes('felino')) {
     return felinosDatabase;
   }
   
@@ -426,22 +426,24 @@ export async function recognizeAnimal(imageUrl: string, fileName?: string, isRea
   const fileKey = `${fileName}-${imageUrl}`;
   
   if (isReanalysis && originalDetections.has(fileKey)) {
-    // Se é reanálise, manter o animal principal e adicionar similares
+    // Se é reanálise, pegar o animal com maior confiança da detecção original
     const originalAnimals = originalDetections.get(fileKey)!;
-    const mainAnimal = originalAnimals[0]; // Animal principal (primeiro detectado)
+    const mainAnimal = originalAnimals.reduce((prev, current) => 
+      (prev.confidence > current.confidence) ? prev : current
+    );
     
-    console.log('Reanálise: mantendo animal principal:', mainAnimal.name);
+    console.log('Reanálise: mantendo animal principal:', mainAnimal.name, 'com confiança:', mainAnimal.confidence);
     
     // Obter animais similares
     const similarAnimals = getSimilarAnimals(mainAnimal);
     
-    // Limitar a 3-4 animais similares
-    const limitedSimilarAnimals = similarAnimals.slice(0, 3);
+    // Limitar a 2-3 animais similares
+    const limitedSimilarAnimals = similarAnimals.slice(0, 2);
     
     // Retornar animal principal + similares
     const result = [mainAnimal, ...limitedSimilarAnimals];
     
-    console.log('Animais na reanálise:', result.map(a => a.name).join(', '));
+    console.log('Animais na reanálise:', result.map(a => `${a.name} (${Math.round(a.confidence * 100)}%)`).join(', '));
     return result;
   } else {
     // Primeira análise - detectar normalmente
