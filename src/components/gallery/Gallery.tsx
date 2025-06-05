@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, Camera } from 'lucide-react';
@@ -60,10 +61,10 @@ export default function Gallery() {
     setCurrentMedia(newMedia);
 
     // Automatically analyze the uploaded media
-    analyzeMedia(imageUrl, file, mediaType);
+    analyzeMedia(imageUrl, file, mediaType, false); // false = primeira análise
   };
   
-  const analyzeMedia = async (url: string, file: File, type: 'image' | 'video') => {
+  const analyzeMedia = async (url: string, file: File, type: 'image' | 'video', isReanalysis: boolean = false) => {
     setIsAnalyzing(true);
     
     try {
@@ -76,14 +77,19 @@ export default function Gallery() {
       // For videos, notify that we're processing frames
       if (type === 'video') {
         toast({
-          title: "Processando vídeo",
-          description: "Analisando para identificar espécies."
+          title: isReanalysis ? "Reanalisando vídeo" : "Processando vídeo",
+          description: isReanalysis ? "Buscando animais similares..." : "Analisando para identificar espécies."
+        });
+      } else if (isReanalysis) {
+        toast({
+          title: "Reanalisando imagem",
+          description: "Buscando animais similares..."
         });
       }
       
-      console.log(`Analisando ${type} com arquivo: ${file.name}`);
+      console.log(`${isReanalysis ? 'Reanalisando' : 'Analisando'} ${type} com arquivo: ${file.name}`);
       
-      const results = await recognizeAnimal(imageUrlWithTimestamp, file.name);
+      const results = await recognizeAnimal(imageUrlWithTimestamp, file.name, isReanalysis);
       
       // Update current media with results
       setCurrentMedia(prev => {
@@ -95,10 +101,17 @@ export default function Gallery() {
         };
       });
       
-      toast({
-        title: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}!`,
-        description: "Análise concluída com sucesso."
-      });
+      if (isReanalysis) {
+        toast({
+          title: "Reanálise concluída",
+          description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''} (incluindo similares).`
+        });
+      } else {
+        toast({
+          title: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}!`,
+          description: "Análise concluída com sucesso."
+        });
+      }
       
     } catch (error) {
       console.error('Erro ao analisar mídia:', error);
@@ -136,12 +149,20 @@ export default function Gallery() {
       // Show appropriate message for video processing
       if (currentMedia.type === 'video') {
         toast({
-          title: "Processando vídeo",
-          description: "Reanalisando..."
+          title: "Reanalisando vídeo",
+          description: "Buscando animais similares..."
+        });
+      } else {
+        toast({
+          title: "Reanalisando imagem",
+          description: "Buscando animais similares..."
         });
       }
       
-      const results = await recognizeAnimal(mediaUrlWithTimestamp, currentMedia.fileName);
+      // Criar um arquivo simulado para manter compatibilidade
+      const mockFile = new File([''], currentMedia.fileName || 'unknown', { type: currentMedia.type === 'video' ? 'video/mp4' : 'image/jpeg' });
+      
+      const results = await recognizeAnimal(mediaUrlWithTimestamp, currentMedia.fileName, true); // true = reanálise
       
       // Update the current media with new results
       setCurrentMedia(prev => {
@@ -156,7 +177,7 @@ export default function Gallery() {
       
       toast({
         title: "Reanálise concluída",
-        description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''}.`
+        description: `${results.length} ${results.length === 1 ? 'animal' : 'animais'} identificado${results.length !== 1 ? 's' : ''} (incluindo similares).`
       });
       
     } catch (error) {

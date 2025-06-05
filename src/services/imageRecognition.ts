@@ -334,9 +334,74 @@ const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
   return bovinosDatabase;
 };
 
+// Função para obter animais similares baseado no animal principal
+const getSimilarAnimals = (mainAnimal: Animal): Animal[] => {
+  const allAnimals = [
+    ...bovinosDatabase, 
+    ...roedoresDatabase, 
+    ...suinosDatabase, 
+    ...canideosDatabase, 
+    ...felinosDatabase
+  ];
+
+  // Filtrar animais da mesma categoria ou relacionados
+  const similarAnimals = allAnimals.filter(animal => {
+    // Não incluir o próprio animal principal
+    if (animal.name === mainAnimal.name) return false;
+    
+    // Incluir animais da mesma categoria
+    if (animal.category === mainAnimal.category) return true;
+    
+    // Incluir animais relacionados por tipo
+    const mainType = mainAnimal.name.toLowerCase();
+    const animalType = animal.name.toLowerCase();
+    
+    // Bovinos relacionados
+    if ((mainType.includes('vaca') || mainType.includes('boi')) && 
+        (animalType.includes('vaca') || animalType.includes('boi') || animalType.includes('búfalo'))) {
+      return true;
+    }
+    
+    // Roedores relacionados
+    if ((mainType.includes('capivara') || mainType.includes('paca') || mainType.includes('cutia')) && 
+        (animalType.includes('capivara') || animalType.includes('paca') || animalType.includes('cutia'))) {
+      return true;
+    }
+    
+    // Suínos relacionados
+    if ((mainType.includes('javali') || mainType.includes('porco')) && 
+        (animalType.includes('javali') || animalType.includes('porco'))) {
+      return true;
+    }
+    
+    // Canídeos relacionados
+    if ((mainType.includes('cachorro') || mainType.includes('lobo')) && 
+        (animalType.includes('cachorro') || animalType.includes('lobo') || animalType.includes('cão'))) {
+      return true;
+    }
+    
+    // Felinos relacionados
+    if ((mainType.includes('onça') || mainType.includes('gato') || mainType.includes('jaguatirica')) && 
+        (animalType.includes('onça') || animalType.includes('gato') || animalType.includes('jaguatirica'))) {
+      return true;
+    }
+    
+    return false;
+  });
+  
+  // Ajustar confiança dos animais similares (menor que o principal)
+  return similarAnimals.map(animal => ({
+    ...animal,
+    confidence: Math.max(0.3, animal.confidence - 0.2 - Math.random() * 0.1)
+  }));
+};
+
+// Variável para armazenar detecções originais
+let originalDetections: Map<string, Animal[]> = new Map();
+
 // Função principal para reconhecer animais
-export async function recognizeAnimal(imageUrl: string, fileName?: string): Promise<Animal[]> {
-  console.log('Analisando arquivo:', fileName || 'sem nome');
+export async function recognizeAnimal(imageUrl: string, fileName?: string, isReanalysis: boolean = false): Promise<Animal[]> {
+  console.log('Analisando arquivo:', fileName || 'sem nome', isReanalysis ? '(reanálise)' : '(primeira análise)');
   
   // Determinar se é vídeo baseado na extensão do arquivo
   const isVideo = fileName && (
@@ -357,12 +422,38 @@ export async function recognizeAnimal(imageUrl: string, fileName?: string): Prom
     await delay(Math.random() * 800 + 400);
   }
   
-  // Detectar múltiplas espécies baseado no nome do arquivo
-  const detectedAnimals = detectAnimalsFromFileName(fileName);
+  // Criar chave única para o arquivo
+  const fileKey = `${fileName}-${imageUrl}`;
   
-  console.log('Animais detectados:', detectedAnimals.map(a => a.name).join(', '));
-  
-  return detectedAnimals;
+  if (isReanalysis && originalDetections.has(fileKey)) {
+    // Se é reanálise, manter o animal principal e adicionar similares
+    const originalAnimals = originalDetections.get(fileKey)!;
+    const mainAnimal = originalAnimals[0]; // Animal principal (primeiro detectado)
+    
+    console.log('Reanálise: mantendo animal principal:', mainAnimal.name);
+    
+    // Obter animais similares
+    const similarAnimals = getSimilarAnimals(mainAnimal);
+    
+    // Limitar a 3-4 animais similares
+    const limitedSimilarAnimals = similarAnimals.slice(0, 3);
+    
+    // Retornar animal principal + similares
+    const result = [mainAnimal, ...limitedSimilarAnimals];
+    
+    console.log('Animais na reanálise:', result.map(a => a.name).join(', '));
+    return result;
+  } else {
+    // Primeira análise - detectar normalmente
+    const detectedAnimals = detectAnimalsFromFileName(fileName);
+    
+    // Armazenar detecção original
+    originalDetections.set(fileKey, detectedAnimals);
+    
+    console.log('Primeira análise - animais detectados:', detectedAnimals.map(a => a.name).join(', '));
+    
+    return detectedAnimals;
+  }
 }
 
 // Função para buscar informações sobre animal específico
