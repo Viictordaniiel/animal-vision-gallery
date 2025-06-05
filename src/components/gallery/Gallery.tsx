@@ -92,12 +92,27 @@ export default function Gallery() {
       
       const results = await recognizeAnimal(imageUrlWithTimestamp, file.name, isReanalysis, type === 'video');
       
-      // Check for invasive species and add to gallery
-      const invasiveSpecies = results.filter(animal => 
-        animal.category?.toLowerCase().includes('invasora') || 
-        animal.name.toLowerCase().includes('capivara') ||
-        animal.name.toLowerCase().includes('javali')
-      );
+      // Check for invasive species with improved detection logic
+      const invasiveSpecies = results.filter(animal => {
+        const animalName = animal.name.toLowerCase();
+        const animalCategory = animal.category?.toLowerCase() || '';
+        
+        // Check if it's explicitly marked as invasive species
+        if (animalCategory.includes('invasora') || animalCategory.includes('invasiva')) {
+          return true;
+        }
+        
+        // Check specific invasive species names
+        if (animalName.includes('javali') || 
+            animalName.includes('capivara') ||
+            animalName.includes('porco-do-mato') && animalCategory.includes('invasora')) {
+          return true;
+        }
+        
+        return false;
+      });
+      
+      console.log(`Espécies invasoras detectadas: ${invasiveSpecies.length}`, invasiveSpecies);
       
       // Add invasive species to gallery
       invasiveSpecies.forEach(species => {
@@ -114,11 +129,20 @@ export default function Gallery() {
           isVideo: type === 'video'
         };
         
+        console.log('Adicionando espécie invasora à galeria:', invasiveRecord);
+        
         // Dispatch custom event to notify the invasive species gallery
         const event = new CustomEvent('invasiveSpeciesDetected', {
           detail: invasiveRecord
         });
         window.dispatchEvent(event);
+        
+        // Show specific toast for invasive species
+        toast({
+          title: "Espécie invasora detectada!",
+          description: `${species.name} foi adicionada à galeria de invasoras.`,
+          variant: "destructive"
+        });
       });
       
       // Update current media with results
