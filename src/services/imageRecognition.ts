@@ -1,3 +1,4 @@
+
 // Simulação de um serviço de reconhecimento de imagens baseado no nome do arquivo
 
 type Animal = {
@@ -389,15 +390,19 @@ const getSimilarAnimals = (mainAnimal: Animal): Animal[] => {
     return false;
   });
   
+  // Embaralhar a lista para variedade
+  const shuffledAnimals = similarAnimals.sort(() => Math.random() - 0.5);
+  
   // Ajustar confiança dos animais similares (menor que o principal)
-  return similarAnimals.map(animal => ({
+  return shuffledAnimals.map(animal => ({
     ...animal,
     confidence: Math.max(0.3, animal.confidence - 0.2 - Math.random() * 0.1)
   }));
 };
 
-// Variável para armazenar detecções originais
+// Variável para armazenar detecções originais e contador de reanálises
 let originalDetections: Map<string, Animal[]> = new Map();
+let reanalysisCount: Map<string, number> = new Map();
 
 // Função principal para reconhecer animais
 export async function recognizeAnimal(imageUrl: string, fileName?: string, isReanalysis: boolean = false): Promise<Animal[]> {
@@ -426,22 +431,34 @@ export async function recognizeAnimal(imageUrl: string, fileName?: string, isRea
   const fileKey = `${fileName}-${imageUrl}`;
   
   if (isReanalysis && originalDetections.has(fileKey)) {
+    // Incrementar contador de reanálises
+    const currentCount = reanalysisCount.get(fileKey) || 0;
+    reanalysisCount.set(fileKey, currentCount + 1);
+    
     // Se é reanálise, pegar o animal com maior confiança da detecção original
     const originalAnimals = originalDetections.get(fileKey)!;
     const mainAnimal = originalAnimals.reduce((prev, current) => 
       (prev.confidence > current.confidence) ? prev : current
     );
     
-    console.log('Reanálise: mantendo animal principal:', mainAnimal.name, 'com confiança:', mainAnimal.confidence);
+    console.log('Reanálise:', currentCount + 1, '- mantendo animal principal:', mainAnimal.name, 'com confiança:', mainAnimal.confidence);
     
     // Obter animais similares
     const similarAnimals = getSimilarAnimals(mainAnimal);
     
-    // Limitar a 2-3 animais similares
-    const limitedSimilarAnimals = similarAnimals.slice(0, 2);
+    // A cada reanálise, pegar animais diferentes da lista de similares
+    const startIndex = (currentCount * 2) % similarAnimals.length;
+    const endIndex = Math.min(startIndex + 2, similarAnimals.length);
+    let selectedSimilarAnimals = similarAnimals.slice(startIndex, endIndex);
     
-    // Retornar animal principal + similares
-    const result = [mainAnimal, ...limitedSimilarAnimals];
+    // Se não há animais suficientes, pegar do início
+    if (selectedSimilarAnimals.length < 2 && similarAnimals.length > selectedSimilarAnimals.length) {
+      const remaining = 2 - selectedSimilarAnimals.length;
+      selectedSimilarAnimals = [...selectedSimilarAnimals, ...similarAnimals.slice(0, remaining)];
+    }
+    
+    // Retornar animal principal + similares diferentes
+    const result = [mainAnimal, ...selectedSimilarAnimals];
     
     console.log('Animais na reanálise:', result.map(a => `${a.name} (${Math.round(a.confidence * 100)}%)`).join(', '));
     return result;
@@ -451,6 +468,7 @@ export async function recognizeAnimal(imageUrl: string, fileName?: string, isRea
     
     // Armazenar detecção original
     originalDetections.set(fileKey, detectedAnimals);
+    reanalysisCount.set(fileKey, 0);
     
     console.log('Primeira análise - animais detectados:', detectedAnimals.map(a => a.name).join(', '));
     
