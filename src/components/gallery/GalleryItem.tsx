@@ -42,6 +42,11 @@ const animalColors = {
   'porco-do-mato': '#2ecc71',
   'onça-pintada': '#f39c12',
   jaguatirica: '#f39c12',
+  alce: '#8b4513',
+  rena: '#8b4513',
+  corça: '#8b4513',
+  gazela: '#8b4513',
+  caribu: '#8b4513',
   invasivo: '#ea384c',
   nativo: '#2ecc71',
   default: '#4ecdc4'
@@ -62,6 +67,9 @@ const getAnimalIcon = (animalType: string) => {
     return <TreePine size={16} />;
   } else if (type.includes('onça') || type.includes('jaguatirica')) {
     return <Cat size={16} />;
+  } else if (type.includes('alce') || type.includes('rena') || type.includes('corça') || 
+             type.includes('gazela') || type.includes('caribu')) {
+    return <TreePine size={16} />;
   } else {
     return <Circle size={16} />;
   }
@@ -90,6 +98,16 @@ const getAnimalColor = (animalType: string) => {
     return animalColors['onça-pintada'];
   } else if (type.includes('jaguatirica')) {
     return animalColors.jaguatirica;
+  } else if (type.includes('alce')) {
+    return animalColors.alce;
+  } else if (type.includes('rena')) {
+    return animalColors.rena;
+  } else if (type.includes('corça')) {
+    return animalColors.corça;
+  } else if (type.includes('gazela')) {
+    return animalColors.gazela;
+  } else if (type.includes('caribu')) {
+    return animalColors.caribu;
   } else {
     return animalColors.default;
   }
