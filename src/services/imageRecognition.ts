@@ -1,4 +1,5 @@
 
+
 import { Animal } from './types/animal';
 import { 
   bovineAnimals, 
@@ -53,10 +54,10 @@ export const recognizeAnimal = async (imageUrl: string, fileName: string = '', i
     ...swineAnimals
   ];
   
-  // For teste1, always return 3 animals but vary on reanalysis
-  if (fileName.toLowerCase().includes('teste1')) {
+  // For download1.Mp4, always return 3 animals but vary on reanalysis
+  if (fileName.toLowerCase().includes('download1.mp4')) {
     if (isReanalysis) {
-      // Define pool of similar animals for teste1
+      // Define pool of similar animals for download1.Mp4
       const similarAnimals: Animal[] = [
         { name: 'Búfalo', confidence: 0.92, description: 'Grande bovino de origem asiática, adaptado a climas tropicais.' },
         { name: 'Bisão', confidence: 0.88, description: 'Bovino selvagem norte-americano, robusto e resistente.' },
@@ -273,3 +274,4 @@ export const recognizeAnimal = async (imageUrl: string, fileName: string = '', i
   const shuffled = [...allAnimals].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 3);
 };
+
