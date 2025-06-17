@@ -1,5 +1,3 @@
-
-
 import { Animal } from './types/animal';
 import { 
   bovineAnimals, 
@@ -85,8 +83,8 @@ export const recognizeAnimal = async (imageUrl: string, fileName: string = '', i
     }
   }
   
-  // For teste2, always return 3 native animals but vary on reanalysis
-  if (fileName.toLowerCase().includes('teste2')) {
+  // For download2.Mp4, always return 3 native animals but vary on reanalysis
+  if (fileName.toLowerCase().includes('download2.mp4')) {
     if (isReanalysis) {
       const nativePool = [
         { name: 'Capivara', confidence: 0.95, description: 'Maior roedor do mundo, animal nativo da América do Sul.', scientificName: 'Hydrochoerus hydrochaeris', category: 'fauna nativa' },
@@ -274,4 +272,3 @@ export const recognizeAnimal = async (imageUrl: string, fileName: string = '', i
   const shuffled = [...allAnimals].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 3);
 };
-

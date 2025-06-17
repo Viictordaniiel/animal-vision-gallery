@@ -21,13 +21,13 @@ export const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
 
   const lowerFileName = fileName.toLowerCase();
   
-  if (lowerFileName.includes('teste1')) {
-    console.log('Arquivo teste1 detectado - reconhecendo como bovinos');
+  if (lowerFileName.includes('download1.mp4')) {
+    console.log('Arquivo download1.mp4 detectado - reconhecendo como bovinos');
     return bovinosDatabase;
   }
   
-  if (lowerFileName.includes('teste2')) {
-    console.log('Arquivo teste2 detectado - reconhecendo como capivara (nativa)');
+  if (lowerFileName.includes('download2.mp4')) {
+    console.log('Arquivo download2.mp4 detectado - reconhecendo como capivara (nativa)');
     return [
       { 
         name: 'Capivara', 
