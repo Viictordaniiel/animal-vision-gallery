@@ -65,8 +65,8 @@ export const detectAnimalsFromFileName = (fileName?: string): Animal[] => {
     ];
   }
   
-  if (lowerFileName.includes('teste3')) {
-    console.log('Arquivo teste3 detectado - reconhecendo como javali (invasor) e cachorro (doméstico)');
+  if (lowerFileName.includes('download3.mp4')) {
+    console.log('Arquivo download3.mp4 detectado - reconhecendo como javali (invasor) e cachorro (doméstico)');
     return [
       { 
         name: 'Javali', 

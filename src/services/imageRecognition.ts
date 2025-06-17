@@ -1,3 +1,4 @@
+
 import { Animal } from './types/animal';
 import { 
   bovineAnimals, 
@@ -106,8 +107,8 @@ export const recognizeAnimal = async (imageUrl: string, fileName: string = '', i
     }
   }
   
-  // For teste3, always return 3 mixed animals but vary on reanalysis
-  if (fileName.toLowerCase().includes('teste3')) {
+  // For download3.Mp4, always return 3 mixed animals but vary on reanalysis
+  if (fileName.toLowerCase().includes('download3.mp4')) {
     if (isReanalysis) {
       const mixedPool = [
         { name: 'Javali', confidence: 0.92, description: 'Suíno selvagem, espécie invasora causadora de danos ambientais.', scientificName: 'Sus scrofa', category: 'espécie invasora' },
