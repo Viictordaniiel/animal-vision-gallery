@@ -1,12 +1,10 @@
 
 import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Calendar, FileText, Image, Trash, Power } from 'lucide-react';
+import { AlertTriangle, Calendar, FileText, Image, Trash } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 
 type InvasiveSpeciesRecord = {
@@ -24,7 +22,6 @@ type InvasiveSpeciesRecord = {
 
 export default function InvasiveSpeciesGallery() {
   const [invasiveSpecies, setInvasiveSpecies] = useState<InvasiveSpeciesRecord[]>([]);
-  const [sensorsEnabled, setSensorsEnabled] = useState(true);
 
   // Load invasive species from localStorage on component mount
   useEffect(() => {
@@ -54,12 +51,6 @@ export default function InvasiveSpeciesGallery() {
         console.log('ℹ️ Nenhum registro encontrado no localStorage');
       }
     };
-
-    // Load initial sensors state
-    const storedSensorsState = localStorage.getItem('sensorsEnabled');
-    if (storedSensorsState !== null) {
-      setSensorsEnabled(JSON.parse(storedSensorsState));
-    }
 
     // Load initial records
     loadStoredRecords();
@@ -107,22 +98,6 @@ export default function InvasiveSpeciesGallery() {
     });
   }, [invasiveSpecies]);
 
-  // Handle sensors toggle
-  const handleSensorsToggle = (enabled: boolean) => {
-    setSensorsEnabled(enabled);
-    localStorage.setItem('sensorsEnabled', JSON.stringify(enabled));
-    
-    toast({
-      title: enabled ? "Sensores ativados" : "Sensores desativados",
-      description: enabled 
-        ? "Sistema de monitoramento em funcionamento" 
-        : "Sistema de monitoramento pausado",
-      variant: enabled ? "default" : "destructive"
-    });
-    
-    console.log(`🔌 Sensores ${enabled ? 'LIGADOS' : 'DESLIGADOS'}`);
-  };
-
   // Function to delete a species record
   const deleteSpecies = (speciesId: string) => {
     console.log('🗑️ Excluindo espécie com ID:', speciesId);
@@ -164,20 +139,6 @@ export default function InvasiveSpeciesGallery() {
             {invasiveSpecies.length} {invasiveSpecies.length === 1 ? 'espécie' : 'espécies'}
           </Badge>
         </div>
-        
-        {/* Controle de Sensores */}
-        <div className="flex items-center space-x-3 bg-white p-3 rounded-lg border shadow-sm">
-          <Power className={`h-5 w-5 ${sensorsEnabled ? 'text-green-600' : 'text-red-600'}`} />
-          <Label htmlFor="sensors-toggle" className="text-sm font-medium">
-            Sensores {sensorsEnabled ? 'Ligados' : 'Desligados'}
-          </Label>
-          <Switch
-            id="sensors-toggle"
-            checked={sensorsEnabled}
-            onCheckedChange={handleSensorsToggle}
-          />
-          <div className={`w-2 h-2 rounded-full ${sensorsEnabled ? 'bg-green-500' : 'bg-red-500'}`} />
-        </div>
       </div>
 
       <Alert variant="destructive" className="mb-6">
@@ -187,15 +148,6 @@ export default function InvasiveSpeciesGallery() {
           Recomenda-se contatar as autoridades ambientais competentes para manejo adequado.
         </AlertDescription>
       </Alert>
-
-      {!sensorsEnabled && (
-        <Alert className="mb-6 border-orange-200 bg-orange-50">
-          <Power className="h-4 w-4 text-orange-600" />
-          <AlertDescription>
-            <strong>Aviso:</strong> Os sensores estão desativados. O sistema não está coletando novos dados de monitoramento.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {invasiveSpecies.length === 0 ? (
         <div className="text-center py-12">
